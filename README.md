@@ -3,10 +3,10 @@
 Veridoc is an invoice and purchase-order intelligence system designed to answer
 a question that OCR alone cannot: **is the extracted document data trustworthy?**
 
-Phase 1 now validates one invoice image or PDF, runs a replaceable Tesseract OCR
-baseline, and returns raw page text with optional confidence. Structured field
-extraction, reference comparison, anomaly detection, explanations, and verdicts
-remain later phases.
+Phase 2 validates one invoice image or PDF, runs a replaceable Tesseract OCR
+baseline, and returns either raw page text or typed evidence-linked extraction
+through a replaceable OpenAI Responses adapter. Reference comparison, anomaly
+detection, explanations, and verdicts remain later phases.
 
 ## Why Veridoc
 
@@ -29,6 +29,10 @@ of record, or autonomous payment approver.
 - typed `OCREngine` boundary with Tesseract adapter and `TESSERACT_LANG` support;
 - sequential PDF page rasterization and RGB image decoding;
 - `POST /ocr` raw OCR response with page text and optional confidence;
+- normalized in-memory page images paired with OCR text for vision extraction;
+- typed invoice, line-item, evidence, uncertainty, and confidence schemas;
+- a typed single-node LangGraph extraction flow;
+- `POST /extract` using a mockable OpenAI Responses adapter;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
 
@@ -39,12 +43,26 @@ Prerequisites:
 - Git
 - [uv](https://docs.astral.sh/uv/)
 - Tesseract OCR executable with the trained data for requested languages
+- an OpenAI API key and vision-capable model when using `POST /extract`
 
 From the repository root:
 
 ```bash
 uv python install 3.12
 uv sync --all-groups --locked
+```
+
+For structured extraction, configure an OpenAI API key and a current
+vision-capable Responses API model in the same shell:
+
+```powershell
+$env:OPENAI_API_KEY = "replace-with-your-key"
+$env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
+```
+
+Start the local API:
+
+```bash
 uv run uvicorn veridoc.app:app --reload
 ```
 
@@ -114,6 +132,21 @@ Uploads are limited to 10 MiB, 20 PDF pages, and 20,000,000 decoded/rendered
 pixels. The declared content type must match the validated signature. See the
 [API guide](docs/api.md) for the complete error contract.
 
+## Structured extraction request
+
+With `OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` configured, submit the same
+validated multipart document to `/extract`:
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/extract \
+  -F "file=@fictional-invoice.png;type=image/png"
+```
+
+The typed response preserves absent fields as `null`, reports OCR and extraction
+confidence separately, and returns page/source evidence plus uncertainty rather
+than fabricating missing data. See the [API guide](docs/api.md) for the complete
+schema, limits, and error responses.
+
 ## Tests and quality checks
 
 Run the complete suite:
@@ -122,12 +155,15 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 1 tests:
+Run focused Phase 2 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
+uv run pytest tests/test_extraction_graph.py
+uv run pytest tests/test_openai_responses.py
+uv run pytest tests/test_extraction_api.py
 ```
 
 Run lint and formatting checks:
@@ -137,7 +173,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-No static type checker or coverage threshold is configured in Phase 1. See the
+No static type checker or coverage threshold is configured in Phase 2. See the
 [testing guide](docs/testing.md) for test boundaries and required evidence.
 
 ## Architecture
@@ -145,6 +181,8 @@ No static type checker or coverage threshold is configured in Phase 1. See the
 ```text
 multipart upload -> validation -> temporary file -> page decode
     -> OCREngine -> Tesseract -> typed OCRResponse
+    -> OCR text + normalized page images -> extraction graph
+    -> StructuredExtractor -> typed InvoiceExtraction
 ```
 
 The planned version 1 flow continues after OCR:
@@ -153,9 +191,8 @@ The planned version 1 flow continues after OCR:
 ingestion -> OCR -> structured extraction -> verification -> explanation -> verdict
 ```
 
-LangGraph, a vision-capable LLM, SQLite persistence, and deterministic anomaly
-verification are not implemented yet. See [architecture](docs/architecture.md)
-for boundaries and tradeoffs.
+SQLite persistence and deterministic anomaly verification are not implemented
+yet. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
 
 ## Repository structure
 
@@ -171,9 +208,11 @@ for boundaries and tradeoffs.
 │   ├── testing.md
 │   └── decisions/
 │       ├── README.md
-│       └── 0001-use-tesseract-for-v1.md
+│       ├── 0001-use-tesseract-for-v1.md
+│       └── 0002-use-openai-responses-for-phase-2.md
 ├── src/
 │   └── veridoc/
+│       ├── extraction/
 │       ├── ingestion/
 │       ├── ocr/
 │       ├── __init__.py
@@ -191,12 +230,14 @@ for boundaries and tradeoffs.
 
 ## Configuration and data
 
-Phase 1 reads two optional process environment variables:
+Phase 2 reads these process environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable on `PATH` | Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or combination |
+| `OPENAI_API_KEY` | none | Required credential for `/extract` |
+| `VERIDOC_LLM_MODEL` | none | Required vision-capable model for `/extract` |
 
 The application does not load `.env`. Never commit real credentials, invoices,
 production documents, personal information, customer data, or confidential
@@ -209,13 +250,13 @@ security](docs/data-and-security.md).
 | --- | --- | --- |
 | 0 | Repository, FastAPI health scaffold, tests, initial documentation | Complete |
 | 1 | Safe invoice ingestion and one OCR baseline | Complete |
-| 2 | Typed invoice extraction and LangGraph state/node | Awaiting approval |
+| 2 | Typed invoice extraction and LangGraph state/node | Complete |
 | 3 | SQLite reference repository and deterministic/statistical verification | Not approved |
 | 4 | Evidence-grounded explanation layer | Not approved |
 | 5 | Complete processing API and minimal review interface | Not approved |
 | 6 | Final integration, documentation, and operational pass | Not approved |
 
-Work stops after Phase 1 until Phase 2 is explicitly approved.
+Work stops after Phase 2 until Phase 3 is explicitly approved.
 
 ## Documentation
 
@@ -231,8 +272,8 @@ Work stops after Phase 1 until Phase 2 is explicitly approved.
 
 ## Current limitations
 
-Veridoc does not yet extract structured invoice fields, identify vendors, compare
-purchase orders or vendor history, detect anomalies, generate explanations,
-persist reference data, authenticate requests, correlate requests, scan for
-malware, or provide a review interface. The OCR endpoint is a local Phase 1
-boundary and is not production ready.
+Veridoc does not yet identify vendors against reference data, compare purchase
+orders or vendor history, detect anomalies, generate explanations, persist
+reference data, authenticate requests, correlate requests, scan for malware, or
+provide a review interface. The extraction endpoint is a local Phase 2 boundary
+and is not production ready.
