@@ -136,9 +136,15 @@ def _detect_media_type(data: bytes) -> DocumentMediaType:
 def _validate_image(data: bytes, media_type: DocumentMediaType) -> tuple[int, int, int]:
     try:
         with Image.open(BytesIO(data)) as image:
-            image.load()
             image_format = image.format
             width, height = image.size
+            if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+                raise UploadValidationError(
+                    "image_too_large",
+                    f"Decoded images must not exceed {MAX_IMAGE_PIXELS} pixels.",
+                    status_code=413,
+                )
+            image.load()
     except (Image.DecompressionBombError, Image.UnidentifiedImageError, OSError) as exc:
         raise UploadValidationError(
             "malformed_document",
@@ -151,12 +157,6 @@ def _validate_image(data: bytes, media_type: DocumentMediaType) -> tuple[int, in
             "signature_mismatch",
             "The document signature does not match its encoded format.",
             status_code=415,
-        )
-    if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
-        raise UploadValidationError(
-            "image_too_large",
-            f"Decoded images must not exceed {MAX_IMAGE_PIXELS} pixels.",
-            status_code=413,
         )
     return 1, width, height
 

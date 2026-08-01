@@ -88,14 +88,23 @@ def test_malformed_signature_is_rejected() -> None:
 
 
 def test_image_pixel_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
+    payload = _png_bytes((3, 2))
     monkeypatch.setattr("veridoc.ingestion.validation.MAX_IMAGE_PIXELS", 4)
+    load_called = False
+
+    def unexpected_load(self: Image.Image, *args: object, **kwargs: object) -> None:
+        del self, args, kwargs
+        nonlocal load_called
+        load_called = True
+        raise AssertionError("oversized images must be rejected before decoding")
+
+    monkeypatch.setattr(Image.Image, "load", unexpected_load)
 
     with pytest.raises(UploadValidationError) as error:
-        validate_upload(
-            _png_bytes((3, 2)), filename="invoice.png", declared_content_type=None
-        )
+        validate_upload(payload, filename="invoice.png", declared_content_type=None)
 
     assert error.value.code == "image_too_large"
+    assert not load_called
     assert MAX_IMAGE_PIXELS > 4
 
 
