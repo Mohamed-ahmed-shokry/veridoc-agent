@@ -20,9 +20,15 @@ class OCRUnavailableError(RuntimeError):
     code = "ocr_unavailable"
     message = "OCR is not available on this server."
 
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
 
 class OCRProcessingError(RuntimeError):
     """Raised when a validated document cannot be processed safely."""
 
     code = "ocr_processing_failed"
     message = "The document could not be processed safely."
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
