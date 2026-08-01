@@ -1,8 +1,18 @@
 """FastAPI application setup for Veridoc."""
 
+from typing import Literal
+
 from fastapi import FastAPI
+from pydantic import BaseModel
 
 from veridoc import __version__
+
+
+class HealthResponse(BaseModel):
+    """Typed response returned by the service health check."""
+
+    status: Literal["ok"] = "ok"
+
 
 app = FastAPI(
     title="Veridoc",
