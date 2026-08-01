@@ -1,8 +1,9 @@
 # Development
 
-This guide covers the implemented Phase 3 upload, OCR, structured extraction,
-local reference persistence, and deterministic verification boundaries. Public
-verification orchestration, explanations, and final verdicts remain unimplemented.
+This guide covers the implemented Phase 4 upload, OCR, structured extraction,
+local reference persistence, deterministic verification, and internal
+evidence-grounded explanation boundaries. Public processing orchestration and
+final verdicts remain unimplemented.
 
 ## Prerequisites
 
@@ -11,7 +12,7 @@ verification orchestration, explanations, and final verdicts remain unimplemente
 - a platform supported by Python 3.12
 - Tesseract OCR executable and trained data for local OCR requests
 - an OpenAI API key and a current vision-capable Responses API model for
-  `POST /extract`
+  `POST /extract` and optional explanation-provider guidance
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -125,6 +126,7 @@ Stop either process with `Ctrl+C`.
 │   ├── extraction/           typed schema, graph, provider protocol, and adapter
 │   ├── persistence/          repository protocol and SQLite adapter
 │   ├── verification/         deterministic rules, service, and graph
+│   ├── explanation/          fallback, provider boundary, service, and graph
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
@@ -134,6 +136,8 @@ Stop either process with `Ctrl+C`.
 │   ├── test_extraction_*.py  extraction contracts, graph, service, and API tests
 │   ├── test_sqlite_repository.py  SQLite reference-data integration tests
 │   ├── test_verification_*.py     deterministic verification tests
+│   ├── test_explanation_*.py      explanation contracts, fallback, and graph tests
+│   ├── test_openai_explanations.py mocked explanation-provider adapter tests
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
@@ -149,10 +153,11 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 3 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+Phase 4 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
 pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
-standard library, so the Phase 3 reference repository adds no package. Do not
-add a second OCR engine, extraction provider, or database dependency without
+standard library, so the Phase 3 reference repository adds no package; Phase 4
+uses the existing LangGraph and OpenAI dependencies. Do not add a second OCR
+engine, extraction/explanation provider, or database dependency without
 approval.
 
 After a dependency change, verify resolution and the complete suite:
@@ -172,8 +177,8 @@ The application has these process environment variables:
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable found on `PATH` | Explicit Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
-| `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` |
-| `VERIDOC_LLM_MODEL` | none | Required vision-capable Responses API model for `/extract` |
+| `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` and an optional explanation adapter |
+| `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and an optional explanation adapter |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
@@ -200,11 +205,13 @@ files are ignored by Git; see [data and security](data-and-security.md) and
 
 ## Logging and data handling
 
-Uvicorn owns basic request and lifecycle logs. The OCR and extraction boundaries
-do not log document bodies, raw OCR text, extracted values, rendered pages,
-credentials, temporary paths, Tesseract output, or provider responses. Uploaded
-bytes are private and ephemeral for one request; the temporary directory is
-removed after success or failure.
+Uvicorn owns basic request and lifecycle logs. The OCR, extraction, verification,
+and explanation boundaries do not log document bodies, raw OCR text, extracted
+values, rendered pages, verification findings, credentials, temporary paths,
+Tesseract output, or provider responses. Explanation providers receive only
+canonical verification findings and responses are requested with storage
+disabled. Uploaded bytes are private and ephemeral for one request; the
+temporary directory is removed after success or failure.
 
 ## Development workflow
 
@@ -230,10 +237,13 @@ protocol.
    OCR/page inputs to it.
 5. Keep deterministic verification dependent on `InvoiceRepository`, never a
    SQLite connection, FastAPI route, or provider SDK.
-6. Keep external executable and provider failures mapped to safe public errors.
-7. Add deterministic synthetic fixtures only when a focused test needs them.
-8. Run focused lint, format, import, and test checks.
-9. Update the affected documentation in the same commit when inseparable or in
+6. Keep explanation facts and numerical context derived from
+   `VerificationFinding`; providers may propose only constrained guidance.
+7. Keep external executable and provider failures mapped to safe public errors
+   or deterministic internal fallbacks.
+8. Add deterministic synthetic fixtures only when a focused test needs them.
+9. Run focused lint, format, import, and test checks.
+10. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-10. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+11. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
