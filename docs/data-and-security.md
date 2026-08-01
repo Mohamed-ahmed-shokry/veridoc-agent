@@ -1,12 +1,13 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 3 accepts document bytes for one ephemeral OCR/extraction request and can
+Phase 4 accepts document bytes for one ephemeral OCR/extraction request and can
 persist local reference facts only when integration code explicitly creates a
-SQLite repository. When
-`/extract` is used, it sends the current request's OCR text and normalized page
-images to the configured OpenAI provider. It is still a local development
-service and must not receive real invoices or production data.
+SQLite repository. When `/extract` is used, it sends the current request's OCR
+text and normalized page images to the configured OpenAI provider. The internal
+explanation adapter sends only canonical verification findings, never document
+bytes, page images, or raw OCR text. It is still a local development service and
+must not receive real invoices or production data.
 
 ## Allowed development data
 
@@ -25,6 +26,8 @@ Phase 2 tests use generated fictional invoice bytes from
 `tests/fixtures/fictional_invoice.py`; no source document is checked in.
 Phase 3 SQLite and verification tests construct fictional vendor history in
 memory or in temporary test databases only.
+Phase 4 explanation tests construct typed fictional findings in memory and mock
+the provider boundary.
 
 ## Prohibited data
 
@@ -58,10 +61,11 @@ The repository tracks `.env.example` with safe comments only. `.gitignore`
 excludes `.env` and `.env.*` while explicitly allowing `.env.example`.
 
 The application reads optional `TESSERACT_CMD` and `TESSERACT_LANG`, plus the
-`OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` required by `/extract`, from the process
-environment; it does not load `.env` files. Keep executable paths, model names,
-and language choices out of committed secrets, and use unmistakably fake
-placeholders in `.env.example` when examples are needed.
+`OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` used by `/extract` and an optional
+explanation adapter, from the process environment; it does not load `.env`
+files. Keep executable paths, model names, and language choices out of committed
+secrets, and use unmistakably fake placeholders in `.env.example` when examples
+are needed.
 
 Before committing, inspect staged changes for accidental credentials and verify
 that any local `.env` remains ignored.
@@ -72,7 +76,8 @@ The application relies on Uvicorn's standard lifecycle and request logs. It does
 not log complete documents, raw OCR text, rendered pages, extracted names or
 identifiers, line items, credentials, authorization headers, raw Tesseract
 output, provider responses, local temporary paths, persisted reference facts, or
-verification findings. Future logs may include
+verification findings, explanation narratives, or numerical context. Future logs
+may include
 only a generated correlation identifier, stage, safe error category, duration,
 and retryability.
 
@@ -101,9 +106,12 @@ unexpected exceptions through the context-managed storage boundary.
 
 The OCR/extraction path retains no uploaded document, rendered page, OCR artifact,
 or extraction result. Rendered page images exist only in memory while the current
-extraction call is built. The Responses adapter sets `store=False`, but that
-request option does not replace an organization-specific review of provider
-retention, regional-processing, account, and contractual controls.
+extraction call is built. The extraction and explanation Responses adapters set
+`store=False`. The explanation adapter receives canonical verification findings
+only, and the service retains their deterministic numerical context rather than
+a provider calculation. That request option and narrowed data payload do not
+replace an organization-specific review of provider retention,
+regional-processing, account, and contractual controls.
 
 ## Local reference-data retention
 
@@ -122,7 +130,7 @@ encryption, backup, lifecycle, and audit policies before handling real data.
 
 ## Current security limitations
 
-Phase 3 has no authentication, authorization, TLS termination, rate limit,
+Phase 4 has no authentication, authorization, TLS termination, rate limit,
 request-correlation middleware, malware scanning, encrypted storage, secret
 manager, audit log, privacy workflow, provider data-residency controls, database
 access control, backup policy, or retention service. Tesseract availability,
