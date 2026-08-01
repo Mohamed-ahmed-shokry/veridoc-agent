@@ -17,3 +17,11 @@ class UploadedDocument:
     filename: str
     media_type: SupportedMediaType
     content: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class RasterPage:
+    """A single document page rendered as a PNG image for OCR."""
+
+    page_number: int
+    image_bytes: bytes
