@@ -1,8 +1,9 @@
 # API
 
-The Phase 1 API accepts one bounded invoice image or PDF and returns raw OCR
-text. It does not extract structured fields, compare purchase orders, detect
-anomalies, or produce a verdict.
+The Phase 2 API accepts one bounded invoice image or PDF. `POST /ocr` returns
+raw OCR text; `POST /extract` adds typed invoice extraction with page-level
+evidence and declared uncertainty. The API does not compare purchase orders,
+detect anomalies, explain findings, or produce a verdict.
 
 ## Local base URL
 
@@ -118,10 +119,89 @@ document bytes, or OCR engine output:
 | `422` | `ocr_processing_failed` | A validated document could not be rendered or processed. |
 | `503` | `ocr_unavailable` | Tesseract or its configured language data is unavailable. |
 
+## `POST /extract`
+
+Validates the same multipart `file` upload as `/ocr`, runs the configured OCR
+baseline, sends normalized OCR text and in-memory PNG page images to the
+configured OpenAI Responses adapter, and returns typed extraction data. The
+upload limits, accepted types, and temporary-file lifetime are identical to
+`POST /ocr`.
+
+### Required configuration
+
+Set these non-empty process environment variables before calling `/extract`:
+
+| Variable | Purpose |
+| --- | --- |
+| `OPENAI_API_KEY` | OpenAI API credential; never commit it. |
+| `VERIDOC_LLM_MODEL` | A current vision-capable model available through the Responses API. |
+
+The application does not load `.env` files. Missing configuration and provider
+availability failures return a safe `503` response.
+
+### Request
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/extract \
+  -F "file=@fictional-invoice.png;type=image/png"
+```
+
+### Successful response
+
+Status: `200 OK`
+
+```json
+{
+  "document_type": "invoice",
+  "vendor_name": "Fictional Supplies Ltd.",
+  "vendor_identifier": null,
+  "invoice_number": "INV-001",
+  "purchase_order_number": null,
+  "invoice_date": null,
+  "due_date": null,
+  "currency": "USD",
+  "subtotal": null,
+  "tax": null,
+  "discount": null,
+  "total": "18400.00",
+  "payment_terms": null,
+  "line_items": [],
+  "ocr_confidence": 91.0,
+  "extraction_confidence": 84.0,
+  "evidence": {
+    "invoice_number": [
+      {
+        "page_number": 1,
+        "source": "ocr_text",
+        "text_span": "Invoice No: INV-001"
+      }
+    ]
+  },
+  "uncertainties": []
+}
+```
+
+`document_type` is `invoice`, `purchase_order`, or `unknown`. Invoice fields
+that are not visible are `null`; they are never invented to fill the schema.
+Amounts are serialized as decimal strings. `ocr_confidence` is calculated from
+the selected OCR baseline, while `extraction_confidence` is provider-reported
+and not a verification verdict. Evidence references use a one-based page number,
+an `ocr_text` or `page_image` source, and an optional text span. Line items use
+the same optional description, product identifier, quantity, unit price, total
+price, and evidence fields.
+
+### Error responses
+
+`/extract` returns the same validation and OCR error envelopes as `/ocr`, plus:
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `422` | `extraction_processing_failed` | The provider did not return valid structured extraction data. |
+| `503` | `extraction_unavailable` | Required provider configuration is missing or the provider cannot be used safely. |
+
 ## Current limitations
 
 The API has no authentication, versioned URL prefix, request correlation
-middleware, persistent storage, structured invoice extraction, LLM integration,
-purchase-order comparison, anomaly detection, explanation layer, or review UI.
-It is a local Phase 1 OCR boundary and is not ready for real documents or
-production traffic.
+middleware, persistent storage, purchase-order comparison, anomaly detection,
+explanation layer, or review UI. It is a local Phase 2 extraction boundary and
+is not ready for real documents or production traffic.
