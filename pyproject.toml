@@ -5,6 +5,7 @@ description = "Invoice and purchase-order verification service"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.141.1",
+    "pillow>=12.3.0",
     "python-multipart>=0.0.32",
     "uvicorn[standard]>=0.52.0",
 ]
