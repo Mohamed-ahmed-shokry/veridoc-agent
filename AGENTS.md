@@ -15,12 +15,16 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Only Phase 0 is approved. The current implementation is deliberately small:
+Only Phase 0 is approved, and its implementation is undergoing the final
+acceptance gate. The current implementation is deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
 - `src/veridoc/app.py` creates the FastAPI application and exposes `GET /health`.
-- `tests/test_health.py` exercises the health endpoint without a network server.
+- `tests/test_app.py` verifies application imports, metadata, and the safe 404
+  response.
+- `tests/test_health.py` verifies health behavior and its required OpenAPI schema
+  without a network server.
 
 OCR, uploads, LangGraph orchestration, structured extraction, persistence,
 verification, explanations, and a review interface are not implemented. Do not
@@ -59,7 +63,7 @@ Run all commands from the repository root.
 
 ```bash
 # Create or synchronize the environment from the committed lockfile.
-uv sync --all-groups
+uv sync --all-groups --locked
 
 # Start the API locally.
 uv run uvicorn veridoc.app:app --reload
@@ -73,6 +77,9 @@ uv run pytest tests/test_health.py
 # Check lint and formatting.
 uv run ruff check .
 uv run ruff format --check .
+
+# Confirm pyproject.toml and uv.lock agree.
+uv lock --check
 
 # Apply formatting when needed.
 uv run ruff format .
@@ -141,9 +148,17 @@ the focused health test when the documented development workflow is affected.
 ## Documentation expectations
 
 `README.md` is the concise user and contributor entry point. The Phase 0
-documentation set is being established under `docs/` with architecture,
-development, testing, data/security, API, and decision-index documents. Do not
-claim that planned endpoints or later-phase capabilities already exist.
+documentation set is:
+
+- `docs/architecture.md` for current boundaries and the explicitly planned flow;
+- `docs/development.md` for setup, commands, configuration, and workflow;
+- `docs/testing.md` for tests, fixtures, mocks, and required evidence;
+- `docs/data-and-security.md` for data, secret, logging, upload, and retention
+  rules;
+- `docs/api.md` for implemented endpoints and limitations; and
+- `docs/decisions/README.md` for ADR conventions and the decision index.
+
+Do not claim that planned endpoints or later-phase capabilities already exist.
 
 Update documentation with the related feature or in the immediately following
 focused documentation commit. Link between documents instead of copying large
