@@ -1,9 +1,10 @@
 # Architecture
 
-Veridoc's implemented Phase 2 boundary accepts one bounded invoice or
+Veridoc's implemented Phase 3 boundary accepts one bounded invoice or
 purchase-order image/PDF, runs OCR, and returns typed extraction data with
-page-level evidence and explicit uncertainty. Verification, explanations, and
-verdicts remain later phases.
+page-level evidence and explicit uncertainty. It also provides local SQLite
+reference persistence and deterministic verification services. API orchestration,
+explanations, and verdicts remain later phases.
 
 ## System boundary
 
@@ -25,6 +26,11 @@ flowchart LR
     Graph --> Extractor["StructuredExtractor protocol"]
     Extractor --> OpenAI["OpenAI Responses adapter"]
     OpenAI --> Typed["InvoiceExtraction at POST /extract"]
+    Typed --> VerifyGraph["Typed LangGraph verification node"]
+    VerifyGraph --> Verify["VerificationService"]
+    Verify --> Repository["InvoiceRepository protocol"]
+    SQLite["SQLite reference adapter"] --> Repository
+    Verify --> Findings["VerificationResult"]
 ```
 
 Validation finishes before expensive decoding, OCR, or external model work.
@@ -49,6 +55,13 @@ images are normalized in memory and are not retained after the request.
   the graph without importing FastAPI or the OpenAI SDK.
 - `veridoc.extraction.openai_responses` implements the protocol with OCR text,
   rendered page images, structured parsing, and safe provider failure mapping.
+- `veridoc.persistence.protocol` defines the invoice and purchase-order
+  reference-data boundary; `veridoc.persistence.sqlite` implements it with local
+  SQLite tables.
+- `veridoc.verification` owns strict findings, pure arithmetic/history/PO
+  comparison rules, an API-neutral service, and a typed single-node verification
+  graph. Verification imports the repository protocol, not SQLite connection
+  code.
 
 ## Typed extraction flow
 
@@ -67,6 +80,21 @@ Evidence is deliberately limited to page number, OCR-or-image source, and an
 optional text span. Stable bounding-box coordinates are not an implemented
 contract.
 
+## Typed verification flow
+
+`VerificationService` accepts an `InvoiceExtraction` and an `InvoiceRepository`.
+It returns a `VerificationResult` containing one structured finding per failed
+deterministic rule, rather than an opaque score. Findings carry observed and
+expected values or ranges, comparison source, rule, severity, and historical
+statistics when applicable. The typed `VerificationState` graph is
+`START -> verify -> END` and is separate from Phase 2 extraction orchestration.
+
+The service checks arithmetic, invoice-date ordering, duplicate invoice numbers,
+purchase-order headers and line items, vendor total/line-item history, line-item
+occurrence, and consistently observed payment terms. It uses a minimum of three
+same-currency observations for statistical comparisons and reports
+`insufficient_history` instead of treating smaller samples as reliable.
+
 ## Dependency direction
 
 ```text
@@ -74,6 +102,8 @@ FastAPI route --> extraction service --> typed graph and protocols
                                               ^
                                               |
                          OCR and OpenAI adapters implement boundaries
+
+verification service --> repository protocol <-- SQLite adapter
 ```
 
 API code does not implement extraction rules. The extraction service does not
@@ -101,11 +131,17 @@ typed result, or raises a safe unavailable/invalid-output error. See
 The adapter is replaced in tests with a fake implementation. Tests never need
 credentials, network access, or a Tesseract executable.
 
-### Persistence — planned for Phase 3
+### Persistence and verification
 
-SQLite will store purchase-order data, invoice identifiers, and synthetic vendor
-history behind a repository interface. No database file, schema, migration,
-repository, or connection exists in Phase 2.
+`SQLiteInvoiceRepository` explicitly creates local tables for vendor invoices,
+purchase orders, and their line items. Amounts are stored as text and recreated
+as `Decimal`; dates use ISO-8601 text. SQLite files are local reference data,
+not a public API or a production deployment configuration. See
+[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
+
+Verification rules are deterministic Python code. Statistical findings use
+Decimal mean, population standard deviation, and z-score calculations; they do
+not call an LLM or ask one to recalculate values.
 
 ## Failure handling and data safety
 
@@ -125,11 +161,12 @@ only the current request's OCR text and normalized page images.
 
 - OCR text and images are combined to preserve layout context that plain text
   alone loses, at the cost of sending document data to the configured provider.
-- A one-node LangGraph establishes a typed extraction boundary without adding
-  unapproved verification or workflow behavior.
+- Separate one-node extraction and verification graphs establish typed stage
+  boundaries without adding unapproved end-to-end API orchestration.
 - Pydantic structured parsing rejects malformed provider output instead of
   attempting an OCR-only or heuristic fallback.
-- Phase 2 contains no vendor identification, purchase-order comparison, SQLite
-  persistence, arithmetic checks, anomaly detection, explanation layer, final
-  verdict, authentication, request correlation, malware scanning, retention
-  service, or review UI.
+- Phase 3 uses extracted vendor names or identifiers as normalized local lookup
+  keys; it does not provide authoritative vendor identity resolution.
+- Phase 3 has no public verification endpoint, explanation layer, final verdict,
+  authentication, request correlation, malware scanning, retention service, or
+  review UI.
