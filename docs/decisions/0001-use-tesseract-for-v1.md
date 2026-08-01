@@ -38,9 +38,15 @@ detection, or a second OCR engine.
 ## Installation and runtime
 
 Install the Tesseract executable separately from Python dependencies. On
-Windows, install Tesseract OCR and add its installation directory to `PATH`, or
-set `TESSERACT_CMD` to the executable path. Install the English trained data
-and the Arabic trained data when Arabic invoices are in scope. On Debian/Ubuntu,
+Windows, the verified winget package can be installed with:
+
+```powershell
+winget install --id UB-Mannheim.TesseractOCR --exact --accept-source-agreements --accept-package-agreements
+```
+
+Add its installation directory to `PATH`, or set `TESSERACT_CMD` to the
+executable path. Install the English trained data and the Arabic trained data
+when Arabic invoices are in scope. On Debian/Ubuntu,
 install `tesseract-ocr`, `tesseract-ocr-eng`, and `tesseract-ocr-ara` with the
 system package manager. Then synchronize this repository with:
 

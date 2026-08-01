@@ -50,6 +50,12 @@ configure:
 $env:TESSERACT_LANG = "eng+ara"
 ```
 
+The verified Windows winget installation command is:
+
+```powershell
+winget install --id UB-Mannheim.TesseractOCR --exact --accept-source-agreements --accept-package-agreements
+```
+
 The default language is `eng`. On Debian or Ubuntu, install `tesseract-ocr`,
 `tesseract-ocr-eng`, and `tesseract-ocr-ara` with the system package manager.
 The API returns `ocr_unavailable` rather than fabricating text when the
