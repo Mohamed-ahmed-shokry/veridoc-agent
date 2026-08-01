@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
+from veridoc.verification.line_items import line_item_key
 from veridoc.verification.models import VerificationFinding
+from veridoc.verification.references import ReferenceLineItem
 from veridoc.verification.vendors import vendor_key_for
 
 
@@ -49,6 +51,7 @@ def check_purchase_order(
                 expected_value=str(purchase_order.total),
             )
         )
+    findings.extend(_check_line_items(invoice, purchase_order.line_items))
     return findings
 
 
@@ -69,3 +72,61 @@ def _mismatch_finding(
             details={"field": field},
         )
     ]
+
+
+def _check_line_items(
+    invoice: InvoiceExtraction, purchase_order_line_items: list[ReferenceLineItem]
+) -> list[VerificationFinding]:
+    findings: list[VerificationFinding] = []
+    for index, invoice_line_item in enumerate(invoice.line_items):
+        key = line_item_key(
+            invoice_line_item.product_identifier, invoice_line_item.description
+        )
+        if key is None:
+            continue
+        matching_purchase_order_line_item = next(
+            (
+                purchase_order_line_item
+                for purchase_order_line_item in purchase_order_line_items
+                if line_item_key(
+                    purchase_order_line_item.product_identifier,
+                    purchase_order_line_item.description,
+                )
+                == key
+            ),
+            None,
+        )
+        if matching_purchase_order_line_item is None:
+            findings.append(
+                VerificationFinding(
+                    finding_type="purchase_order_mismatch",
+                    severity="high",
+                    explanation="The invoice line item does not appear on the referenced purchase order.",
+                    comparison_source="purchase_order",
+                    deterministic_rule="invoice line item must exist on purchase order",
+                    observed_value=key,
+                    expected_value="matching purchase-order line item",
+                    details={"field": "line_item", "line_item_index": index},
+                )
+            )
+            continue
+        for field in ("quantity", "unit_price", "total_price"):
+            observed_value = getattr(invoice_line_item, field)
+            expected_value = getattr(matching_purchase_order_line_item, field)
+            if observed_value is None or expected_value is None:
+                continue
+            if observed_value == expected_value:
+                continue
+            findings.append(
+                VerificationFinding(
+                    finding_type="purchase_order_mismatch",
+                    severity="high",
+                    explanation=f"The invoice line-item {field} does not match the purchase order.",
+                    comparison_source="purchase_order",
+                    deterministic_rule=f"invoice.line_item.{field} == purchase_order.line_item.{field}",
+                    observed_value=str(observed_value),
+                    expected_value=str(expected_value),
+                    details={"field": f"line_item_{field}", "line_item_index": index},
+                )
+            )
+    return findings
