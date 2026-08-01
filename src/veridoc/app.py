@@ -21,7 +21,7 @@ app = FastAPI(
 )
 
 
-@app.get("/health", tags=["system"])
-def health_check() -> dict[str, str]:
+@app.get("/health", response_model=HealthResponse, tags=["system"])
+def health_check() -> HealthResponse:
     """Return the service health status without touching external dependencies."""
-    return {"status": "ok"}
+    return HealthResponse()
