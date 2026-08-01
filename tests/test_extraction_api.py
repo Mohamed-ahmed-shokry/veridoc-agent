@@ -123,6 +123,34 @@ async def test_extract_endpoint_returns_typed_evidence_linked_data() -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_endpoint_reports_missing_provider_configuration_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("VERIDOC_LLM_MODEL", raising=False)
+    app.dependency_overrides[get_ocr_engine] = _FakeOCREngine
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/extract",
+                files={"file": ("fictional-invoice.png", _png_bytes(), "image/png")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": {
+            "code": "extraction_unavailable",
+            "message": "Structured extraction is not available on this server.",
+        }
+    }
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("extractor", "status_code", "code"),
     [
