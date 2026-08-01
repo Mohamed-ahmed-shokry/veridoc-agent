@@ -3,7 +3,10 @@ name = "veridoc"
 version = "0.1.0"
 description = "Invoice and purchase-order verification service"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "fastapi>=0.141.1",
+    "uvicorn[standard]>=0.52.0",
+]
 
 [project.scripts]
 veridoc = "veridoc:main"
