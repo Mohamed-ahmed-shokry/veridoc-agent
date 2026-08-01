@@ -1,13 +1,15 @@
 # Development
 
-This guide covers the implemented Phase 0 scaffold. Later-phase services and
-commands are intentionally absent.
+This guide covers the implemented Phase 1 upload and OCR boundary. Structured
+invoice extraction, graph orchestration, verification, persistence, and the LLM
+boundary remain unimplemented.
 
 ## Prerequisites
 
 - Git
 - [uv](https://docs.astral.sh/uv/)
 - a platform supported by Python 3.12
+- Tesseract OCR executable and trained data for local OCR requests
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -30,6 +32,30 @@ uv sync --all-groups --locked
 `--all-groups` installs the development tools used by tests and quality checks.
 `--locked` fails instead of silently changing `uv.lock`.
 
+## Tesseract setup
+
+Phase 1 uses one OCR engine: Tesseract through `pytesseract`. Install the
+executable separately from Python dependencies. On Windows, install Tesseract
+OCR with English data, add its directory to `PATH`, or set the executable path
+explicitly:
+
+```powershell
+$env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
+```
+
+For bilingual Arabic and Latin invoices, install the Arabic trained data and
+configure:
+
+```powershell
+$env:TESSERACT_LANG = "eng+ara"
+```
+
+The default language is `eng`. On Debian or Ubuntu, install `tesseract-ocr`,
+`tesseract-ocr-eng`, and `tesseract-ocr-ara` with the system package manager.
+The API returns `ocr_unavailable` rather than fabricating text when the
+executable or requested language data is absent. See [ADR 0001](decisions/0001-use-tesseract-for-v1.md)
+for the decision and limitations.
+
 ## Run the service
 
 Start the development server with reload support:
@@ -38,14 +64,19 @@ Start the development server with reload support:
 uv run uvicorn veridoc.app:app --reload
 ```
 
-The service listens on `http://127.0.0.1:8000` by default. Verify it from a
+The service listens on `http://127.0.0.1:8000`. Verify process health from a
 second PowerShell session:
 
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/health
 ```
 
-The expected object has one property, `status`, with value `ok`.
+Run a local OCR request with a fictional invoice:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/ocr `
+  -F "file=@fictional-invoice.png;type=image/png"
+```
 
 The installed console entry point starts the same application without reload:
 
@@ -61,16 +92,17 @@ Stop either process with `Ctrl+C`.
 .
 ├── AGENTS.md                 coding-agent operating rules
 ├── README.md                 project entry point
-├── docs/
-│   ├── decisions/README.md   ADR policy and index
-│   └── development.md        this guide
+├── docs/                     architecture, API, testing, and security guidance
 ├── src/veridoc/
-│   ├── __init__.py           package metadata
-│   ├── __main__.py           console entry point
-│   └── app.py                FastAPI app and health endpoint
+│   ├── ingestion/            bounded upload validation and temporary storage
+│   ├── ocr/                  typed boundary, decoder, and Tesseract adapter
+│   ├── __main__.py            console entry point
+│   └── app.py                FastAPI application and endpoints
 ├── tests/
-│   ├── test_app.py           application import and metadata test
-│   └── test_health.py        health behavior and schema tests
+│   ├── fixtures/             deterministic fictional invoice generators
+│   ├── test_ingestion_*.py   validation and cleanup tests
+│   ├── test_ocr_*.py         OCR contracts, service, and API tests
+│   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
 ```
@@ -85,8 +117,9 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Replace `PACKAGE` with one package name. Do not add a bundle of anticipated
-future dependencies.
+Phase 1 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+pytesseract, and Uvicorn. Do not add a second OCR engine or future graph,
+extraction, LLM, or database dependency.
 
 After a dependency change, verify resolution and the complete suite:
 
@@ -99,28 +132,23 @@ uv run ruff format --check .
 
 ## Configuration
 
-Phase 0 has no required application settings. `.env.example` records that fact;
-the application does not load a `.env` file.
+Phase 1 has two optional process environment variables:
 
-When a later approved phase introduces configuration:
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TESSERACT_CMD` | executable found on `PATH` | Explicit Tesseract executable path |
+| `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
 
-1. read values from the environment at the external boundary;
-2. validate required values at startup with clear errors;
-3. add only safe placeholders to `.env.example`;
-4. keep real `.env` files untracked; and
-5. document every supported variable with the related implementation.
+The application does not load `.env` files. Set variables in the process
+environment or an approved secret/configuration provider; keep `.env.example`
+safe and non-secret.
 
-Never commit credentials, model keys, database secrets, or service tokens.
+## Logging and data handling
 
-## Logging
-
-Phase 0 relies on Uvicorn's standard request and lifecycle logs. Veridoc does not
-yet configure an application logging layer. Do not claim structured document
-processing logs exist.
-
-When I/O stages are approved, logs should carry a correlation identifier and
-stage name, distinguish retryable external failures, and exclude document
-bodies, extracted sensitive values, credentials, and secrets.
+Uvicorn owns basic request and lifecycle logs. The OCR boundary does not log
+document bodies, raw OCR text, extracted values, credentials, temporary paths,
+or Tesseract output. Uploaded bytes are private and ephemeral for one request;
+the temporary directory is removed after success or failure.
 
 ## Development workflow
 
@@ -132,36 +160,20 @@ uv run pytest
 ```
 
 For one small change, run the narrowest relevant tests and checks, inspect the
-diff, and stage only its named files. For example, a change limited to the health
-tests uses:
-
-```bash
-uv run pytest tests/test_health.py
-uv run ruff check tests/test_health.py
-uv run ruff format --check tests/test_health.py
-git status --short
-git diff -- tests/test_health.py
-git add tests/test_health.py
-git diff --staged
-git commit -m "test: describe the single behavior"
-git status --short
-```
-
-The final status output must be empty. Never use broad staging, automatic
-squashing, rebasing, amending, or unrelated cleanup. See `AGENTS.md` for the
-complete atomic-commit protocol.
+diff, stage only its named files, and commit immediately. The final status
+output must be empty. Never use broad staging, automatic squashing, rebasing,
+amending, or unrelated cleanup. See `AGENTS.md` for the complete atomic commit
+protocol.
 
 ## Add a module safely
 
 1. Confirm the module belongs to the currently approved phase.
-2. Put application code under `src/veridoc/` and keep the module focused on one
-   concern.
-3. Keep domain calculations free of FastAPI and external-service imports.
-4. Put external access behind a typed, mockable boundary when that phase is
-   approved.
-5. Add focused tests under `tests/` using deterministic data.
+2. Keep upload validation before expensive decoding and OCR.
+3. Keep OCR behind the typed `OCREngine` protocol and inject it in tests.
+4. Keep external executable failures mapped to safe public errors.
+5. Add deterministic synthetic fixtures only when a focused test needs them.
 6. Run focused lint, format, import, and test checks.
 7. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-8. Update `AGENTS.md` if the package map, commands, conventions, or required
+8. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
