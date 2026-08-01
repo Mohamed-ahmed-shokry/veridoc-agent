@@ -1,0 +1,16 @@
+[project]
+name = "veridoc"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Mohamed-ahmed-shokry", email = "mohamed.shokry.m3as@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[project.scripts]
+veridoc = "veridoc:main"
+
+[build-system]
+requires = ["uv_build>=0.9.13,<0.10.0"]
+build-backend = "uv_build"
