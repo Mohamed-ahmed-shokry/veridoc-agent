@@ -1,10 +1,11 @@
 # Architecture
 
-Veridoc's implemented Phase 3 boundary accepts one bounded invoice or
+Veridoc's implemented Phase 4 boundary accepts one bounded invoice or
 purchase-order image/PDF, runs OCR, and returns typed extraction data with
 page-level evidence and explicit uncertainty. It also provides local SQLite
-reference persistence and deterministic verification services. API orchestration,
-explanations, and verdicts remain later phases.
+reference persistence, deterministic verification services, and an internal
+evidence-grounded explanation layer. Public processing orchestration and
+verdicts remain later phases.
 
 ## System boundary
 
@@ -31,6 +32,12 @@ flowchart LR
     Verify --> Repository["InvoiceRepository protocol"]
     SQLite["SQLite reference adapter"] --> Repository
     Verify --> Findings["VerificationResult"]
+    Findings --> ExplainGraph["Typed LangGraph explanation node"]
+    ExplainGraph --> Explain["ExplanationService"]
+    Explain --> Fallback["Deterministic renderer"]
+    Explain --> Explainer["FindingExplainer protocol"]
+    Explainer --> ExplainOpenAI["OpenAI Responses adapter"]
+    Explain --> Explanations["ExplanationResult"]
 ```
 
 Validation finishes before expensive decoding, OCR, or external model work.
@@ -62,6 +69,13 @@ images are normalized in memory and are not retained after the request.
   comparison rules, an API-neutral service, and a typed single-node verification
   graph. Verification imports the repository protocol, not SQLite connection
   code.
+- `veridoc.explanation` owns strict explanation result and provider-draft
+  schemas, a deterministic renderer, provider-draft validation, an API-neutral
+  service, and a typed single-node explanation graph. It receives verification
+  findings, not OCR or document data.
+- `veridoc.explanation.openai_responses` implements the optional provider
+  boundary. It can propose short guidance only; application code retains the
+  canonical finding and renders all numerical context.
 
 ## Typed extraction flow
 
@@ -95,6 +109,21 @@ occurrence, and consistently observed payment terms. It uses a minimum of three
 same-currency observations for statistical comparisons and reports
 `insufficient_history` instead of treating smaller samples as reliable.
 
+## Typed explanation flow
+
+`ExplanationService` accepts a `VerificationResult` and produces an
+`ExplanationResult` with one `FindingExplanation` per finding. Each explanation
+always carries the original typed finding and deterministic numerical context
+rendered only from that finding's observed value, expected value or range,
+sample size, mean, standard deviation, and z-score.
+
+The typed `ExplanationState` graph is `START -> explain -> END`. Its optional
+`FindingExplainer` receives the canonical findings alone and may propose a
+short action-oriented narrative. The service accepts a provider result only
+when it covers every finding exactly once and contains no numeric, comparative,
+or negated factual claim. Otherwise, including provider unavailability or
+invalid structured output, it returns the deterministic explanation instead.
+
 ## Dependency direction
 
 ```text
@@ -104,11 +133,16 @@ FastAPI route --> extraction service --> typed graph and protocols
                          OCR and OpenAI adapters implement boundaries
 
 verification service --> repository protocol <-- SQLite adapter
+
+explanation service --> finding-explainer protocol <-- OpenAI adapter
+                       |
+                       +--> deterministic renderer
 ```
 
-API code does not implement extraction rules. The extraction service does not
-import FastAPI or the OpenAI SDK. Later verification domain logic must not
-import FastAPI, LangGraph, SQLite connection code, or vendor SDKs.
+API code does not implement extraction or verification rules. The extraction
+and explanation services do not import FastAPI or an OpenAI SDK. Verification
+and explanation domain logic must not import FastAPI, LangGraph, SQLite
+connection code, or vendor SDKs.
 
 ## External boundaries
 
@@ -143,6 +177,19 @@ Verification rules are deterministic Python code. Statistical findings use
 Decimal mean, population standard deviation, and z-score calculations; they do
 not call an LLM or ask one to recalculate values.
 
+### Explanations
+
+`OpenAIResponsesExplainer` uses the same `OPENAI_API_KEY` and
+`VERIDOC_LLM_MODEL` configuration when an injected explanation service elects
+to use it. It sends only serialized `VerificationFinding` values and disables
+response storage. The model returns structured narrative drafts, never an
+authoritative finding or numerical calculation. The application validates each
+draft and deterministically falls back when it is unsafe, incomplete, invalid,
+or unavailable. See [ADR 0004](decisions/0004-use-validated-llm-proposals-for-explanations.md).
+
+The internal explanation graph is not an HTTP endpoint. Phase 5 must decide how
+to compose extraction, verification, explanation, and final verdict delivery.
+
 ## Failure handling and data safety
 
 Upload validation rejects malformed, encrypted/repaired, oversized, unsupported,
@@ -154,8 +201,11 @@ paths, stack traces, credentials, document bytes, raw OCR text, or provider
 responses.
 
 The current implementation does not log document bodies, OCR text, extracted
-fields, rendered pages, credentials, or temporary paths. Provider calls send
-only the current request's OCR text and normalized page images.
+fields, rendered pages, credentials, verification findings, or temporary paths.
+Extraction provider calls send only the current request's OCR text and
+normalized page images. Explanation provider calls send canonical verification
+findings only; neither provider adapter retains a response through the request
+it makes.
 
 ## Current tradeoffs and limitations
 
@@ -167,6 +217,9 @@ only the current request's OCR text and normalized page images.
   attempting an OCR-only or heuristic fallback.
 - Phase 3 uses extracted vendor names or identifiers as normalized local lookup
   keys; it does not provide authoritative vendor identity resolution.
-- Phase 3 has no public verification endpoint, explanation layer, final verdict,
+- Explanation-provider prose is deliberately constrained. Any invalid, unsafe,
+  or unavailable provider output yields a deterministic result rather than an
+  unsupported claim.
+- Phase 4 has no public verification or explanation endpoint, final verdict,
   authentication, request correlation, malware scanning, retention service, or
   review UI.
