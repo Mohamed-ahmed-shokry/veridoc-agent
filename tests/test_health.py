@@ -25,8 +25,10 @@ async def test_health_check_returns_ok_status() -> None:
 
 def test_health_check_declares_typed_response_schema() -> None:
     """OpenAPI identifies the health response through its named schema."""
-    response_schema = app.openapi()["paths"]["/health"]["get"]["responses"]["200"][
-        "content"
-    ]["application/json"]["schema"]
+    openapi = app.openapi()
+    response_schema = openapi["paths"]["/health"]["get"]["responses"]["200"]["content"][
+        "application/json"
+    ]["schema"]
 
     assert response_schema == {"$ref": "#/components/schemas/HealthResponse"}
+    assert openapi["components"]["schemas"]["HealthResponse"]["required"] == ["status"]

@@ -11,7 +11,7 @@ from veridoc import __version__
 class HealthResponse(BaseModel):
     """Typed response returned by the service health check."""
 
-    status: Literal["ok"] = "ok"
+    status: Literal["ok"]
 
 
 app = FastAPI(
@@ -24,4 +24,4 @@ app = FastAPI(
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health_check() -> HealthResponse:
     """Return the service health status without touching external dependencies."""
-    return HealthResponse()
+    return HealthResponse(status="ok")
