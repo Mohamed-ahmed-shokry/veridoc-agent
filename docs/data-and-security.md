@@ -1,7 +1,9 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 2 accepts document bytes for one ephemeral OCR/extraction request. When
+Phase 3 accepts document bytes for one ephemeral OCR/extraction request and can
+persist local reference facts only when integration code explicitly creates a
+SQLite repository. When
 `/extract` is used, it sends the current request's OCR text and normalized page
 images to the configured OpenAI provider. It is still a local development
 service and must not receive real invoices or production data.
@@ -21,6 +23,8 @@ publicly downloadable document is licensed for redistribution.
 
 Phase 2 tests use generated fictional invoice bytes from
 `tests/fixtures/fictional_invoice.py`; no source document is checked in.
+Phase 3 SQLite and verification tests construct fictional vendor history in
+memory or in temporary test databases only.
 
 ## Prohibited data
 
@@ -67,7 +71,8 @@ that any local `.env` remains ignored.
 The application relies on Uvicorn's standard lifecycle and request logs. It does
 not log complete documents, raw OCR text, rendered pages, extracted names or
 identifiers, line items, credentials, authorization headers, raw Tesseract
-output, provider responses, or local temporary paths. Future logs may include
+output, provider responses, local temporary paths, persisted reference facts, or
+verification findings. Future logs may include
 only a generated correlation identifier, stage, safe error category, duration,
 and retryability.
 
@@ -94,21 +99,33 @@ server-generated filename for the processing lifetime. The file and directory
 are removed on success, validation failure, OCR failure, cancellation, and
 unexpected exceptions through the context-managed storage boundary.
 
-Phase 2 retains no uploaded document, rendered page, OCR artifact, or extraction
-result. Rendered page images exist only in memory while the current extraction
-call is built. The Responses adapter sets `store=False`, but that request option
-does not replace an organization-specific review of provider retention,
-regional-processing, account, and contractual controls. The repository-relative
-paths `tmp/uploads/`, `uploads/`, `ocr-artifacts/`, and `artifacts/ocr/` remain
-ignored as defense against accidental future artifacts; ignore rules are not a
-security control.
+The OCR/extraction path retains no uploaded document, rendered page, OCR artifact,
+or extraction result. Rendered page images exist only in memory while the current
+extraction call is built. The Responses adapter sets `store=False`, but that
+request option does not replace an organization-specific review of provider
+retention, regional-processing, account, and contractual controls.
+
+## Local reference-data retention
+
+`SQLiteInvoiceRepository` persists invoice and purchase-order reference fields
+only at the explicit path supplied by local integration code. It does not persist
+document bytes, OCR text, page images, evidence spans, credentials, or provider
+responses. Never seed it with real data in this local Phase 3 stage. The project
+ignores `*.db`, `*.sqlite`, and `*.sqlite3` as defense against accidental commits;
+ignore rules do not encrypt data, set retention periods, control backups, or
+authorize storage.
+
+No API endpoint creates, exports, deletes, or exposes reference data in Phase 3.
+If a local database is no longer needed, remove it only after confirming its path
+and retention requirements. Future deployment work must add access control,
+encryption, backup, lifecycle, and audit policies before handling real data.
 
 ## Current security limitations
 
-Phase 2 has no authentication, authorization, TLS termination, rate limit,
+Phase 3 has no authentication, authorization, TLS termination, rate limit,
 request-correlation middleware, malware scanning, encrypted storage, secret
-manager, audit log, privacy workflow, provider data-residency controls, or
-retention service. Tesseract availability, model selection, provider account
-controls, and trained-data selection are deployment responsibilities. The
-service is not production ready, enterprise grade, fraud proof, or safe for real
-documents.
+manager, audit log, privacy workflow, provider data-residency controls, database
+access control, backup policy, or retention service. Tesseract availability,
+model selection, provider account controls, and trained-data selection are
+deployment responsibilities. The service is not production ready, enterprise
+grade, fraud proof, or safe for real documents.
