@@ -3,10 +3,11 @@
 Veridoc is an invoice and purchase-order intelligence system designed to answer
 a question that OCR alone cannot: **is the extracted document data trustworthy?**
 
-Phase 2 validates one invoice image or PDF, runs a replaceable Tesseract OCR
+Phase 3 validates one invoice image or PDF, runs a replaceable Tesseract OCR
 baseline, and returns either raw page text or typed evidence-linked extraction
-through a replaceable OpenAI Responses adapter. Reference comparison, anomaly
-detection, explanations, and verdicts remain later phases.
+through a replaceable OpenAI Responses adapter. It also supplies local SQLite
+reference persistence and typed deterministic verification. Public verification
+delivery, explanations, and verdicts remain later phases.
 
 ## Why Veridoc
 
@@ -33,6 +34,11 @@ of record, or autonomous payment approver.
 - typed invoice, line-item, evidence, uncertainty, and confidence schemas;
 - a typed single-node LangGraph extraction flow;
 - `POST /extract` using a mockable OpenAI Responses adapter;
+- SQLite invoice and purchase-order reference persistence behind a typed protocol;
+- deterministic arithmetic, duplicate, purchase-order, and vendor-history checks;
+- typed, evidence-rich verification findings with explicit insufficient-history
+  handling;
+- a typed single-node LangGraph verification flow;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
 
@@ -155,7 +161,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 2 tests:
+Run focused Phase 2 and Phase 3 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -164,6 +170,9 @@ uv run pytest tests/test_ocr_api.py
 uv run pytest tests/test_extraction_graph.py
 uv run pytest tests/test_openai_responses.py
 uv run pytest tests/test_extraction_api.py
+uv run pytest tests/test_sqlite_repository.py
+uv run pytest tests/test_verification_service.py
+uv run pytest tests/test_verification_graph.py
 ```
 
 Run lint and formatting checks:
@@ -173,7 +182,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-No static type checker or coverage threshold is configured in Phase 2. See the
+No static type checker or coverage threshold is configured in Phase 3. See the
 [testing guide](docs/testing.md) for test boundaries and required evidence.
 
 ## Architecture
@@ -183,6 +192,7 @@ multipart upload -> validation -> temporary file -> page decode
     -> OCREngine -> Tesseract -> typed OCRResponse
     -> OCR text + normalized page images -> extraction graph
     -> StructuredExtractor -> typed InvoiceExtraction
+    -> verification graph -> VerificationService -> internal VerificationResult
 ```
 
 The planned version 1 flow continues after OCR:
@@ -191,8 +201,9 @@ The planned version 1 flow continues after OCR:
 ingestion -> OCR -> structured extraction -> verification -> explanation -> verdict
 ```
 
-SQLite persistence and deterministic anomaly verification are not implemented
-yet. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
+The HTTP API remains extraction-only: Phase 3 does not yet expose verification
+findings or reference-data management. See [architecture](docs/architecture.md)
+for boundaries and tradeoffs.
 
 ## Repository structure
 
@@ -209,12 +220,15 @@ yet. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
 │   └── decisions/
 │       ├── README.md
 │       ├── 0001-use-tesseract-for-v1.md
-│       └── 0002-use-openai-responses-for-phase-2.md
+│       ├── 0002-use-openai-responses-for-phase-2.md
+│       └── 0003-use-sqlite-for-phase-3-reference-data.md
 ├── src/
 │   └── veridoc/
 │       ├── extraction/
 │       ├── ingestion/
 │       ├── ocr/
+│       ├── persistence/
+│       ├── verification/
 │       ├── __init__.py
 │       ├── __main__.py
 │       └── app.py
@@ -230,7 +244,7 @@ yet. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
 
 ## Configuration and data
 
-Phase 2 reads these process environment variables:
+The current HTTP application reads these process environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -251,12 +265,12 @@ security](docs/data-and-security.md).
 | 0 | Repository, FastAPI health scaffold, tests, initial documentation | Complete |
 | 1 | Safe invoice ingestion and one OCR baseline | Complete |
 | 2 | Typed invoice extraction and LangGraph state/node | Complete |
-| 3 | SQLite reference repository and deterministic/statistical verification | Not approved |
+| 3 | SQLite reference repository and deterministic/statistical verification | Complete |
 | 4 | Evidence-grounded explanation layer | Not approved |
 | 5 | Complete processing API and minimal review interface | Not approved |
 | 6 | Final integration, documentation, and operational pass | Not approved |
 
-Work stops after Phase 2 until Phase 3 is explicitly approved.
+Work stops after Phase 3 until Phase 4 is explicitly approved.
 
 ## Documentation
 
@@ -272,8 +286,7 @@ Work stops after Phase 2 until Phase 3 is explicitly approved.
 
 ## Current limitations
 
-Veridoc does not yet identify vendors against reference data, compare purchase
-orders or vendor history, detect anomalies, generate explanations, persist
-reference data, authenticate requests, correlate requests, scan for malware, or
-provide a review interface. The extraction endpoint is a local Phase 2 boundary
-and is not production ready.
+Veridoc does not yet provide authoritative vendor identity resolution, a public
+verification or reference-data API, explanations, verdicts, authentication,
+request correlation, malware scanning, or a review interface. The extraction
+endpoint remains a local Phase 2 boundary and is not production ready.
