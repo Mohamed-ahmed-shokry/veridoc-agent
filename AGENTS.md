@@ -15,28 +15,37 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 is complete. No later phase is approved. The current implementation is
+Phase 0 is complete and Phase 1 is currently approved. The implementation is
 deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
-- `src/veridoc/app.py` creates the FastAPI application and exposes `GET /health`.
+- `src/veridoc/app.py` creates the FastAPI application, `GET /health`, and
+  `POST /ocr`.
+- `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
+  uploads before decoding.
+- `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
+- `src/veridoc/ocr/service.py` decodes raster images and rasterizes PDF pages.
+- `src/veridoc/ocr/protocol.py` defines the replaceable typed OCR boundary.
+- `src/veridoc/ocr/tesseract.py` adapts the selected Tesseract baseline.
 - `tests/test_app.py` verifies application imports, metadata, and the safe 404
   response.
 - `tests/test_health.py` verifies health behavior and its required OpenAPI schema
   without a network server.
+- `tests/test_ingestion_*.py`, `tests/test_ocr_*.py`, and `tests/test_tesseract.py`
+  cover validation, cleanup, OCR contracts, service composition, and API errors.
 
-OCR, uploads, LangGraph orchestration, structured extraction, persistence,
-verification, explanations, and a review interface are not implemented. Do not
-add any of them until the user explicitly approves the corresponding phase.
+LangGraph orchestration, structured extraction, persistence, verification,
+explanations, and a review interface are not implemented. Do not add any of
+them until the user explicitly approves the corresponding phase.
 
-The approved future workflow is:
+The current and planned workflow is:
 
 ```text
 ingestion -> OCR -> structured extraction -> verification -> explanation -> verdict
 ```
 
-When those layers are approved, dependencies must point inward: API and graph
+When later layers are approved, dependencies must point inward: API and graph
 orchestration may call domain services and boundary protocols; external OCR,
 LLM, and persistence adapters may implement those protocols; domain logic must
 not import FastAPI, LangGraph, SQLite connection code, or vendor SDKs.
@@ -46,10 +55,10 @@ not import FastAPI, LangGraph, SQLite connection code, or vendor SDKs.
 - Use `uv` exclusively for Python versions, dependencies, locking, and commands.
 - Use FastAPI for the HTTP API.
 - Use LangGraph for the processing graph after its phase is approved; it is not
-  installed in Phase 0.
-- Tesseract is the selected version 1 OCR baseline. It is not installed or
-  integrated in Phase 0. Before Phase 1 code, record the decision, limitations,
-  and exact Arabic and Latin installation/runtime instructions in an ADR.
+  installed in Phase 1.
+- Tesseract is the selected version 1 OCR baseline and is integrated behind the
+  typed `OCREngine` protocol in Phase 1. See ADR 0001 for limitations and
+  Arabic/Latin installation and runtime instructions.
 - Use SQLite behind a repository interface when Phase 3 is approved.
 - Use pytest for tests.
 
@@ -74,6 +83,11 @@ uv run pytest
 # Run the focused health test.
 uv run pytest tests/test_health.py
 
+# Run focused Phase 1 boundary tests.
+uv run pytest tests/test_ingestion_validation.py
+uv run pytest tests/test_ocr_service.py
+uv run pytest tests/test_ocr_api.py
+
 # Check lint and formatting.
 uv run ruff check .
 uv run ruff format --check .
@@ -85,7 +99,7 @@ uv lock --check
 uv run ruff format .
 ```
 
-No static type checker is configured in Phase 0. When one is introduced, add
+No static type checker is configured in Phase 1. When one is introduced, add
 its exact command here in the same commit as its configuration.
 
 Add runtime dependencies with `uv add <package>` and development dependencies
@@ -134,9 +148,9 @@ state its exact intended purpose.
 - Test error paths at every I/O boundary when that boundary is introduced.
 - Add a small number of high-value graph integration scenarios rather than a
   broad shallow end-to-end suite.
-- Mock OCR engines, LLM clients, remote storage, and other external services.
-  Tests must not require credentials, network access, or installed service
-  binaries.
+- Mock the OCR engine protocol, LLM clients, remote storage, and other external
+  services. Tests must not require credentials, network access, or an installed
+  Tesseract executable.
 - Use only deterministic synthetic or appropriately licensed fixtures. Never
   copy real invoice or customer data into tests.
 - Run the full suite after dependency, cross-cutting, or graph integration
@@ -147,7 +161,7 @@ the focused health test when the documented development workflow is affected.
 
 ## Documentation expectations
 
-`README.md` is the concise user and contributor entry point. The Phase 0
+`README.md` is the concise user and contributor entry point. The Phase 1
 documentation set is:
 
 - `docs/architecture.md` for current boundaries and the explicitly planned flow;
@@ -157,6 +171,7 @@ documentation set is:
   rules;
 - `docs/api.md` for implemented endpoints and limitations; and
 - `docs/decisions/README.md` for ADR conventions and the decision index.
+- `docs/decisions/0001-use-tesseract-for-v1.md` for the OCR baseline decision.
 
 Do not claim that planned endpoints or later-phase capabilities already exist.
 
@@ -183,9 +198,9 @@ following documentation commit.
 - Do not log document bodies, secrets, credentials, or sensitive extracted
   fields. Use correlation identifiers and stage names for operational context.
 - Validate content type, signature, size, page/pixel bounds, and filenames before
-  expensive parsing when uploads are approved.
+  expensive parsing at the implemented upload boundary.
 - Bound streaming reads, isolate temporary files, clean them up deterministically,
-  and document retention behavior before accepting documents.
+  and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw
   document content.
 
@@ -193,7 +208,8 @@ following documentation commit.
 
 - Phase 0: repository hygiene, `uv` scaffold, FastAPI application, typed health
   endpoint, focused tests, and accurate initial documentation. **Complete.**
-- Phase 1: safe ingestion and one documented OCR baseline. Requires approval.
+- Phase 1: safe ingestion and one documented OCR baseline. **Approved and in
+  progress.**
 - Phase 2: typed invoice extraction and LangGraph state/node. Requires approval.
 - Phase 3: SQLite repository and deterministic/statistical verification. Requires
   approval.
@@ -205,4 +221,5 @@ following documentation commit.
 
 Stop after the currently approved phase. Before every later phase, inspect the
 repository, run the existing suite, present the implementation and commit plan,
-identify documentation changes, and wait for explicit approval.
+identify documentation changes, and wait for explicit approval. Do not begin
+Phase 2 after completing Phase 1 without a new explicit approval.
