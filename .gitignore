@@ -19,6 +19,12 @@ htmlcov/
 *.sqlite
 *.sqlite3
 
+# Local document-processing artifacts
+/tmp/uploads/
+/uploads/
+/ocr-artifacts/
+/artifacts/ocr/
+
 # Editors and operating systems
 .vscode/
 .idea/
