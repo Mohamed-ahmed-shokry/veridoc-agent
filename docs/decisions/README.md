@@ -15,6 +15,6 @@ Each record must include:
 Create an ADR only when a decision materially constrains later implementation.
 Do not use ADRs for routine code-level choices.
 
-Phase 0 has no decision records. The selected version 1 OCR baseline must be
-recorded here, with installation and runtime limitations, before Phase 1 OCR
-integration begins.
+Accepted decisions:
+
+- [0001: Use Tesseract for the version 1 OCR baseline](0001-use-tesseract-for-v1.md)
