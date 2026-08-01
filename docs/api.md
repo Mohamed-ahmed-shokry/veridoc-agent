@@ -1,10 +1,11 @@
 # API
 
-The Phase 3 API accepts one bounded invoice image or PDF. `POST /ocr` returns
+The Phase 4 API accepts one bounded invoice image or PDF. `POST /ocr` returns
 raw OCR text; `POST /extract` adds typed invoice extraction with page-level
-evidence and declared uncertainty. Phase 3 supplies internal SQLite persistence
-and deterministic verification services, but it intentionally adds no public
-verification endpoint, explanation, or verdict.
+evidence and declared uncertainty. Phase 4 supplies internal SQLite persistence,
+deterministic verification, and evidence-grounded explanation services, but it
+intentionally adds no public verification endpoint, explanation route, or
+verdict.
 
 ## Local base URL
 
@@ -203,8 +204,8 @@ price, and evidence fields.
 ## Current limitations
 
 The API has no authentication, versioned URL prefix, request correlation
-middleware, public reference-data management, public verification endpoint,
-explanation layer, or review UI. `/extract` remains an extraction-only Phase 2
-route; Phase 3 does not expose SQLite data or verification findings over HTTP.
-It is a local development boundary and is not ready for real documents or
-production traffic.
+middleware, public reference-data management, public verification or
+explanation endpoint, verdict, or review UI. `/extract` remains an
+extraction-only Phase 2 route; Phase 4 does not expose SQLite data, verification
+findings, or explanations over HTTP. It is a local development boundary and is
+not ready for real documents or production traffic.
