@@ -3,19 +3,20 @@
 Veridoc is an invoice and purchase-order intelligence system designed to answer
 a question that OCR alone cannot: **is the extracted document data trustworthy?**
 
-Phase 3 validates one invoice image or PDF, runs a replaceable Tesseract OCR
+Phase 4 validates one invoice image or PDF, runs a replaceable Tesseract OCR
 baseline, and returns either raw page text or typed evidence-linked extraction
 through a replaceable OpenAI Responses adapter. It also supplies local SQLite
-reference persistence and typed deterministic verification. Public verification
-delivery, explanations, and verdicts remain later phases.
+reference persistence, typed deterministic verification, and an internal
+evidence-grounded explanation layer. Public verification/explanation delivery
+and verdicts remain later phases.
 
 ## Why Veridoc
 
 A value can be extracted perfectly and still be suspicious. For example, an
 invoice total may match the printed document while being far outside the
 vendor's historical range. Veridoc is scoped to reconcile invoices and purchase
-orders while keeping deterministic calculations separate from later LLM-based
-interpretation.
+orders while keeping deterministic calculations separate from constrained,
+optional provider guidance.
 
 It is not a generic upload-and-extract platform, KYC system, accounting system
 of record, or autonomous payment approver.
@@ -39,6 +40,11 @@ of record, or autonomous payment approver.
 - typed, evidence-rich verification findings with explicit insufficient-history
   handling;
 - a typed single-node LangGraph verification flow;
+- typed explanation results that preserve canonical verification findings;
+- deterministic explanation and numerical-context rendering;
+- an optional mockable Responses provider that can propose only constrained
+  guidance, with contradiction protection and deterministic fallback;
+- a typed single-node LangGraph explanation flow;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
 
@@ -58,8 +64,9 @@ uv python install 3.12
 uv sync --all-groups --locked
 ```
 
-For structured extraction, configure an OpenAI API key and a current
-vision-capable Responses API model in the same shell:
+For structured extraction and optional explanation-provider guidance, configure
+an OpenAI API key and a current vision-capable Responses API model in the same
+shell:
 
 ```powershell
 $env:OPENAI_API_KEY = "replace-with-your-key"
@@ -161,7 +168,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 2 and Phase 3 tests:
+Run focused Phase 2, Phase 3, and Phase 4 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -173,6 +180,11 @@ uv run pytest tests/test_extraction_api.py
 uv run pytest tests/test_sqlite_repository.py
 uv run pytest tests/test_verification_service.py
 uv run pytest tests/test_verification_graph.py
+uv run pytest tests/test_explanation_fallback.py
+uv run pytest tests/test_explanation_guardrails.py
+uv run pytest tests/test_explanation_service.py
+uv run pytest tests/test_openai_explanations.py
+uv run pytest tests/test_explanation_graph.py
 ```
 
 Run lint and formatting checks:
@@ -182,7 +194,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-No static type checker or coverage threshold is configured in Phase 3. See the
+No static type checker or coverage threshold is configured in Phase 4. See the
 [testing guide](docs/testing.md) for test boundaries and required evidence.
 
 ## Architecture
@@ -193,17 +205,19 @@ multipart upload -> validation -> temporary file -> page decode
     -> OCR text + normalized page images -> extraction graph
     -> StructuredExtractor -> typed InvoiceExtraction
     -> verification graph -> VerificationService -> internal VerificationResult
+    -> explanation graph -> ExplanationService -> internal ExplanationResult
 ```
 
-The planned version 1 flow continues after OCR:
+The implemented internal flow now reaches explanation; a final verdict remains
+planned:
 
 ```text
 ingestion -> OCR -> structured extraction -> verification -> explanation -> verdict
 ```
 
-The HTTP API remains extraction-only: Phase 3 does not yet expose verification
-findings or reference-data management. See [architecture](docs/architecture.md)
-for boundaries and tradeoffs.
+The HTTP API remains extraction-only: Phase 4 does not expose verification
+findings, explanations, or reference-data management. See
+[architecture](docs/architecture.md) for boundaries and tradeoffs.
 
 ## Repository structure
 
@@ -221,7 +235,8 @@ for boundaries and tradeoffs.
 │       ├── README.md
 │       ├── 0001-use-tesseract-for-v1.md
 │       ├── 0002-use-openai-responses-for-phase-2.md
-│       └── 0003-use-sqlite-for-phase-3-reference-data.md
+│       ├── 0003-use-sqlite-for-phase-3-reference-data.md
+│       └── 0004-use-validated-llm-proposals-for-explanations.md
 ├── src/
 │   └── veridoc/
 │       ├── extraction/
@@ -229,6 +244,7 @@ for boundaries and tradeoffs.
 │       ├── ocr/
 │       ├── persistence/
 │       ├── verification/
+│       ├── explanation/
 │       ├── __init__.py
 │       ├── __main__.py
 │       └── app.py
@@ -250,8 +266,8 @@ The current HTTP application reads these process environment variables:
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable on `PATH` | Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or combination |
-| `OPENAI_API_KEY` | none | Required credential for `/extract` |
-| `VERIDOC_LLM_MODEL` | none | Required vision-capable model for `/extract` |
+| `OPENAI_API_KEY` | none | Required credential for `/extract` and an optional explanation adapter |
+| `VERIDOC_LLM_MODEL` | none | Required Responses model for `/extract` and an optional explanation adapter |
 
 The application does not load `.env`. Never commit real credentials, invoices,
 production documents, personal information, customer data, or confidential
@@ -266,11 +282,11 @@ security](docs/data-and-security.md).
 | 1 | Safe invoice ingestion and one OCR baseline | Complete |
 | 2 | Typed invoice extraction and LangGraph state/node | Complete |
 | 3 | SQLite reference repository and deterministic/statistical verification | Complete |
-| 4 | Evidence-grounded explanation layer | Not approved |
+| 4 | Evidence-grounded explanation layer | Complete |
 | 5 | Complete processing API and minimal review interface | Not approved |
 | 6 | Final integration, documentation, and operational pass | Not approved |
 
-Work stops after Phase 3 until Phase 4 is explicitly approved.
+Work stops after Phase 4 until Phase 5 is explicitly approved.
 
 ## Documentation
 
@@ -287,6 +303,7 @@ Work stops after Phase 3 until Phase 4 is explicitly approved.
 ## Current limitations
 
 Veridoc does not yet provide authoritative vendor identity resolution, a public
-verification or reference-data API, explanations, verdicts, authentication,
-request correlation, malware scanning, or a review interface. The extraction
-endpoint remains a local Phase 2 boundary and is not production ready.
+verification, explanation, or reference-data API, a final verdict,
+authentication, request correlation, malware scanning, or a review interface.
+The extraction endpoint remains a local Phase 2 boundary and is not production
+ready.
