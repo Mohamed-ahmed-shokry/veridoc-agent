@@ -1,9 +1,10 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 1 now accepts document bytes for one ephemeral OCR request, but it is
-still a local development service and must not receive real invoices or
-production data.
+Phase 2 accepts document bytes for one ephemeral OCR/extraction request. When
+`/extract` is used, it sends the current request's OCR text and normalized page
+images to the configured OpenAI provider. It is still a local development
+service and must not receive real invoices or production data.
 
 ## Allowed development data
 
@@ -18,7 +19,7 @@ For a public subset, record its source, license, selected files, and any require
 attribution beside the fixture-generation instructions. Do not assume that a
 publicly downloadable document is licensed for redistribution.
 
-Phase 1 tests use generated fictional invoice bytes from
+Phase 2 tests use generated fictional invoice bytes from
 `tests/fixtures/fictional_invoice.py`; no source document is checked in.
 
 ## Prohibited data
@@ -39,7 +40,7 @@ history without explicit direction.
 ## Fixture generation
 
 Fixture generators must produce fictional data from fixed inputs. Keep fixtures
-small and tailored to one scenario. The Phase 1 fixture generator is deterministic
+small and tailored to one scenario. The fixture generator is deterministic
 and contains only fictional vendor, invoice, purchase-order, and total text.
 
 Generation must not call production services or sample local documents. A
@@ -52,25 +53,28 @@ determinism and expected behavior so accidental drift is visible.
 The repository tracks `.env.example` with safe comments only. `.gitignore`
 excludes `.env` and `.env.*` while explicitly allowing `.env.example`.
 
-Phase 1 reads only optional `TESSERACT_CMD` and `TESSERACT_LANG` values from the
-process environment; it does not load `.env` files. Keep executable paths and
-language choices out of committed secrets and use unmistakably fake placeholders
-in `.env.example` when examples are needed.
+The application reads optional `TESSERACT_CMD` and `TESSERACT_LANG`, plus the
+`OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` required by `/extract`, from the process
+environment; it does not load `.env` files. Keep executable paths, model names,
+and language choices out of committed secrets, and use unmistakably fake
+placeholders in `.env.example` when examples are needed.
 
 Before committing, inspect staged changes for accidental credentials and verify
 that any local `.env` remains ignored.
 
 ## Safe logging
 
-Phase 1 relies on Uvicorn's standard lifecycle and request logs. The application
-does not log complete documents, raw OCR text, extracted names or identifiers,
-line items, credentials, authorization headers, raw Tesseract output, or local
-temporary paths. Future processing logs may include only a generated correlation
-identifier, stage, safe error category, duration, and retryability.
+The application relies on Uvicorn's standard lifecycle and request logs. It does
+not log complete documents, raw OCR text, rendered pages, extracted names or
+identifiers, line items, credentials, authorization headers, raw Tesseract
+output, provider responses, or local temporary paths. Future logs may include
+only a generated correlation identifier, stage, safe error category, duration,
+and retryability.
 
 ## Upload validation
 
-The `/ocr` endpoint implements the following controls before decoding or OCR:
+Both `/ocr` and `/extract` implement the following controls before decoding,
+OCR, or external-provider input:
 
 1. read in bounded chunks and reject uploads over 10 MiB;
 2. allow only PDF, PNG, and JPEG signatures;
@@ -81,7 +85,7 @@ The `/ocr` endpoint implements the following controls before decoding or OCR:
 7. return safe structured errors without internal paths or stack traces.
 
 Filename extensions and `Content-Type` alone are not trusted. Expensive PDF
-rasterization and OCR occur only after these checks.
+rasterization, OCR, and provider calls occur only after these checks.
 
 ## Temporary files and retention
 
@@ -90,15 +94,21 @@ server-generated filename for the processing lifetime. The file and directory
 are removed on success, validation failure, OCR failure, cancellation, and
 unexpected exceptions through the context-managed storage boundary.
 
-Phase 1 retains no uploaded document, rendered page, or OCR artifact. The
-repository-relative paths `tmp/uploads/`, `uploads/`, `ocr-artifacts/`, and
-`artifacts/ocr/` remain ignored as defense against accidental future artifacts;
-ignore rules are not a security control.
+Phase 2 retains no uploaded document, rendered page, OCR artifact, or extraction
+result. Rendered page images exist only in memory while the current extraction
+call is built. The Responses adapter sets `store=False`, but that request option
+does not replace an organization-specific review of provider retention,
+regional-processing, account, and contractual controls. The repository-relative
+paths `tmp/uploads/`, `uploads/`, `ocr-artifacts/`, and `artifacts/ocr/` remain
+ignored as defense against accidental future artifacts; ignore rules are not a
+security control.
 
 ## Current security limitations
 
-Phase 1 has no authentication, authorization, TLS termination, rate limit,
+Phase 2 has no authentication, authorization, TLS termination, rate limit,
 request-correlation middleware, malware scanning, encrypted storage, secret
-manager, audit log, or privacy workflow. Tesseract executable availability and
-trained-data selection are deployment responsibilities. The service is not
-production ready, enterprise grade, fraud proof, or safe for real documents.
+manager, audit log, privacy workflow, provider data-residency controls, or
+retention service. Tesseract availability, model selection, provider account
+controls, and trained-data selection are deployment responsibilities. The
+service is not production ready, enterprise grade, fraud proof, or safe for real
+documents.
