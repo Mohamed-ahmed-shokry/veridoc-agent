@@ -21,3 +21,12 @@ async def test_health_check_returns_ok_status() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_health_check_declares_typed_response_schema() -> None:
+    """OpenAPI identifies the health response through its named schema."""
+    response_schema = app.openapi()["paths"]["/health"]["get"]["responses"]["200"][
+        "content"
+    ]["application/json"]["schema"]
+
+    assert response_schema == {"$ref": "#/components/schemas/HealthResponse"}
