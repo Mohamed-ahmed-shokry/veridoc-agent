@@ -208,7 +208,7 @@ security](docs/data-and-security.md).
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0 | Repository, FastAPI health scaffold, tests, initial documentation | Complete |
-| 1 | Safe invoice ingestion and one OCR baseline | In progress |
+| 1 | Safe invoice ingestion and one OCR baseline | Complete |
 | 2 | Typed invoice extraction and LangGraph state/node | Awaiting approval |
 | 3 | SQLite reference repository and deterministic/statistical verification | Not approved |
 | 4 | Evidence-grounded explanation layer | Not approved |

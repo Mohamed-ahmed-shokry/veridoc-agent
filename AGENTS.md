@@ -15,8 +15,8 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 is complete and Phase 1 is currently approved. The implementation is
-deliberately small:
+Phase 0 and Phase 1 are complete. No later phase is approved. The implementation
+is deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -208,8 +208,7 @@ following documentation commit.
 
 - Phase 0: repository hygiene, `uv` scaffold, FastAPI application, typed health
   endpoint, focused tests, and accurate initial documentation. **Complete.**
-- Phase 1: safe ingestion and one documented OCR baseline. **Approved and in
-  progress.**
+- Phase 1: safe ingestion and one documented OCR baseline. **Complete.**
 - Phase 2: typed invoice extraction and LangGraph state/node. Requires approval.
 - Phase 3: SQLite repository and deterministic/statistical verification. Requires
   approval.
