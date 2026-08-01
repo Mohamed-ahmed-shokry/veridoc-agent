@@ -35,6 +35,22 @@ class OCRDocumentResult:
         return sum(values) / len(values) if values else None
 
 
+@dataclass(frozen=True, slots=True)
+class RenderedPage:
+    """One normalized raster page retained for a downstream vision boundary."""
+
+    page_number: int
+    image_bytes: bytes
+
+
+@dataclass(frozen=True, slots=True)
+class OCRDocumentBundle:
+    """OCR results paired with normalized in-memory page images."""
+
+    document: OCRDocumentResult
+    page_images: tuple[RenderedPage, ...]
+
+
 class OCRPage(BaseModel):
     """Public OCR response details for one page."""
 

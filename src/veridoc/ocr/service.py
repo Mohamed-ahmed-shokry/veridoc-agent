@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from io import BytesIO
 from pathlib import Path
 
 import fitz
@@ -11,7 +12,12 @@ from PIL import Image
 from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
 from veridoc.ingestion.storage import temporary_upload
 from veridoc.ingestion.validation import PDF_RENDER_DPI
-from veridoc.ocr.models import OCRDocumentResult, OCRPageResult
+from veridoc.ocr.models import (
+    OCRDocumentBundle,
+    OCRDocumentResult,
+    OCRPageResult,
+    RenderedPage,
+)
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 
 
@@ -23,12 +29,31 @@ class OCRService:
 
     def process(self, upload: ValidatedUpload) -> OCRDocumentResult:
         """Return typed OCR output while cleaning all temporary processing files."""
+        return self._process(upload, include_page_images=False).document
+
+    def process_with_page_images(self, upload: ValidatedUpload) -> OCRDocumentBundle:
+        """Return OCR output and normalized page images for vision extraction."""
+        return self._process(upload, include_page_images=True)
+
+    def _process(
+        self, upload: ValidatedUpload, *, include_page_images: bool
+    ) -> OCRDocumentBundle:
         pages: list[OCRPageResult] = []
+        page_images: list[RenderedPage] = []
         try:
             with temporary_upload(upload) as path:
-                for image in _iter_page_images(path, upload.media_type):
+                for page_number, image in enumerate(
+                    _iter_page_images(path, upload.media_type), start=1
+                ):
                     try:
                         pages.append(self._engine.recognize(image))
+                        if include_page_images:
+                            page_images.append(
+                                RenderedPage(
+                                    page_number=page_number,
+                                    image_bytes=_encode_png(image),
+                                )
+                            )
                     finally:
                         image.close()
         except OCRUnavailableError:
@@ -38,7 +63,12 @@ class OCRService:
 
         if not pages:
             raise OCRProcessingError
-        return OCRDocumentResult(media_type=upload.media_type, pages=tuple(pages))
+        return OCRDocumentBundle(
+            document=OCRDocumentResult(
+                media_type=upload.media_type, pages=tuple(pages)
+            ),
+            page_images=tuple(page_images),
+        )
 
 
 def _iter_page_images(
@@ -73,3 +103,10 @@ def _iter_pdf_pages(path: Path) -> Iterator[Image.Image]:
         raise OCRProcessingError from exc
     finally:
         document.close()
+
+
+def _encode_png(image: Image.Image) -> bytes:
+    """Encode one normalized page as PNG without retaining a temporary file."""
+    output = BytesIO()
+    image.save(output, format="PNG")
+    return output.getvalue()

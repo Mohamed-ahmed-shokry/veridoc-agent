@@ -67,3 +67,20 @@ def test_service_rasterizes_each_pdf_page() -> None:
     assert engine.calls == 2
     assert result.text == "fictional page 1\ffictional page 2"
     assert len(result.pages) == 2
+
+
+def test_service_exposes_normalized_page_images_for_vision_extraction() -> None:
+    engine = _FakeEngine()
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+
+    bundle = OCRService(engine).process_with_page_images(upload)
+
+    assert bundle.document.text == "fictional page 1"
+    assert [page.page_number for page in bundle.page_images] == [1]
+    with Image.open(BytesIO(bundle.page_images[0].image_bytes)) as rendered:
+        assert rendered.format == "PNG"
+        assert rendered.mode == "RGB"
