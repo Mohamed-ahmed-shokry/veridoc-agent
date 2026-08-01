@@ -7,10 +7,9 @@ The planned version 1 pipeline will extract invoice facts, compare them with
 purchase orders and fictional or approved reference histories, detect logical
 and statistical anomalies, and explain each important finding with evidence.
 
-**Current status:** Phase 0 scaffold implemented; acceptance verification is in
-progress. The repository currently provides a typed FastAPI application and
-health endpoint only. It does not yet accept documents, run OCR, extract invoice
-fields, persist reference data, or detect anomalies.
+**Current status:** Phase 0 complete. The repository currently provides a typed
+FastAPI application and health endpoint only. It does not yet accept documents,
+run OCR, extract invoice fields, persist reference data, or detect anomalies.
 
 ## Why Veridoc
 
@@ -171,7 +170,7 @@ See [data and security](docs/data-and-security.md) for the complete policy.
 
 | Phase | Scope | Status |
 | --- | --- | --- |
-| 0 | Repository, FastAPI health scaffold, tests, initial documentation | In verification |
+| 0 | Repository, FastAPI health scaffold, tests, initial documentation | Complete |
 | 1 | Safe invoice ingestion and one OCR baseline | Awaiting approval |
 | 2 | Typed invoice extraction and LangGraph state/node | Not approved |
 | 3 | SQLite reference repository and deterministic/statistical verification | Not approved |
