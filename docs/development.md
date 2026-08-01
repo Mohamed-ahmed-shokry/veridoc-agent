@@ -1,8 +1,8 @@
 # Development
 
-This guide covers the implemented Phase 1 upload and OCR boundary. Structured
-invoice extraction, graph orchestration, verification, persistence, and the LLM
-boundary remain unimplemented.
+This guide covers the implemented Phase 2 upload, OCR, and structured extraction
+boundary. Verification, persistence, anomaly detection, explanations, and final
+verdicts remain unimplemented.
 
 ## Prerequisites
 
@@ -10,6 +10,8 @@ boundary remain unimplemented.
 - [uv](https://docs.astral.sh/uv/)
 - a platform supported by Python 3.12
 - Tesseract OCR executable and trained data for local OCR requests
+- an OpenAI API key and a current vision-capable Responses API model for
+  `POST /extract`
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -84,6 +86,24 @@ curl.exe -X POST http://127.0.0.1:8000/ocr `
   -F "file=@fictional-invoice.png;type=image/png"
 ```
 
+Configure extraction in the same process before calling `/extract`:
+
+```powershell
+$env:OPENAI_API_KEY = "replace-with-your-key"
+$env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
+```
+
+Then submit the same bounded multipart upload:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/extract `
+  -F "file=@fictional-invoice.png;type=image/png"
+```
+
+`/ocr` does not require OpenAI configuration. `/extract` validates the provider
+configuration when that route is invoked and returns a safe 503 error if it is
+missing or unavailable.
+
 The installed console entry point starts the same application without reload:
 
 ```bash
@@ -102,12 +122,14 @@ Stop either process with `Ctrl+C`.
 ├── src/veridoc/
 │   ├── ingestion/            bounded upload validation and temporary storage
 │   ├── ocr/                  typed boundary, decoder, and Tesseract adapter
+│   ├── extraction/           typed schema, graph, provider protocol, and adapter
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
 │   ├── fixtures/             deterministic fictional invoice generators
 │   ├── test_ingestion_*.py   validation and cleanup tests
 │   ├── test_ocr_*.py         OCR contracts, service, and API tests
+│   ├── test_extraction_*.py  extraction contracts, graph, service, and API tests
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
@@ -123,9 +145,10 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 1 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
-pytesseract, and Uvicorn. Do not add a second OCR engine or future graph,
-extraction, LLM, or database dependency.
+Phase 2 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. Do not add a second
+OCR engine, a second extraction provider, or database dependencies before the
+corresponding later phase is approved.
 
 After a dependency change, verify resolution and the complete suite:
 
@@ -138,23 +161,26 @@ uv run ruff format --check .
 
 ## Configuration
 
-Phase 1 has two optional process environment variables:
+The application has these process environment variables:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable found on `PATH` | Explicit Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
+| `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` |
+| `VERIDOC_LLM_MODEL` | none | Required vision-capable Responses API model for `/extract` |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
-safe and non-secret.
+safe and non-secret. Never log or commit the API key.
 
 ## Logging and data handling
 
-Uvicorn owns basic request and lifecycle logs. The OCR boundary does not log
-document bodies, raw OCR text, extracted values, credentials, temporary paths,
-or Tesseract output. Uploaded bytes are private and ephemeral for one request;
-the temporary directory is removed after success or failure.
+Uvicorn owns basic request and lifecycle logs. The OCR and extraction boundaries
+do not log document bodies, raw OCR text, extracted values, rendered pages,
+credentials, temporary paths, Tesseract output, or provider responses. Uploaded
+bytes are private and ephemeral for one request; the temporary directory is
+removed after success or failure.
 
 ## Development workflow
 
@@ -176,10 +202,12 @@ protocol.
 1. Confirm the module belongs to the currently approved phase.
 2. Keep upload validation before expensive decoding and OCR.
 3. Keep OCR behind the typed `OCREngine` protocol and inject it in tests.
-4. Keep external executable failures mapped to safe public errors.
-5. Add deterministic synthetic fixtures only when a focused test needs them.
-6. Run focused lint, format, import, and test checks.
-7. Update the affected documentation in the same commit when inseparable or in
+4. Keep structured extraction behind `StructuredExtractor`, and pass only typed
+   OCR/page inputs to it.
+5. Keep external executable and provider failures mapped to safe public errors.
+6. Add deterministic synthetic fixtures only when a focused test needs them.
+7. Run focused lint, format, import, and test checks.
+8. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-8. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+9. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
