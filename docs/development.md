@@ -1,8 +1,8 @@
 # Development
 
-This guide covers the implemented Phase 2 upload, OCR, and structured extraction
-boundary. Verification, persistence, anomaly detection, explanations, and final
-verdicts remain unimplemented.
+This guide covers the implemented Phase 3 upload, OCR, structured extraction,
+local reference persistence, and deterministic verification boundaries. Public
+verification orchestration, explanations, and final verdicts remain unimplemented.
 
 ## Prerequisites
 
@@ -123,6 +123,8 @@ Stop either process with `Ctrl+C`.
 │   ├── ingestion/            bounded upload validation and temporary storage
 │   ├── ocr/                  typed boundary, decoder, and Tesseract adapter
 │   ├── extraction/           typed schema, graph, provider protocol, and adapter
+│   ├── persistence/          repository protocol and SQLite adapter
+│   ├── verification/         deterministic rules, service, and graph
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
@@ -130,6 +132,8 @@ Stop either process with `Ctrl+C`.
 │   ├── test_ingestion_*.py   validation and cleanup tests
 │   ├── test_ocr_*.py         OCR contracts, service, and API tests
 │   ├── test_extraction_*.py  extraction contracts, graph, service, and API tests
+│   ├── test_sqlite_repository.py  SQLite reference-data integration tests
+│   ├── test_verification_*.py     deterministic verification tests
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
@@ -145,10 +149,11 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 2 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
-pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. Do not add a second
-OCR engine, a second extraction provider, or database dependencies before the
-corresponding later phase is approved.
+Phase 3 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
+standard library, so the Phase 3 reference repository adds no package. Do not
+add a second OCR engine, extraction provider, or database dependency without
+approval.
 
 After a dependency change, verify resolution and the complete suite:
 
@@ -173,6 +178,25 @@ The application has these process environment variables:
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
 safe and non-secret. Never log or commit the API key.
+
+## Local reference persistence
+
+Phase 3 supplies an API-neutral `SQLiteInvoiceRepository`; no FastAPI endpoint
+opens, seeds, or exposes a database yet. A future approved delivery boundary
+must provide its database-path configuration. Local integration code can create
+the schema explicitly:
+
+```python
+from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+
+repository = SQLiteInvoiceRepository("local-reference-data.sqlite")
+repository.initialize()
+```
+
+The repository stores invoice history and purchase orders for deterministic
+comparison. Use only fictional or otherwise approved reference data. SQLite
+files are ignored by Git; see [data and security](data-and-security.md) and
+[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
 
 ## Logging and data handling
 
@@ -204,10 +228,12 @@ protocol.
 3. Keep OCR behind the typed `OCREngine` protocol and inject it in tests.
 4. Keep structured extraction behind `StructuredExtractor`, and pass only typed
    OCR/page inputs to it.
-5. Keep external executable and provider failures mapped to safe public errors.
-6. Add deterministic synthetic fixtures only when a focused test needs them.
-7. Run focused lint, format, import, and test checks.
-8. Update the affected documentation in the same commit when inseparable or in
+5. Keep deterministic verification dependent on `InvoiceRepository`, never a
+   SQLite connection, FastAPI route, or provider SDK.
+6. Keep external executable and provider failures mapped to safe public errors.
+7. Add deterministic synthetic fixtures only when a focused test needs them.
+8. Run focused lint, format, import, and test checks.
+9. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-9. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+10. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
