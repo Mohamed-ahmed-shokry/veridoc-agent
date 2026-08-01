@@ -6,7 +6,11 @@ import re
 from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
-from veridoc.verification.history import MINIMUM_HISTORY_SAMPLE_SIZE
+from veridoc.verification.history import (
+    MINIMUM_HISTORY_SAMPLE_SIZE,
+    OUTLIER_Z_SCORE,
+    _population_standard_deviation,
+)
 from veridoc.verification.models import VerificationFinding
 from veridoc.verification.references import HistoricalInvoice
 
@@ -68,6 +72,163 @@ def line_item_key(
     if description is not None and description.strip():
         return f"description:{_normalize_key_part(description)}"
     return None
+
+
+def check_line_item_statistics(
+    invoice: InvoiceExtraction, history: list[HistoricalInvoice]
+) -> list[VerificationFinding]:
+    """Compare line-item prices and quantities with matching vendor history."""
+    comparable_history = [
+        historical_invoice
+        for historical_invoice in history
+        if historical_invoice.currency == invoice.currency
+    ]
+    findings: list[VerificationFinding] = []
+    for index, line_item in enumerate(invoice.line_items):
+        key = line_item_key(line_item.product_identifier, line_item.description)
+        if key is None:
+            continue
+        historical_line_items = [
+            historical_line_item
+            for historical_invoice in comparable_history
+            for historical_line_item in historical_invoice.line_items
+            if line_item_key(
+                historical_line_item.product_identifier,
+                historical_line_item.description,
+            )
+            == key
+        ]
+        findings.extend(
+            _check_metric(
+                observed_value=line_item.unit_price,
+                historical_values=[
+                    historical_line_item.unit_price
+                    for historical_line_item in historical_line_items
+                    if historical_line_item.unit_price is not None
+                ],
+                finding_type="historical_line_item_price_outlier",
+                metric="line_item_unit_price",
+                key=key,
+                index=index,
+            )
+        )
+        findings.extend(
+            _check_metric(
+                observed_value=line_item.quantity,
+                historical_values=[
+                    historical_line_item.quantity
+                    for historical_line_item in historical_line_items
+                    if historical_line_item.quantity is not None
+                ],
+                finding_type="historical_line_item_quantity_outlier",
+                metric="line_item_quantity",
+                key=key,
+                index=index,
+            )
+        )
+    return findings
+
+
+def _check_metric(
+    *,
+    observed_value: Decimal | None,
+    historical_values: list[Decimal],
+    finding_type: str,
+    metric: str,
+    key: str,
+    index: int,
+) -> list[VerificationFinding]:
+    if observed_value is None:
+        return []
+    if len(historical_values) < MINIMUM_HISTORY_SAMPLE_SIZE:
+        return [
+            VerificationFinding(
+                finding_type="insufficient_history",
+                severity="info",
+                explanation="There are not enough matching line items for a reliable comparison.",
+                comparison_source="vendor_history",
+                deterministic_rule=f"sample_size >= {MINIMUM_HISTORY_SAMPLE_SIZE}",
+                observed_value=str(observed_value),
+                historical_sample_size=len(historical_values),
+                details={
+                    "metric": metric,
+                    "line_item_key": key,
+                    "line_item_index": index,
+                    "required_sample_size": MINIMUM_HISTORY_SAMPLE_SIZE,
+                },
+            )
+        ]
+
+    mean = sum(historical_values) / len(historical_values)
+    standard_deviation = _population_standard_deviation(historical_values, mean)
+    if standard_deviation == 0:
+        return _check_zero_variance_metric(
+            observed_value,
+            mean,
+            len(historical_values),
+            finding_type,
+            metric,
+            key,
+            index,
+        )
+
+    z_score = abs(observed_value - mean) / standard_deviation
+    if z_score < OUTLIER_Z_SCORE:
+        return []
+    lower_bound = mean - (OUTLIER_Z_SCORE * standard_deviation)
+    upper_bound = mean + (OUTLIER_Z_SCORE * standard_deviation)
+    return [
+        VerificationFinding(
+            finding_type=finding_type,
+            severity="high",
+            explanation="The line-item value is outside the vendor's established range.",
+            comparison_source="vendor_history",
+            deterministic_rule="absolute_z_score >= 3",
+            observed_value=str(observed_value),
+            expected_range=(str(lower_bound), str(upper_bound)),
+            historical_sample_size=len(historical_values),
+            historical_mean=mean,
+            historical_standard_deviation=standard_deviation,
+            z_score=z_score,
+            details={
+                "metric": metric,
+                "line_item_key": key,
+                "line_item_index": index,
+            },
+        )
+    ]
+
+
+def _check_zero_variance_metric(
+    observed_value: Decimal,
+    mean: Decimal,
+    sample_size: int,
+    finding_type: str,
+    metric: str,
+    key: str,
+    index: int,
+) -> list[VerificationFinding]:
+    if observed_value == mean:
+        return []
+    return [
+        VerificationFinding(
+            finding_type=finding_type,
+            severity="high",
+            explanation="The line-item value differs from a uniform vendor history.",
+            comparison_source="vendor_history",
+            deterministic_rule="standard_deviation == 0 and observed_value != mean",
+            observed_value=str(observed_value),
+            expected_value=str(mean),
+            historical_sample_size=sample_size,
+            historical_mean=mean,
+            historical_standard_deviation=Decimal(0),
+            details={
+                "metric": metric,
+                "line_item_key": key,
+                "line_item_index": index,
+            },
+        )
+    ]
 
 
 def _new_line_item_finding(
