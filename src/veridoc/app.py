@@ -30,9 +30,13 @@ from veridoc.ocr.models import OCRPage, OCRResponse
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 from veridoc.ocr.service import OCRService
 from veridoc.ocr.tesseract import TesseractEngine
-from veridoc.persistence.protocol import InvoiceRepository
+from veridoc.persistence.protocol import (
+    InvoiceRepository,
+    ReferenceDataUnavailableError,
+)
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
-from veridoc.processing.service import ProcessingService
+from veridoc.processing.models import ProcessingResult
+from veridoc.processing.service import ProcessingError, ProcessingService
 from veridoc.verification.service import VerificationService
 
 
@@ -66,6 +70,30 @@ async def handle_extraction_processing_error(
     request: Request, exc: ExtractionProcessingError
 ) -> JSONResponse:
     """Return a safe invalid-extraction error without exposing provider output."""
+    del request
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ReferenceDataUnavailableError)
+async def handle_reference_data_unavailable(
+    request: Request, exc: ReferenceDataUnavailableError
+) -> JSONResponse:
+    """Return a safe reference-data availability error for complete processing."""
+    del request
+    return JSONResponse(
+        status_code=503,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ProcessingError)
+async def handle_processing_error(
+    request: Request, exc: ProcessingError
+) -> JSONResponse:
+    """Return a safe failure when orchestration lacks a typed result."""
     del request
     return JSONResponse(
         status_code=422,
@@ -193,6 +221,39 @@ async def extract_invoice(
             declared_content_type=file.content_type,
         )
         return await ExtractionService(ocr_engine, extractor).process(upload)
+    except UploadValidationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except OCRUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except OCRProcessingError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    finally:
+        await file.close()
+
+
+@app.post("/process", response_model=ProcessingResult, tags=["processing"])
+async def process_invoice(
+    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
+    service: Annotated[ProcessingService, Depends(get_processing_service)],
+) -> ProcessingResult:
+    """Return extraction, findings, explanations, and a deterministic verdict."""
+    try:
+        data = await read_bounded_upload(file)
+        upload = validate_upload(
+            data,
+            filename=file.filename,
+            declared_content_type=file.content_type,
+        )
+        return await service.process(upload)
     except UploadValidationError as exc:
         raise HTTPException(
             status_code=exc.status_code,
