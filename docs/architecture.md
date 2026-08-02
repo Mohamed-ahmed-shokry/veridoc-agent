@@ -7,8 +7,8 @@ reference persistence, deterministic verification services, and an internal
 evidence-grounded explanation layer. `POST /process` now orchestrates those
 stages into a typed final response and `GET /review` provides a minimal local
 review page. Authentication, review records, and policy decisions remain later
-work. Approved Phase 7 changes only release engineering and does not alter this
-runtime architecture.
+work. Completed Phase 7 release engineering does not alter this runtime
+architecture.
 
 ## System boundary
 
