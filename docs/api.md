@@ -33,8 +33,8 @@ metadata only and is not a document, user, or review identifier.
 
 ## `GET /health`
 
-Reports that the API process can serve requests. It does not probe OCR or any
-future storage and verification services.
+Reports that the API process can serve requests. It does not probe Tesseract,
+the extraction provider, or local reference data.
 
 ### Successful response
 
