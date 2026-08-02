@@ -15,13 +15,13 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0, Phase 1, Phase 2, Phase 3, and Phase 4 are complete. No later phase
-is approved. The implementation is deliberately small:
+Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, and Phase 5 are complete. No later
+phase is approved. The implementation is deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
-- `src/veridoc/app.py` creates the FastAPI application, `GET /health`, and
-  `POST /ocr` and `POST /extract`.
+- `src/veridoc/app.py` creates the FastAPI application, `GET /health`, `POST
+  /ocr`, `POST /extract`, `POST /process`, and `GET /review`.
 - `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
   uploads before decoding.
 - `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
@@ -45,6 +45,9 @@ is approved. The implementation is deliberately small:
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
   deterministic rendering, provider-draft guardrails, an API-neutral service,
   an optional OpenAI adapter, and the typed explanation graph.
+- `src/veridoc/processing/` owns the typed final result, deterministic verdict,
+  complete OCR-to-verdict graph, and API-neutral processing service.
+- `src/veridoc/review/` renders the minimal stateless local review page.
 - `tests/test_app.py` verifies application imports, metadata, and the safe 404
   response.
 - `tests/test_health.py` verifies health behavior and its required OpenAPI schema
@@ -57,10 +60,13 @@ is approved. The implementation is deliberately small:
 - `tests/test_explanation_*.py` and `tests/test_openai_explanations.py` cover
   canonical evidence, numerical context, deterministic fallback, draft
   guardrails, mocked explanation-provider behavior, and graph composition.
+- `tests/test_processing_*.py` and `tests/test_review_page.py` cover the final
+  result contract, verdict derivation, graph/service composition, dependency
+  wiring, endpoint errors, and safe review-page rendering.
 
-Phase 4 internal explanations are implemented. Public processing orchestration,
-verdicts, and a review interface are not. Do not add them until the user
-explicitly approves the corresponding phase.
+Phase 5 completes public processing orchestration, deterministic verdicts, and
+the minimal review interface. Do not add Phase 6 integration, operational, or
+production-hardening work until the user explicitly approves it.
 
 The current and planned workflow is:
 
@@ -68,8 +74,8 @@ The current and planned workflow is:
 ingestion -> OCR -> structured extraction -> verification -> explanation -> verdict
 ```
 
-The implemented segment ends at evidence-grounded explanation. Later
-dependencies must point inward: API and graph orchestration may call domain
+The implemented segment ends at the typed processing result and review display.
+Later dependencies must point inward: API and graph orchestration may call domain
 services and boundary protocols; external OCR, LLM, and persistence adapters
 may implement those protocols; domain logic must not import FastAPI, LangGraph,
 SQLite connection code, or vendor SDKs.
@@ -78,8 +84,8 @@ SQLite connection code, or vendor SDKs.
 
 - Use `uv` exclusively for Python versions, dependencies, locking, and commands.
 - Use FastAPI for the HTTP API.
-- Use LangGraph for the Phase 2 extraction, Phase 3 verification, and Phase 4
-  explanation graphs.
+- Use LangGraph for the Phase 2 extraction, Phase 3 verification, Phase 4
+  explanation, and Phase 5 complete-processing graphs.
 - Use the OpenAI Responses API through the typed `StructuredExtractor` protocol
   for Phase 2 vision extraction. Keep the model configurable with
   `VERIDOC_LLM_MODEL`; do not hardcode a model identifier.
@@ -90,7 +96,8 @@ SQLite connection code, or vendor SDKs.
 - Tesseract is the selected version 1 OCR baseline and is integrated behind the
   typed `OCREngine` protocol in Phase 1. See ADR 0001 for limitations and
   Arabic/Latin installation and runtime instructions.
-- Use SQLite behind the `InvoiceRepository` interface for Phase 3 reference data.
+- Use SQLite behind the `InvoiceRepository` interface for Phase 3 reference data
+  and Phase 5 processing lookups.
 - Use pytest for tests.
 
 Do not replace the fixed stack without asking first. Add dependencies only when
@@ -114,7 +121,7 @@ uv run pytest
 # Run the focused health test.
 uv run pytest tests/test_health.py
 
-# Run focused Phase 1, Phase 2, Phase 3, and Phase 4 boundary tests.
+# Run focused Phase 1 through Phase 5 boundary tests.
 uv run pytest tests/test_ingestion_validation.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
@@ -142,6 +149,13 @@ uv run pytest tests/test_explanation_service.py
 uv run pytest tests/test_explanation_config.py
 uv run pytest tests/test_openai_explanations.py
 uv run pytest tests/test_explanation_graph.py
+uv run pytest tests/test_processing_models.py
+uv run pytest tests/test_processing_verdict.py
+uv run pytest tests/test_processing_graph.py
+uv run pytest tests/test_processing_service.py
+uv run pytest tests/test_processing_dependencies.py
+uv run pytest tests/test_processing_api.py
+uv run pytest tests/test_review_page.py
 
 # Check lint and formatting.
 uv run ruff check .
@@ -154,7 +168,7 @@ uv lock --check
 uv run ruff format .
 ```
 
-No static type checker is configured in Phase 4. When one is introduced, add
+No static type checker is configured in Phase 5. When one is introduced, add
 its exact command here in the same commit as its configuration.
 
 Add runtime dependencies with `uv add <package>` and development dependencies
@@ -205,7 +219,8 @@ state its exact intended purpose.
   broad shallow end-to-end suite.
 - Mock the OCR engine protocol, `StructuredExtractor`, `FindingExplainer`, OpenAI
   client, remote storage, and other external services. Tests must not require
-  credentials, network access, or an installed Tesseract executable.
+  credentials, network access, or an installed Tesseract executable. Complete
+  processing tests must retain the real typed graph and deterministic services.
 - Use only deterministic synthetic or appropriately licensed fixtures. Never
   copy real invoice or customer data into tests.
 - Run the full suite after dependency, cross-cutting, or graph integration
@@ -216,7 +231,7 @@ the focused health test when the documented development workflow is affected.
 
 ## Documentation expectations
 
-`README.md` is the concise user and contributor entry point. The Phase 4
+`README.md` is the concise user and contributor entry point. The Phase 5
 documentation set is:
 
 - `docs/architecture.md` for current boundaries and the explicitly planned flow;
@@ -233,6 +248,8 @@ documentation set is:
   reference-data persistence decision.
 - `docs/decisions/0004-use-validated-llm-proposals-for-explanations.md` for the
   explanation-provider safety decision.
+- `docs/decisions/0005-use-review-required-processing-verdicts.md` for the
+  deterministic processing-verdict decision.
 
 Do not claim that planned endpoints or later-phase capabilities already exist.
 
@@ -275,11 +292,11 @@ following documentation commit.
   **Complete.**
 - Phase 4: evidence-grounded explanation with deterministic fallback.
   **Complete.**
-- Phase 5: complete processing API and minimal review interface. Requires approval.
+- Phase 5: complete processing API and minimal review interface. **Complete.**
 - Phase 6: final integration, documentation, and operational pass. Requires
   approval.
 
 Stop after the currently approved phase. Before every later phase, inspect the
 repository, run the existing suite, present the implementation and commit plan,
 identify documentation changes, and wait for explicit approval. Do not begin
-Phase 5 after completing Phase 4 without a new explicit approval.
+Phase 6 after completing Phase 5 without a new explicit approval.
