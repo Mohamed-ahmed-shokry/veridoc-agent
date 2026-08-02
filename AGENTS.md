@@ -173,6 +173,9 @@ uv run ruff format --check .
 # Check production type contracts.
 uv run mypy
 
+# Run the full branch-coverage gate.
+uv run pytest --cov=veridoc
+
 # Confirm pyproject.toml and uv.lock agree.
 uv lock --check
 

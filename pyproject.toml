@@ -42,3 +42,12 @@ warn_unused_configs = true
 [[tool.mypy.overrides]]
 module = ["fitz", "pytesseract", "pytesseract.*"]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+branch = true
+source = ["veridoc"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = true
