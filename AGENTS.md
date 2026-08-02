@@ -179,6 +179,9 @@ uv run pytest --cov=veridoc
 # Confirm pyproject.toml and uv.lock agree.
 uv lock --check
 
+# Audit the synchronized third-party environment.
+uv run pip-audit
+
 # Apply formatting when needed.
 uv run ruff format .
 ```
