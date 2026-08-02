@@ -325,8 +325,15 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 4 | Evidence-grounded explanation layer | Complete |
 | 5 | Complete processing API and minimal review interface | Complete |
 | 6 | Final integration, documentation, and operational pass | Complete |
+| 7 | Release engineering and reproducible quality gates | Approved; in progress |
+| 8 | Controlled reference-data administration | Planned; not approved |
+| 9 | Persistent review and audit workflow | Planned; not approved |
+| 10 | Deployment and operational security | Planned; not approved |
+| 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
-Version 1 implementation stops after Phase 6.
+Version 1 product behavior is complete through Phase 6. Phase 7 strengthens the
+release evidence without adding endpoints or processing features. See the
+[project roadmap](docs/roadmap.md) for phase deliverables and approval boundaries.
 
 ## Documentation
 
@@ -337,6 +344,7 @@ Version 1 implementation stops after Phase 6.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
+- [Roadmap](docs/roadmap.md): approved Phase 7 work and unapproved later phases.
 - [Decision records](docs/decisions/README.md): ADR format and index.
 - [Agent guide](AGENTS.md): repository-specific rules for coding agents.
 
@@ -351,9 +359,7 @@ production ready.
 
 ## Future work
 
-Any further work requires a new approved phase. Likely directions include
-authenticated reference-data administration, persistent review records and
-approval controls, deployment-specific TLS and secret management, background
-processing, observability export, malware scanning, retention controls, and
-evaluation against appropriately licensed real-world-like data. None is
-implemented or implied by the current local service.
+Phase 7 is limited to release engineering. Later candidates cover controlled
+reference-data administration, persistent review/audit workflows, deployment
+security, and evidence-based readiness evaluation. They are documented in the
+[roadmap](docs/roadmap.md) but remain unapproved and unimplemented.
