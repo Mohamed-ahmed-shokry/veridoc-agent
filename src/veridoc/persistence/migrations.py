@@ -141,7 +141,43 @@ _ADMINISTRATION_METADATA = Migration(
     ),
 )
 
-MIGRATIONS = (_INITIAL_SCHEMA, _ADMINISTRATION_METADATA)
+_BACKFILL_MISSING_METADATA = Migration(
+    version=3,
+    statements=(
+        """
+        UPDATE vendor_invoices
+        SET record_id = COALESCE(record_id, 'legacy-invoice-' || id),
+            source = COALESCE(source, 'legacy'),
+            external_id = COALESCE(external_id, 'invoice-' || id),
+            created_at = COALESCE(created_at, '1970-01-01T00:00:00Z'),
+            updated_at = COALESCE(updated_at, '1970-01-01T00:00:00Z')
+        WHERE record_id IS NULL
+           OR source IS NULL
+           OR external_id IS NULL
+           OR created_at IS NULL
+           OR updated_at IS NULL
+        """,
+        """
+        UPDATE purchase_orders
+        SET record_id = COALESCE(record_id, 'legacy-purchase-order-' || id),
+            source = COALESCE(source, 'legacy'),
+            external_id = COALESCE(external_id, 'purchase-order-' || id),
+            created_at = COALESCE(created_at, '1970-01-01T00:00:00Z'),
+            updated_at = COALESCE(updated_at, '1970-01-01T00:00:00Z')
+        WHERE record_id IS NULL
+           OR source IS NULL
+           OR external_id IS NULL
+           OR created_at IS NULL
+           OR updated_at IS NULL
+        """,
+    ),
+)
+
+MIGRATIONS = (
+    _INITIAL_SCHEMA,
+    _ADMINISTRATION_METADATA,
+    _BACKFILL_MISSING_METADATA,
+)
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 
