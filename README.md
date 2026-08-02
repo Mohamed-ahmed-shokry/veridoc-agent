@@ -338,13 +338,13 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 4 | Evidence-grounded explanation layer | Complete |
 | 5 | Complete processing API and minimal review interface | Complete |
 | 6 | Final integration, documentation, and operational pass | Complete |
-| 7 | Release engineering and reproducible quality gates | Approved; in progress |
+| 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Planned; not approved |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
-Version 1 product behavior is complete through Phase 6. Phase 7 strengthens the
+Version 1 product behavior is complete through Phase 6. Phase 7 strengthened the
 release evidence without adding endpoints or processing features. See the
 [project roadmap](docs/roadmap.md) for phase deliverables and approval boundaries.
 
@@ -358,7 +358,7 @@ release evidence without adding endpoints or processing features. See the
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): approved Phase 7 work and unapproved later phases.
+- [Roadmap](docs/roadmap.md): completed Phase 7 work and unapproved later phases.
 - [Decision records](docs/decisions/README.md): ADR format and index.
 - [Agent guide](AGENTS.md): repository-specific rules for coding agents.
 
@@ -373,7 +373,8 @@ production ready.
 
 ## Future work
 
-Phase 7 is limited to release engineering. Later candidates cover controlled
-reference-data administration, persistent review/audit workflows, deployment
-security, and evidence-based readiness evaluation. They are documented in the
-[roadmap](docs/roadmap.md) but remain unapproved and unimplemented.
+Phase 7 completed release engineering without changing product behavior. Later
+candidates cover controlled reference-data administration, persistent
+review/audit workflows, deployment security, and evidence-based readiness
+evaluation. They are documented in the [roadmap](docs/roadmap.md) but remain
+unapproved and unimplemented.
