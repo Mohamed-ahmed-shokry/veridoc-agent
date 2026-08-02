@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -361,7 +361,7 @@ class SQLiteInvoiceRepository:
     def _connection(self) -> Iterator[sqlite3.Connection]:
         """Translate SQLite failures without leaking database details."""
         try:
-            with self._connect() as connection:
+            with closing(self._connect()) as connection, connection:
                 yield connection
         except (sqlite3.Error, UnsupportedSchemaVersionError) as exc:
             raise ReferenceDataUnavailableError from exc

@@ -122,3 +122,29 @@ def test_repository_maps_unsupported_schema_versions_to_a_safe_boundary_error(
 
     with pytest.raises(ReferenceDataUnavailableError):
         repository.initialize()
+
+
+def test_repository_closes_connections_after_each_operation(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = SQLiteInvoiceRepository(tmp_path / "reference-data.sqlite")
+
+    class ConnectionSpy:
+        closed = False
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            del exc_type, exc_value, traceback
+
+        def close(self) -> None:
+            self.closed = True
+
+    connection = ConnectionSpy()
+    monkeypatch.setattr(repository, "_connect", lambda: connection)
+
+    with repository._connection():
+        pass
+
+    assert connection.closed is True
