@@ -8,6 +8,7 @@ invoice verification rules. It also covers strict explanation schemas,
 deterministic explanation rendering, provider-draft guardrails, mocked
 explanation providers, the typed explanation graph, the complete processing
 graph/service/API, safe reference-data failures, and the local review page.
+Phase 7 additionally enforces strict static typing for the production package.
 
 ## Test organization
 
@@ -253,12 +254,13 @@ Run lint and formatting checks with the tests:
 ```bash
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy
 ```
 
-No static type checker or coverage threshold is configured in Phase 6. Do not
-claim either gate exists. Type hints remain required, and coverage should focus
-on meaningful success, boundary, and error behavior rather than a percentage
-alone.
+Mypy strictly checks `src/veridoc`; pytest remains responsible for tests that
+deliberately exercise Pydantic coercion and invalid runtime input. No coverage
+threshold is configured yet. Coverage should focus on meaningful success,
+boundary, and error behavior rather than a percentage alone.
 
 ## Required evidence by change type
 
@@ -278,6 +280,7 @@ alone.
 | Request correlation or operational logging | Header and metadata-only log test |
 | API behavior or schema | Success and relevant error/contract tests |
 | Dependency or lockfile | `uv lock --check`, full pytest, applicable quality checks |
+| Production type contract | Focused pytest, `uv run mypy`, Ruff lint, Ruff format check |
 | Phase completion | Clean sync, isolated import, full pytest, lint, format, runtime smoke test, clean Git status |
 
 Run the full suite before completing a phase even when every individual commit
