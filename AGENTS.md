@@ -182,6 +182,10 @@ uv lock --check
 # Audit the synchronized third-party environment.
 uv run pip-audit
 
+# Build and validate distribution metadata.
+uv build
+uv run twine check dist/*
+
 # Apply formatting when needed.
 uv run ruff format .
 ```

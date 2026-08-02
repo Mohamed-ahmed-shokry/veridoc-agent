@@ -52,6 +52,9 @@ jobs:
       - name: Build distributions
         run: uv build
 
+      - name: Validate distribution metadata
+        run: uv run twine check dist/*
+
       - name: Smoke-test the isolated wheel
         shell: bash
         run: |
