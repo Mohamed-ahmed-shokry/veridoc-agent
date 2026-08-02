@@ -398,15 +398,15 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 5 | Complete processing API and minimal review interface | Complete |
 | 6 | Final integration, documentation, and operational pass | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
-| 8 | Controlled reference-data administration | Approved; final gate pending |
+| 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
 Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
-release evidence without adding endpoints or processing features. Phase 8 adds
-controlled local reference-data operations and is awaiting its completion gate.
-See the [project roadmap](docs/roadmap.md) for deliverables and approval
+release evidence without adding endpoints or processing features. Phase 8
+completed controlled local reference-data operations with a verified release
+gate. See the [project roadmap](docs/roadmap.md) for deliverables and approval
 boundaries.
 
 ## Documentation
@@ -419,7 +419,7 @@ boundaries.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): Phase 8 scope and unapproved later phases.
+- [Roadmap](docs/roadmap.md): completed Phase 8 scope and unapproved later phases.
 - [Release evidence](docs/release-evidence.md): verified local gates and evidence
   boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
@@ -438,8 +438,8 @@ service remains a local development boundary and is not production ready.
 
 ## Future work
 
-Phase 8 adds controlled reference-data administration after Phase 7 release
-engineering. Later candidates cover persistent review/audit workflows,
+Phase 8 completed controlled reference-data administration after Phase 7
+release engineering. Later candidates cover persistent review/audit workflows,
 deployment security, and evidence-based readiness evaluation. They are
 documented in the [roadmap](docs/roadmap.md) but remain unapproved and
 unimplemented.
