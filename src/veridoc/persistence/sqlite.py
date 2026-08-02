@@ -8,10 +8,12 @@ from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
-from typing import cast
+from typing import Literal, cast
 from uuid import uuid4
 
 from veridoc.administration.models import (
+    ConflictPolicy,
+    ImportResult,
     InvoiceRecord,
     InvoiceRecordInput,
     InvoiceRecordPage,
@@ -22,6 +24,7 @@ from veridoc.administration.models import (
     PurchaseOrderRecordPage,
     PurchaseOrderRecordUpdate,
     PurchaseOrderReferenceInput,
+    ReferenceDataImport,
     ReferenceRecordMetadata,
 )
 from veridoc.administration.protocol import ReferenceDataConflictError
@@ -272,6 +275,41 @@ class SQLiteInvoiceRepository:
             )
             return cursor.rowcount > 0
 
+    def import_reference_data(
+        self,
+        batch: ReferenceDataImport,
+        *,
+        conflict: ConflictPolicy,
+        dry_run: bool,
+    ) -> ImportResult:
+        """Apply or simulate one fully validated atomic import."""
+        actions: list[ImportAction] = []
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            try:
+                actions.extend(
+                    _import_invoice(connection, record, conflict=conflict)
+                    for record in batch.invoices
+                )
+                actions.extend(
+                    _import_purchase_order(connection, record, conflict=conflict)
+                    for record in batch.purchase_orders
+                )
+            except Exception:
+                connection.rollback()
+                raise
+            else:
+                if dry_run:
+                    connection.rollback()
+                else:
+                    connection.commit()
+        return ImportResult(
+            dry_run=dry_run,
+            created=actions.count("created"),
+            replaced=actions.count("replaced"),
+            skipped=actions.count("skipped"),
+        )
+
     def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
         """Return one vendor's invoices in insertion order."""
         with self._connection() as connection:
@@ -357,6 +395,119 @@ def _insert_line_items(
             for position, line_item in enumerate(line_items)
         ],
     )
+
+
+ImportAction = Literal["created", "replaced", "skipped"]
+
+
+def _import_invoice(
+    connection: sqlite3.Connection,
+    record: InvoiceRecordInput,
+    *,
+    conflict: ConflictPolicy,
+) -> ImportAction:
+    existing = connection.execute(
+        """
+        SELECT id FROM vendor_invoices
+        WHERE source = ? AND external_id = ?
+        """,
+        (record.metadata.source, record.metadata.external_id),
+    ).fetchone()
+    if existing is not None:
+        if conflict == "reject":
+            raise ReferenceDataConflictError
+        if conflict == "skip":
+            return "skipped"
+        _update_invoice(
+            connection,
+            int(existing["id"]),
+            record.invoice.to_domain(),
+            retention_until=record.metadata.retention_until,
+            updated_at=_timestamp(),
+        )
+        return "replaced"
+
+    record_id = uuid4().hex
+    timestamp = _timestamp()
+    try:
+        _insert_invoice(
+            connection,
+            record.invoice.to_domain(),
+            record_id=record_id,
+            source=record.metadata.source,
+            external_id=record.metadata.external_id,
+            created_at=timestamp,
+            updated_at=timestamp,
+            retention_until=record.metadata.retention_until,
+        )
+    except sqlite3.IntegrityError as exc:
+        raise ReferenceDataConflictError from exc
+    return "created"
+
+
+def _import_purchase_order(
+    connection: sqlite3.Connection,
+    record: PurchaseOrderRecordInput,
+    *,
+    conflict: ConflictPolicy,
+) -> ImportAction:
+    existing = connection.execute(
+        """
+        SELECT id FROM purchase_orders
+        WHERE source = ? AND external_id = ?
+        """,
+        (record.metadata.source, record.metadata.external_id),
+    ).fetchone()
+    purchase_order = record.purchase_order.to_domain()
+    natural_conflict = connection.execute(
+        """
+        SELECT id FROM purchase_orders
+        WHERE vendor_key = ? AND purchase_order_number = ?
+        """,
+        (purchase_order.vendor_key, purchase_order.purchase_order_number),
+    ).fetchone()
+
+    if existing is not None:
+        if conflict == "reject":
+            raise ReferenceDataConflictError
+        if conflict == "skip":
+            return "skipped"
+        existing_id = int(existing["id"])
+        if natural_conflict is not None and int(natural_conflict["id"]) != existing_id:
+            raise ReferenceDataConflictError
+        try:
+            _update_purchase_order(
+                connection,
+                existing_id,
+                purchase_order,
+                retention_until=record.metadata.retention_until,
+                updated_at=_timestamp(),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ReferenceDataConflictError from exc
+        return "replaced"
+
+    if natural_conflict is not None:
+        if conflict == "skip":
+            return "skipped"
+        raise ReferenceDataConflictError
+
+    record_id = uuid4().hex
+    timestamp = _timestamp()
+    try:
+        _insert_purchase_order(
+            connection,
+            purchase_order,
+            record_id=record_id,
+            source=record.metadata.source,
+            external_id=record.metadata.external_id,
+            created_at=timestamp,
+            updated_at=timestamp,
+            retention_until=record.metadata.retention_until,
+        )
+    except sqlite3.IntegrityError as exc:
+        raise ReferenceDataConflictError from exc
+    return "created"
 
 
 def _insert_invoice(
