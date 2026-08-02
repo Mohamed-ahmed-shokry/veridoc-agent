@@ -1,14 +1,14 @@
 # Architecture
 
-Veridoc's implemented Phase 6 boundary accepts one bounded invoice or
+Veridoc's document-processing boundary accepts one bounded invoice or
 purchase-order image/PDF, runs OCR, and returns typed extraction data with
 page-level evidence and explicit uncertainty. It also provides local SQLite
 reference persistence, deterministic verification services, and an internal
 evidence-grounded explanation layer. `POST /process` now orchestrates those
 stages into a typed final response and `GET /review` provides a minimal local
-review page. Authentication, review records, and policy decisions remain later
-work. Completed Phase 7 release engineering does not alter this runtime
-architecture.
+review page. Phase 8 adds bearer-token-protected local reference-data CRUD and
+bounded atomic import plus offline backup/restore. User identities, roles,
+review records, and production deployment controls remain later work.
 
 ## System boundary
 
@@ -49,6 +49,14 @@ flowchart LR
     Verdict --> Processed["ProcessingResult"]
     Reviewer["Local reviewer"] --> Review["GET /review"]
     Review --> ProcessGraph
+    Admin["Local reference-data administrator"] --> AdminAuth["Bearer token boundary"]
+    AdminAuth --> AdminAPI["Admin CRUD and bounded import router"]
+    AdminAPI --> AdminProtocol["ReferenceDataAdminRepository protocol"]
+    AdminProtocol --> SQLite
+    Import["At most 1 MiB and 500 records"] --> AdminAPI
+    Operator["Stopped-service operator"] --> Maintenance["veridoc-reference backup or restore"]
+    Maintenance --> SQLite
+    Migrations["Forward-only migration ledger"] --> SQLite
 ```
 
 Validation finishes before expensive decoding, OCR, or external model work.
@@ -76,6 +84,12 @@ images are normalized in memory and are not retained after the request.
 - `veridoc.persistence.protocol` defines the invoice and purchase-order
   reference-data boundary; `veridoc.persistence.sqlite` implements it with local
   SQLite tables.
+- `veridoc.administration` owns bounded CRUD/import schemas, the shared-token
+  authentication policy, the administration repository protocol, FastAPI router,
+  and local maintenance CLI. It never accepts or returns document content.
+- `veridoc.persistence.migrations` owns the ordered SQLite schema ledger;
+  `veridoc.persistence.maintenance` owns integrity-checked online backup and
+  validated atomic restore.
 - `veridoc.verification` owns strict findings, pure arithmetic/history/PO
   comparison rules, an API-neutral service, and a typed single-node verification
   graph. Verification imports the repository protocol, not SQLite connection
@@ -165,6 +179,12 @@ FastAPI route --> extraction service --> typed graph and protocols
 
 verification service --> repository protocol <-- SQLite adapter
 
+admin API --> authentication --> administration repository protocol <-- SQLite adapter
+    |
+    +--> bounded import validation --> one SQLite transaction
+
+maintenance CLI --> SQLite online backup / migrated atomic restore
+
 explanation service --> finding-explainer protocol <-- OpenAI adapter
                        |
                        +--> deterministic renderer
@@ -184,16 +204,15 @@ The [project roadmap](roadmap.md) describes later candidates without approving
 their implementation. If those phases are approved, they must extend the
 current boundaries rather than bypass them:
 
-- reference-data administration must call the repository protocol and must not
-  expose SQLite connection details to API or review code;
 - persistent review records must preserve canonical findings, explanations, and
   verdicts rather than mutating them into reviewer-approved facts;
-- deployment controls such as authentication, secrets, TLS, retention, and
-  observability export must remain outside deterministic domain rules; and
+- deployment controls such as user authentication, secret management, TLS,
+  automated retention, and observability export must remain outside
+  deterministic domain rules; and
 - evaluation must report OCR/extraction quality separately from deterministic
   verification-rule coverage and end-to-end operational performance.
 
-Phases 8 through 11 remain unapproved and unimplemented.
+Phases 9 through 11 remain unapproved and unimplemented.
 
 ## External boundaries
 
@@ -218,13 +237,31 @@ credentials, network access, or a Tesseract executable.
 
 ### Persistence and verification
 
-`SQLiteInvoiceRepository` explicitly creates local tables for vendor invoices,
-purchase orders, and their line items. Amounts are stored as text and recreated
-as `Decimal`; dates use ISO-8601 text. `POST /process` opens and initializes the
-path in `VERIDOC_REFERENCE_DATABASE`, defaulting to
-`veridoc-reference.sqlite3`. SQLite failures map to a safe unavailable error.
-The database remains local reference data, not a reference-data management API
-or production deployment configuration. See [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
+`SQLiteInvoiceRepository` applies numbered forward-only migrations for vendor
+invoices, purchase orders, line items, and administrative metadata. Amounts are
+stored as text and recreated as `Decimal`; dates and timestamps use ISO-8601
+text. `POST /process` and the administration adapter open the path in
+`VERIDOC_REFERENCE_DATABASE`, defaulting to `veridoc-reference.sqlite3`.
+SQLite and unsupported-schema failures map to a safe unavailable error.
+
+The separate `ReferenceDataAdminRepository` protocol exposes bounded pages,
+provenance-preserving CRUD, and one-transaction imports. Provenance identity is
+`source` plus `external_id` within each record type. A server `record_id` and
+creation/update timestamps are application managed. Optional retention dates
+are metadata only; no background deletion service exists.
+
+`veridoc-reference` performs online backup and stopped-service restore without
+an HTTP database export. Restore validates the source, migrates a temporary
+sibling database, refuses live WAL/SHM sidecars, validates integrity again, and
+atomically replaces the destination. See
+[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md) and
+[ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).
+
+Administration authentication uses a dedicated 32-256 character token from
+`VERIDOC_ADMIN_TOKEN`, not an OpenAI credential. The application compares the
+presented Bearer value in constant time and never logs it. This is a shared local
+secret without users or roles; see
+[ADR 0006](decisions/0006-use-bearer-token-for-local-administration.md).
 
 Verification rules are deterministic Python code. Statistical findings use
 Decimal mean, population standard deviation, and z-score calculations; they do
@@ -253,6 +290,12 @@ output maps to `extraction_processing_failed` (422). Reference-data failures map
 to `reference_data_unavailable` (503), and an incomplete orchestration result
 maps to `processing_failed` (422). Public errors never expose paths, stack
 traces, credentials, document bytes, raw OCR text, or provider responses.
+
+Administration rejects missing or incorrect credentials uniformly, bounds JSON
+imports before parsing, validates all records before beginning the write
+transaction, and rolls the transaction back on rejected conflicts. Responses
+contain reference facts and provenance only. Backup/restore failures use one
+generic local maintenance error rather than exposing a filesystem path.
 
 The current implementation does not log document bodies, OCR text, extracted
 fields, rendered pages, credentials, verification findings, or temporary paths.
@@ -285,8 +328,9 @@ provider, or SQLite dependencies.
   or unavailable provider output yields a deterministic result rather than an
   unsupported claim.
 - The product behavior completed through Phase 6 has one synchronous processing
-  endpoint and a stateless local review page. Phase 7 adds no runtime feature.
-  The service has no public reference-data management, standalone verification
-  or explanation endpoint, approval action, authentication, malware scanning,
-  retention service, persistent audit trail, or review record. Its request ID
-  is useful for operational correlation but does not replace those controls.
+  endpoint and a stateless local review page. Phase 7 adds no runtime feature;
+  Phase 8 adds local shared-token reference-data administration only. The
+  service has no user accounts or roles, standalone verification or explanation
+  endpoint, approval action, malware scanning, automated retention service,
+  persistent audit trail, or review record. Its request ID is useful for
+  operational correlation but does not replace those controls.
