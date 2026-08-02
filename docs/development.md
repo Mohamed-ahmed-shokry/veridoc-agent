@@ -1,8 +1,9 @@
 # Development
 
-This guide covers product behavior implemented through Phase 6 and the completed
-Phase 7 release-engineering workflow. Approval workflows and persistent review
-records remain unimplemented.
+This guide covers product behavior implemented through Phase 6, completed
+Phase 7 release engineering, and Phase 8 local reference-data administration.
+User accounts, approval workflows, and persistent review records remain
+unimplemented.
 
 ## Prerequisites
 
@@ -12,6 +13,8 @@ records remain unimplemented.
 - Tesseract OCR executable and trained data for local OCR requests
 - an OpenAI API key and a current vision-capable Responses API model for
   `POST /extract`, `POST /process`, and optional explanation-provider guidance
+- a randomly generated 32-256 character token when using local reference-data
+  administration routes
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -92,6 +95,7 @@ Configure extraction in the same process before calling `/extract`:
 $env:OPENAI_API_KEY = "replace-with-your-key"
 $env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
 $env:VERIDOC_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
+$env:VERIDOC_ADMIN_TOKEN = "replace-with-a-random-token-at-least-32-characters"
 ```
 
 Then submit the same bounded multipart upload:
@@ -125,6 +129,11 @@ The installed console entry point starts the same application without reload:
 uv run veridoc
 ```
 
+Only `/admin/reference-data/*` routes use `VERIDOC_ADMIN_TOKEN`. The processing
+and review routes remain separate local boundaries. The shared token is not a
+user account or production authorization system; keep it out of command history,
+URLs, source files, and logs.
+
 Stop either process with `Ctrl+C`.
 
 ## Project layout
@@ -136,9 +145,10 @@ Stop either process with `Ctrl+C`.
 ├── docs/                     architecture, API, testing, and security guidance
 ├── src/veridoc/
 │   ├── ingestion/            bounded upload validation and temporary storage
+│   ├── administration/       admin schemas, auth, protocol, API, and CLI
 │   ├── ocr/                  typed boundary, decoder, and Tesseract adapter
 │   ├── extraction/           typed schema, graph, provider protocol, and adapter
-│   ├── persistence/          repository protocol and SQLite adapter
+│   ├── persistence/          protocols, migrations, SQLite, and maintenance
 │   ├── verification/         deterministic rules, service, and graph
 │   ├── explanation/          fallback, provider boundary, service, and graph
 │   ├── processing/           complete graph, service, final result, and verdict
@@ -148,6 +158,7 @@ Stop either process with `Ctrl+C`.
 ├── tests/
 │   ├── fixtures/             deterministic fictional invoice generators
 │   ├── test_ingestion_*.py   validation and cleanup tests
+│   ├── test_administration_*.py authenticated CRUD, import, and CLI tests
 │   ├── test_ocr_*.py         OCR contracts, service, and API tests
 │   ├── test_extraction_*.py  extraction contracts, graph, service, and API tests
 │   ├── test_sqlite_repository.py  SQLite reference-data integration tests
@@ -173,9 +184,9 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 6 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+Phase 8 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
 pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
-standard library, so Phase 6 adds no package. Do not add a second OCR engine,
+standard library, and Phase 8 adds no package. Do not add a second OCR engine,
 extraction/explanation provider, database dependency, or frontend build system
 without approval.
 
@@ -250,10 +261,10 @@ uv run twine check dist/*
 uv run python scripts/check_distribution.py
 ```
 
-The content validator requires the application entry points and package
-metadata, rejects unsafe archive paths, and rejects environment, database, and
-private-key artifacts. On PowerShell, smoke-test the built wheel outside the
-project environment with:
+The content validator requires both console entry points, the Phase 8
+administration/maintenance modules, and package metadata. It rejects unsafe
+archive paths plus environment, database, and private-key artifacts. On
+PowerShell, smoke-test the built wheel outside the project environment with:
 
 ```powershell
 $wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
@@ -271,17 +282,19 @@ The application has these process environment variables:
 | `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
 | `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` and `/process`, plus optional explanation guidance |
 | `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and `/process`, plus optional explanation guidance |
-| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite invoice/PO reference-data path used by `/process` |
+| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path used by processing and reference-data administration |
+| `VERIDOC_ADMIN_TOKEN` | none | Required 32-256 character Bearer token for `/admin/reference-data/*` only |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
-safe and non-secret. Never log or commit the API key.
+safe and non-secret. Never log or commit either credential.
 
 ## Local reference persistence
 
-`/process` opens and initializes `SQLiteInvoiceRepository` at
-`VERIDOC_REFERENCE_DATABASE`; it does not seed, export, or manage reference
-facts. Local integration code can create the schema explicitly:
+`/process` and the Phase 8 administration adapter open
+`SQLiteInvoiceRepository` at `VERIDOC_REFERENCE_DATABASE`. Initialization
+applies numbered forward-only migrations before use. Local integration code can
+initialize the current schema explicitly:
 
 ```python
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
@@ -291,9 +304,41 @@ repository.initialize()
 ```
 
 The repository stores invoice history and purchase orders for deterministic
-comparison. Use only fictional or otherwise approved reference data. SQLite
-files are ignored by Git; see [data and security](data-and-security.md) and
-[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
+comparison. Administration routes provide provenance-preserving CRUD and bounded
+atomic imports; see the [API guide](api.md). Use only fictional or otherwise
+approved reference data. SQLite files are ignored by Git; see
+[data and security](data-and-security.md),
+[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md), and
+[ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).
+
+## Reference-data backup and restore
+
+Create an online backup while the local service is running or stopped:
+
+```powershell
+uv run veridoc-reference `
+  --database veridoc-reference.sqlite3 `
+  backup --output backups/reference-data.backup.sqlite
+```
+
+The command initializes supported migrations, uses SQLite's online backup API,
+validates integrity and migration history, and atomically replaces the requested
+backup destination.
+
+Restore requires a stopped service and explicit confirmation:
+
+```powershell
+uv run veridoc-reference `
+  --database veridoc-reference.sqlite3 `
+  restore --input backups/reference-data.backup.sqlite --confirm-replace
+```
+
+Restore validates the source, copies it to a temporary sibling database,
+applies supported migrations, validates integrity again, and then atomically
+replaces the configured database. It refuses active `-wal` or `-shm` sidecars;
+stop the process cleanly before retrying. A failed restore leaves the existing
+database unchanged. Keep backups outside the repository and protect them as
+reference data.
 
 ## Operational guidance
 
@@ -305,6 +350,8 @@ configuration problem; inspect its safe error code and the matching
 `X-Request-ID` before retrying. Validation `400`, `413`, and `415` responses
 require a different upload rather than an automatic retry. A `422` means the
 validated document or typed processing result could not be handled safely.
+Administration additionally uses `401` for invalid credentials, `409` for
+reference conflicts, and `503` when no valid administrative token is configured.
 
 Every response includes `X-Request-ID`. Clients may submit a bounded safe value
 or let the service generate one; do not put invoice numbers, customer data, or
@@ -352,9 +399,12 @@ protocol.
 8. Compose only typed stage outputs in `ProcessingState`; derive verdicts from
    canonical findings, never from an LLM response.
 9. Keep the review page stateless and render returned data with DOM text nodes.
-10. Add deterministic synthetic fixtures only when a focused test needs them.
-11. Run focused lint, format, import, and test checks.
-12. Update the affected documentation in the same commit when inseparable or in
+10. Keep administration behind `ReferenceDataAdminRepository`; authenticate
+    before resolving storage and bound import bytes before JSON parsing.
+11. Preserve immutable provenance and perform bulk writes in one transaction.
+12. Add deterministic synthetic fixtures only when a focused test needs them.
+13. Run focused lint, format, import, and test checks.
+14. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-13. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+15. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
