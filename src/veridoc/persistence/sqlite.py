@@ -17,6 +17,11 @@ from veridoc.administration.models import (
     InvoiceRecordPage,
     InvoiceRecordUpdate,
     InvoiceReferenceInput,
+    PurchaseOrderRecord,
+    PurchaseOrderRecordInput,
+    PurchaseOrderRecordPage,
+    PurchaseOrderRecordUpdate,
+    PurchaseOrderReferenceInput,
     ReferenceRecordMetadata,
 )
 from veridoc.administration.protocol import ReferenceDataConflictError
@@ -152,27 +157,120 @@ class SQLiteInvoiceRepository:
 
     def add_purchase_order(self, purchase_order: PurchaseOrder) -> None:
         """Persist one purchase order and its line items."""
+        record_id = uuid4().hex
+        timestamp = _timestamp()
+        with self._connection() as connection:
+            _insert_purchase_order(
+                connection,
+                purchase_order,
+                record_id=record_id,
+                source="application",
+                external_id=f"purchase-order-{record_id}",
+                created_at=timestamp,
+                updated_at=timestamp,
+                retention_until=None,
+            )
+
+    def create_purchase_order(
+        self, record: PurchaseOrderRecordInput
+    ) -> PurchaseOrderRecord:
+        """Create one managed purchase order with server metadata."""
+        record_id = uuid4().hex
+        timestamp = _timestamp()
+        with self._connection() as connection:
+            try:
+                purchase_order_id = _insert_purchase_order(
+                    connection,
+                    record.purchase_order.to_domain(),
+                    record_id=record_id,
+                    source=record.metadata.source,
+                    external_id=record.metadata.external_id,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                    retention_until=record.metadata.retention_until,
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ReferenceDataConflictError from exc
+            row = connection.execute(
+                "SELECT * FROM purchase_orders WHERE id = ?", (purchase_order_id,)
+            ).fetchone()
+            return _admin_purchase_order_from_row(connection, row)
+
+    def list_purchase_orders(
+        self, *, vendor_key: str | None, offset: int, limit: int
+    ) -> PurchaseOrderRecordPage:
+        """Return managed purchase orders in stable insertion order."""
+        where_clause = " WHERE vendor_key = ?" if vendor_key is not None else ""
+        parameters: tuple[object, ...] = (vendor_key,) if vendor_key is not None else ()
+        with self._connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM purchase_orders{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM purchase_orders{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return PurchaseOrderRecordPage(
+                records=[
+                    _admin_purchase_order_from_row(connection, row) for row in rows
+                ],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
+
+    def get_admin_purchase_order(self, record_id: str) -> PurchaseOrderRecord | None:
+        """Return one managed purchase order by its server identifier."""
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM purchase_orders WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            return (
+                _admin_purchase_order_from_row(connection, row)
+                if row is not None
+                else None
+            )
+
+    def update_admin_purchase_order(
+        self, record_id: str, update: PurchaseOrderRecordUpdate
+    ) -> PurchaseOrderRecord | None:
+        """Replace purchase-order facts while preserving provenance."""
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT id FROM purchase_orders WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            purchase_order_id = int(row["id"])
+            try:
+                _update_purchase_order(
+                    connection,
+                    purchase_order_id,
+                    update.purchase_order.to_domain(),
+                    retention_until=update.retention_until,
+                    updated_at=_timestamp(),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ReferenceDataConflictError from exc
+            updated_row = connection.execute(
+                "SELECT * FROM purchase_orders WHERE id = ?", (purchase_order_id,)
+            ).fetchone()
+            return _admin_purchase_order_from_row(connection, updated_row)
+
+    def delete_admin_purchase_order(self, record_id: str) -> bool:
+        """Delete one managed purchase order and its child line items."""
         with self._connection() as connection:
             cursor = connection.execute(
-                """
-                INSERT INTO purchase_orders (
-                    vendor_key, purchase_order_number, currency, total
-                ) VALUES (?, ?, ?, ?)
-                """,
-                (
-                    purchase_order.vendor_key,
-                    purchase_order.purchase_order_number,
-                    purchase_order.currency,
-                    _decimal_to_text(purchase_order.total),
-                ),
+                "DELETE FROM purchase_orders WHERE record_id = ?", (record_id,)
             )
-            _insert_line_items(
-                connection,
-                "purchase_order_line_items",
-                "purchase_order_id",
-                cast(int, cursor.lastrowid),
-                purchase_order.line_items,
-            )
+            return cursor.rowcount > 0
 
     def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
         """Return one vendor's invoices in insertion order."""
@@ -213,18 +311,7 @@ class SQLiteInvoiceRepository:
             ).fetchone()
             if row is None:
                 return None
-            return PurchaseOrder(
-                vendor_key=row["vendor_key"],
-                purchase_order_number=row["purchase_order_number"],
-                currency=row["currency"],
-                total=_text_to_decimal(row["total"]),
-                line_items=_line_items_from_rows(
-                    connection,
-                    "purchase_order_line_items",
-                    "purchase_order_id",
-                    row["id"],
-                ),
-            )
+            return _purchase_order_from_row(connection, row)
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
@@ -368,6 +455,86 @@ def _update_invoice(
     )
 
 
+def _insert_purchase_order(
+    connection: sqlite3.Connection,
+    purchase_order: PurchaseOrder,
+    *,
+    record_id: str,
+    source: str,
+    external_id: str,
+    created_at: str,
+    updated_at: str,
+    retention_until: date | None,
+) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO purchase_orders (
+            vendor_key, purchase_order_number, currency, total, record_id,
+            source, external_id, created_at, updated_at, retention_until
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            purchase_order.vendor_key,
+            purchase_order.purchase_order_number,
+            purchase_order.currency,
+            _decimal_to_text(purchase_order.total),
+            record_id,
+            source,
+            external_id,
+            created_at,
+            updated_at,
+            _date_to_text(retention_until),
+        ),
+    )
+    purchase_order_id = cast(int, cursor.lastrowid)
+    _insert_line_items(
+        connection,
+        "purchase_order_line_items",
+        "purchase_order_id",
+        purchase_order_id,
+        purchase_order.line_items,
+    )
+    return purchase_order_id
+
+
+def _update_purchase_order(
+    connection: sqlite3.Connection,
+    purchase_order_id: int,
+    purchase_order: PurchaseOrder,
+    *,
+    retention_until: date | None,
+    updated_at: str,
+) -> None:
+    connection.execute(
+        """
+        UPDATE purchase_orders
+        SET vendor_key = ?, purchase_order_number = ?, currency = ?, total = ?,
+            updated_at = ?, retention_until = ?
+        WHERE id = ?
+        """,
+        (
+            purchase_order.vendor_key,
+            purchase_order.purchase_order_number,
+            purchase_order.currency,
+            _decimal_to_text(purchase_order.total),
+            updated_at,
+            _date_to_text(retention_until),
+            purchase_order_id,
+        ),
+    )
+    connection.execute(
+        "DELETE FROM purchase_order_line_items WHERE purchase_order_id = ?",
+        (purchase_order_id,),
+    )
+    _insert_line_items(
+        connection,
+        "purchase_order_line_items",
+        "purchase_order_id",
+        purchase_order_id,
+        purchase_order.line_items,
+    )
+
+
 def _invoice_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> HistoricalInvoice:
@@ -403,6 +570,42 @@ def _admin_invoice_from_row(
             retention_until=_text_to_date(row["retention_until"]),
         ),
         invoice=InvoiceReferenceInput.model_validate(invoice.model_dump()),
+    )
+
+
+def _purchase_order_from_row(
+    connection: sqlite3.Connection, row: sqlite3.Row
+) -> PurchaseOrder:
+    return PurchaseOrder(
+        vendor_key=row["vendor_key"],
+        purchase_order_number=row["purchase_order_number"],
+        currency=row["currency"],
+        total=_text_to_decimal(row["total"]),
+        line_items=_line_items_from_rows(
+            connection,
+            "purchase_order_line_items",
+            "purchase_order_id",
+            row["id"],
+        ),
+    )
+
+
+def _admin_purchase_order_from_row(
+    connection: sqlite3.Connection, row: sqlite3.Row
+) -> PurchaseOrderRecord:
+    purchase_order = _purchase_order_from_row(connection, row)
+    return PurchaseOrderRecord(
+        metadata=ReferenceRecordMetadata(
+            record_id=row["record_id"],
+            source=row["source"],
+            external_id=row["external_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            retention_until=_text_to_date(row["retention_until"]),
+        ),
+        purchase_order=PurchaseOrderReferenceInput.model_validate(
+            purchase_order.model_dump()
+        ),
     )
 
 
