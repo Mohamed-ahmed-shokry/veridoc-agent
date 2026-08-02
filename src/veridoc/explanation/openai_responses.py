@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import json
-from typing import Any
 
 from openai import APIError, AsyncOpenAI
+from openai.types.responses import ResponseInputParam
 from pydantic import ValidationError
 
 from veridoc.explanation.config import OpenAIExplanationSettings
@@ -55,7 +55,7 @@ class OpenAIResponsesExplainer:
         return drafts
 
 
-def _build_response_input(request: ExplanationRequest) -> list[dict[str, Any]]:
+def _build_response_input(request: ExplanationRequest) -> ResponseInputParam:
     """Serialize canonical findings without uploading document or OCR content."""
     evidence = {
         "findings": [finding.model_dump(mode="json") for finding in request.findings]
