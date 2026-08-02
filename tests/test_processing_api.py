@@ -112,6 +112,28 @@ async def test_process_endpoint_returns_evidence_findings_explanations_and_verdi
 
 
 @pytest.mark.anyio
+async def test_process_endpoint_reports_missing_extraction_configuration_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("VERIDOC_LLM_MODEL", raising=False)
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/process",
+                files={"file": ("fictional-invoice.png", _png_bytes(), "image/png")},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "extraction_unavailable"
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("exception", "status_code", "code"),
     [
