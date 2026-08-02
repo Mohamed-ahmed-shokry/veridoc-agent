@@ -215,6 +215,18 @@ The committed floor is 90%; the Phase 7 baseline that established it was
 one behavior, then run the coverage gate before completing cross-cutting or
 phase-level work.
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pull requests and pushes to `main`. Its
+Ubuntu job synchronizes the committed lockfile, validates the lock, runs Ruff,
+mypy, the full coverage gate, builds both distributions, and imports the wheel
+in an isolated environment. The suite uses deterministic fakes, so CI requires
+no OpenAI credential or installed Tesseract executable.
+
+CI is remote evidence only after GitHub reports the job result. Run the same
+documented commands locally before committing; a local pass does not imply that
+an unobserved GitHub job passed.
+
 ## Configuration
 
 The application has these process environment variables:
