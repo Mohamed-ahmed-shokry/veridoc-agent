@@ -359,6 +359,8 @@ release evidence without adding endpoints or processing features. See the
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
 - [Roadmap](docs/roadmap.md): completed Phase 7 work and unapproved later phases.
+- [Release evidence](docs/release-evidence.md): verified Phase 7 local gate and
+  evidence boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
 - [Agent guide](AGENTS.md): repository-specific rules for coding agents.
 
