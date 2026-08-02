@@ -25,9 +25,10 @@ class TesseractEngine:
         self, *, command: str | None = None, language: str | None = None
     ) -> None:
         self.command = command or os.getenv("TESSERACT_CMD")
-        self.language = language or os.getenv("TESSERACT_LANG", "eng")
-        if not self.language.strip():
+        configured_language = language or os.getenv("TESSERACT_LANG", "eng")
+        if configured_language is None or not configured_language.strip():
             raise ValueError("TESSERACT_LANG must not be empty")
+        self.language = configured_language
 
     def recognize(self, image: Image.Image) -> OCRPageResult:
         """Recognize one image, translating executable failures to a safe error."""
@@ -56,9 +57,10 @@ def _parse_data(data: dict[str, list[Any]]) -> OCRPageResult:
         text = str(raw_text).strip()
         if not text:
             continue
-        key = tuple(
-            _integer_at(data.get(name), index)
-            for name in ("block_num", "par_num", "line_num")
+        key = (
+            _integer_at(data.get("block_num"), index),
+            _integer_at(data.get("par_num"), index),
+            _integer_at(data.get("line_num"), index),
         )
         lines[key].append(text)
         confidence = _float_at(data.get("conf"), index)
