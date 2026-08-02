@@ -1,9 +1,9 @@
 # Development
 
-This guide covers the implemented Phase 4 upload, OCR, structured extraction,
-local reference persistence, deterministic verification, and internal
-evidence-grounded explanation boundaries. Public processing orchestration and
-final verdicts remain unimplemented.
+This guide covers the implemented Phase 5 upload, OCR, structured extraction,
+local reference persistence, deterministic verification, evidence-grounded
+explanations, complete processing orchestration, and a minimal local review
+interface. Approval workflows and persistent review records remain unimplemented.
 
 ## Prerequisites
 
@@ -92,6 +92,7 @@ Configure extraction in the same process before calling `/extract`:
 ```powershell
 $env:OPENAI_API_KEY = "replace-with-your-key"
 $env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
+$env:VERIDOC_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
 ```
 
 Then submit the same bounded multipart upload:
@@ -104,6 +105,20 @@ curl.exe -X POST http://127.0.0.1:8000/extract `
 `/ocr` does not require OpenAI configuration. `/extract` validates the provider
 configuration when that route is invoked and returns a safe 503 error if it is
 missing or unavailable.
+
+`/process` uses the same extraction settings, initializes the configured local
+SQLite reference-data path, and produces deterministic explanation fallback when
+optional explanation guidance cannot be configured. Submit the same bounded
+upload with:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/process `
+  -F "file=@fictional-invoice.png;type=image/png"
+```
+
+Open `http://127.0.0.1:8000/review` for the small local form that submits to
+`/process` and renders its result. It is stateless: it creates no review record
+or approval action.
 
 The installed console entry point starts the same application without reload:
 
@@ -127,6 +142,8 @@ Stop either process with `Ctrl+C`.
 │   ├── persistence/          repository protocol and SQLite adapter
 │   ├── verification/         deterministic rules, service, and graph
 │   ├── explanation/          fallback, provider boundary, service, and graph
+│   ├── processing/           complete graph, service, final result, and verdict
+│   ├── review/               no-build local review page
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
@@ -138,6 +155,8 @@ Stop either process with `Ctrl+C`.
 │   ├── test_verification_*.py     deterministic verification tests
 │   ├── test_explanation_*.py      explanation contracts, fallback, and graph tests
 │   ├── test_openai_explanations.py mocked explanation-provider adapter tests
+│   ├── test_processing_*.py  complete graph, API, model, and service tests
+│   ├── test_review_page.py   local review-interface route test
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
@@ -153,12 +172,11 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 4 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+Phase 5 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
 pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
-standard library, so the Phase 3 reference repository adds no package; Phase 4
-uses the existing LangGraph and OpenAI dependencies. Do not add a second OCR
-engine, extraction/explanation provider, or database dependency without
-approval.
+standard library, so Phase 5 adds no package. Do not add a second OCR engine,
+extraction/explanation provider, database dependency, or frontend build system
+without approval.
 
 After a dependency change, verify resolution and the complete suite:
 
@@ -177,8 +195,9 @@ The application has these process environment variables:
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable found on `PATH` | Explicit Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
-| `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` and an optional explanation adapter |
-| `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and an optional explanation adapter |
+| `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` and `/process`, plus optional explanation guidance |
+| `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and `/process`, plus optional explanation guidance |
+| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite invoice/PO reference-data path used by `/process` |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
@@ -186,10 +205,9 @@ safe and non-secret. Never log or commit the API key.
 
 ## Local reference persistence
 
-Phase 3 supplies an API-neutral `SQLiteInvoiceRepository`; no FastAPI endpoint
-opens, seeds, or exposes a database yet. A future approved delivery boundary
-must provide its database-path configuration. Local integration code can create
-the schema explicitly:
+`/process` opens and initializes `SQLiteInvoiceRepository` at
+`VERIDOC_REFERENCE_DATABASE`; it does not seed, export, or manage reference
+facts. Local integration code can create the schema explicitly:
 
 ```python
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
@@ -206,12 +224,13 @@ files are ignored by Git; see [data and security](data-and-security.md) and
 ## Logging and data handling
 
 Uvicorn owns basic request and lifecycle logs. The OCR, extraction, verification,
-and explanation boundaries do not log document bodies, raw OCR text, extracted
-values, rendered pages, verification findings, credentials, temporary paths,
-Tesseract output, or provider responses. Explanation providers receive only
-canonical verification findings and responses are requested with storage
-disabled. Uploaded bytes are private and ephemeral for one request; the
-temporary directory is removed after success or failure.
+explanation, processing, and review boundaries do not log document bodies, raw
+OCR text, extracted values, rendered pages, verification findings, explanation
+narratives, credentials, temporary paths, Tesseract output, or provider
+responses. Explanation providers receive only canonical verification findings
+and responses are requested with storage disabled. Uploaded bytes are private
+and ephemeral for one request; the temporary directory is removed after success
+or failure.
 
 ## Development workflow
 
@@ -241,9 +260,12 @@ protocol.
    `VerificationFinding`; providers may propose only constrained guidance.
 7. Keep external executable and provider failures mapped to safe public errors
    or deterministic internal fallbacks.
-8. Add deterministic synthetic fixtures only when a focused test needs them.
-9. Run focused lint, format, import, and test checks.
-10. Update the affected documentation in the same commit when inseparable or in
+8. Compose only typed stage outputs in `ProcessingState`; derive verdicts from
+   canonical findings, never from an LLM response.
+9. Keep the review page stateless and render returned data with DOM text nodes.
+10. Add deterministic synthetic fixtures only when a focused test needs them.
+11. Run focused lint, format, import, and test checks.
+12. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-11. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+13. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
