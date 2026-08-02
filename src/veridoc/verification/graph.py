@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import NotRequired, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationResult
@@ -18,7 +19,9 @@ class VerificationState(TypedDict):
     verification: NotRequired[VerificationResult]
 
 
-def build_verification_graph(service: VerificationService):
+def build_verification_graph(
+    service: VerificationService,
+) -> CompiledStateGraph[VerificationState]:
     """Compile the single-node graph for deterministic invoice verification."""
 
     def verify(state: VerificationState) -> dict[str, VerificationResult]:
