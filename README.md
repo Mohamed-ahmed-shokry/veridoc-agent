@@ -3,7 +3,7 @@
 Veridoc is an invoice and purchase-order intelligence system designed to answer
 a question that OCR alone cannot: **is the extracted document data trustworthy?**
 
-Phase 6 validates one invoice image or PDF, runs a replaceable Tesseract OCR
+Veridoc validates one invoice image or PDF, runs a replaceable Tesseract OCR
 baseline, and returns either raw page text or typed evidence-linked extraction
 through a replaceable OpenAI Responses adapter. It also supplies local SQLite
 reference persistence, typed deterministic verification, and an internal
@@ -11,7 +11,9 @@ evidence-grounded explanation layer. `POST /process` now returns the complete
 typed result with findings, explanations, and a deterministic review verdict;
 `GET /review` supplies a minimal local display surface for that result. The
 final integration pass adds request correlation and end-to-end dependency-graph
-coverage without changing the deliberately local product boundary.
+coverage without changing the deliberately local product boundary. Phase 8 adds
+authenticated local administration, forward-only SQLite migrations, bounded
+atomic imports, and safe backup/restore tooling for approved reference facts.
 
 ## Why Veridoc
 
@@ -51,6 +53,12 @@ of record, or autonomous payment approver.
 - a complete typed LangGraph flow from OCR through verdict derivation;
 - `POST /process` with safe orchestration and reference-data errors;
 - a local, stateless `GET /review` upload and result-display page;
+- Bearer-authenticated invoice and purchase-order reference-data CRUD;
+- bounded atomic JSON imports with explicit reject, skip, replace, and dry-run
+  behavior;
+- numbered forward-only SQLite migrations with provenance and optional retention
+  metadata;
+- online reference-data backup and stopped-service atomic restore tooling;
 - safe `X-Request-ID` correlation and metadata-only request completion logs;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
@@ -64,6 +72,8 @@ Prerequisites:
 - Tesseract OCR executable with the trained data for requested languages
 - an OpenAI API key and vision-capable model when using `POST /extract` or
   `POST /process`
+- a randomly generated 32-256 character token when using reference-data
+  administration
 
 From the repository root:
 
@@ -80,6 +90,7 @@ shell:
 $env:OPENAI_API_KEY = "replace-with-your-key"
 $env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
 $env:VERIDOC_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
+$env:VERIDOC_ADMIN_TOKEN = "replace-with-a-random-token-at-least-32-characters"
 ```
 
 Start the local API:
@@ -192,6 +203,35 @@ Every response also includes `X-Request-ID`. Supply a safe opaque identifier to
 correlate local logs, or use the generated value returned by the service. Never
 use a document number, customer value, or secret as the identifier.
 
+## Reference-data administration
+
+With `VERIDOC_ADMIN_TOKEN` configured in the API process, local operators can
+create, list, read, update, delete, and atomically import typed invoice and
+purchase-order reference facts under `/admin/reference-data/*`. Send the token
+only in the Bearer header:
+
+```powershell
+curl.exe http://127.0.0.1:8000/admin/reference-data/invoices `
+  -H "Authorization: Bearer $env:VERIDOC_ADMIN_TOKEN"
+```
+
+Each record carries immutable source/external identifiers, server timestamps,
+and optional retention metadata. Imports are limited to 1 MiB and 500 total
+records, and each record is limited to 200 line items. The shared token is a
+local control, not user identity or production authorization. See the
+[API guide](docs/api.md) for payloads and conflict behavior.
+
+Create an online backup with the maintenance entry point:
+
+```powershell
+uv run veridoc-reference `
+  --database veridoc-reference.sqlite3 `
+  backup --output backups/reference-data.backup.sqlite
+```
+
+Restore requires a stopped service and explicit `--confirm-replace`; see the
+[development guide](docs/development.md) before replacing a database.
+
 ## Tests and quality checks
 
 Run the complete suite:
@@ -200,7 +240,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 2 through Phase 6 tests:
+Run focused Phase 2 through Phase 8 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -223,6 +263,12 @@ uv run pytest tests/test_processing_api.py
 uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
+uv run pytest tests/test_administration_auth.py
+uv run pytest tests/test_sqlite_migrations.py
+uv run pytest tests/test_administration_sqlite_import.py
+uv run pytest tests/test_administration_invoice_api.py
+uv run pytest tests/test_reference_data_maintenance.py
+uv run pytest tests/test_administration_cli.py
 ```
 
 Run lint and formatting checks:
@@ -261,10 +307,11 @@ multipart upload -> validation -> temporary file -> page decode
 ```
 
 `/process` exposes the typed final result, while `/review` renders it locally
-without persistence or workflow actions. Reference-data management remains out
-of scope. The API also returns an `X-Request-ID` for safe operational
-correlation. See [architecture](docs/architecture.md) for boundaries and
-tradeoffs.
+without persistence or workflow actions. A separate authenticated administration
+adapter manages approved reference facts through the repository protocol;
+processing-domain logic does not import FastAPI or SQLite connection code. The
+API also returns an `X-Request-ID` for safe operational correlation. See
+[architecture](docs/architecture.md) for boundaries and tradeoffs.
 
 ## Repository structure
 
@@ -290,9 +337,12 @@ tradeoffs.
 │       ├── 0002-use-openai-responses-for-phase-2.md
 │       ├── 0003-use-sqlite-for-phase-3-reference-data.md
 │       ├── 0004-use-validated-llm-proposals-for-explanations.md
-│       └── 0005-use-review-required-processing-verdicts.md
+│       ├── 0005-use-review-required-processing-verdicts.md
+│       ├── 0006-use-bearer-token-for-local-administration.md
+│       └── 0007-use-forward-only-sqlite-migrations.md
 ├── src/
 │   └── veridoc/
+│       ├── administration/
 │       ├── extraction/
 │       ├── ingestion/
 │       ├── ocr/
@@ -327,7 +377,8 @@ The current HTTP application reads these process environment variables:
 | `TESSERACT_LANG` | `eng` | Tesseract language or combination |
 | `OPENAI_API_KEY` | none | Required credential for `/extract` and `/process`; optional explanation guidance also uses it |
 | `VERIDOC_LLM_MODEL` | none | Required Responses model for `/extract` and `/process`; optional explanation guidance also uses it |
-| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path for `/process` reference lookups |
+| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path for processing and reference-data administration |
+| `VERIDOC_ADMIN_TOKEN` | none | Required Bearer token for `/admin/reference-data/*` only |
 
 The application does not load `.env`. Never commit real credentials, invoices,
 production documents, personal information, customer data, or confidential
@@ -347,14 +398,16 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 5 | Complete processing API and minimal review interface | Complete |
 | 6 | Final integration, documentation, and operational pass | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
-| 8 | Controlled reference-data administration | Planned; not approved |
+| 8 | Controlled reference-data administration | Approved; final gate pending |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
-Version 1 product behavior is complete through Phase 6. Phase 7 strengthened the
-release evidence without adding endpoints or processing features. See the
-[project roadmap](docs/roadmap.md) for phase deliverables and approval boundaries.
+Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
+release evidence without adding endpoints or processing features. Phase 8 adds
+controlled local reference-data operations and is awaiting its completion gate.
+See the [project roadmap](docs/roadmap.md) for deliverables and approval
+boundaries.
 
 ## Documentation
 
@@ -366,25 +419,27 @@ release evidence without adding endpoints or processing features. See the
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 7 work and unapproved later phases.
-- [Release evidence](docs/release-evidence.md): verified Phase 7 local gate and
-  evidence boundaries.
+- [Roadmap](docs/roadmap.md): Phase 8 scope and unapproved later phases.
+- [Release evidence](docs/release-evidence.md): verified local gates and evidence
+  boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
 - [Agent guide](AGENTS.md): repository-specific rules for coding agents.
 
 ## Current limitations
 
-Veridoc does not yet provide authoritative vendor identity resolution,
-reference-data management, authentication, malware scanning, a persistent audit
-log, or a persistent/authenticated review workflow. The deterministic `clear`
-verdict means only that no implemented rule produced a finding; it is not an
-automated approval. The service remains a local development boundary and is not
-production ready.
+Veridoc does not yet provide authoritative vendor identity resolution, user
+accounts, per-operator authorization, token rotation, malware scanning,
+encrypted storage, a persistent audit log, automatic retention enforcement, or
+a persistent/authenticated review workflow. Phase 8 authenticates only local
+reference-data administration with one shared token; processing and review
+remain unauthenticated. The deterministic `clear` verdict means only that no
+implemented rule produced a finding; it is not an automated approval. The
+service remains a local development boundary and is not production ready.
 
 ## Future work
 
-Phase 7 completed release engineering without changing product behavior. Later
-candidates cover controlled reference-data administration, persistent
-review/audit workflows, deployment security, and evidence-based readiness
-evaluation. They are documented in the [roadmap](docs/roadmap.md) but remain
-unapproved and unimplemented.
+Phase 8 adds controlled reference-data administration after Phase 7 release
+engineering. Later candidates cover persistent review/audit workflows,
+deployment security, and evidence-based readiness evaluation. They are
+documented in the [roadmap](docs/roadmap.md) but remain unapproved and
+unimplemented.
