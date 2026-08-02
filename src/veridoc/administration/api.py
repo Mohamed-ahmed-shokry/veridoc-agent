@@ -5,9 +5,20 @@ from __future__ import annotations
 import os
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Security, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Path,
+    Query,
+    Security,
+    UploadFile,
+    status,
+)
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from pydantic import ValidationError
 
 from veridoc.administration.auth import (
     AdminAuthenticationUnavailableError,
@@ -16,6 +27,9 @@ from veridoc.administration.auth import (
     authorize_admin,
 )
 from veridoc.administration.models import (
+    MAX_ADMIN_IMPORT_BYTES,
+    ConflictPolicy,
+    ImportResult,
     InvoiceRecord,
     InvoiceRecordInput,
     InvoiceRecordPage,
@@ -24,6 +38,7 @@ from veridoc.administration.models import (
     PurchaseOrderRecordInput,
     PurchaseOrderRecordPage,
     PurchaseOrderRecordUpdate,
+    ReferenceDataImport,
 )
 from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
@@ -272,6 +287,60 @@ def delete_purchase_order(
     if not repository.delete_admin_purchase_order(record_id):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/import", response_model=ImportResult)
+async def import_reference_data(
+    file: Annotated[
+        UploadFile,
+        File(description="A bounded UTF-8 JSON reference-data batch."),
+    ],
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+    conflict: Annotated[ConflictPolicy, Query()] = "reject",
+    dry_run: Annotated[bool, Query()] = False,
+) -> ImportResult:
+    """Validate and atomically apply or simulate one reference-data import."""
+    try:
+        if (file.content_type or "").split(";", 1)[0].strip() != "application/json":
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail={
+                    "code": "unsupported_import_media_type",
+                    "message": "Reference-data imports must use application/json.",
+                },
+            )
+        payload = await file.read(MAX_ADMIN_IMPORT_BYTES + 1)
+        if len(payload) > MAX_ADMIN_IMPORT_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail={
+                    "code": "reference_data_import_too_large",
+                    "message": "The reference-data import exceeds the size limit.",
+                },
+            )
+        try:
+            batch = ReferenceDataImport.model_validate_json(payload)
+        except ValidationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "code": "invalid_reference_data_import",
+                    "message": "The reference-data import is invalid.",
+                },
+            ) from exc
+        try:
+            return repository.import_reference_data(
+                batch,
+                conflict=conflict,
+                dry_run=dry_run,
+            )
+        except ReferenceDataConflictError as exc:
+            raise _conflict(exc) from exc
+    finally:
+        await file.close()
 
 
 def _not_found() -> HTTPException:
