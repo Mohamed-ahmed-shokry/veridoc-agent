@@ -33,6 +33,9 @@ Completed deliverables:
 - keep development, testing, README, and agent commands synchronized; and
 - run the complete release gate from a clean worktree.
 
+The verified local completion snapshot is recorded in
+[release evidence](release-evidence.md).
+
 Expected atomic commit sequence:
 
 1. Add the type-checker dependency and configuration with the updated lockfile.
