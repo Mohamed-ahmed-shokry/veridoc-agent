@@ -268,9 +268,12 @@ PowerShell, smoke-test the built wheel outside the project environment with:
 
 ```powershell
 $wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
-uv run --isolated --no-project --with $wheel.FullName python -c `
+uv run --isolated --no-project --no-cache --with $wheel.FullName python -c `
   "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
 ```
+
+`--no-cache` ensures a rebuilt wheel with an unchanged version and filename is
+installed from the current artifact rather than reused from uv's package cache.
 
 ## Configuration
 
