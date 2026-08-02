@@ -36,6 +36,44 @@ installation whose distribution metadata lacked a `RECORD` file. The command
 completed successfully and the later audit, test, build, and isolated-wheel
 checks all passed.
 
+## Phase 8 completion snapshot
+
+The local Phase 8 completion gate was recorded on 2026-08-03 against commit
+`69e2e3c` before this evidence section and the final phase-status updates were
+added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 138 files already formatted |
+| `uv run --no-sync mypy` | No issues in 58 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 178 passed; 93.39% branch coverage against a 90% floor |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Cache-free isolated-wheel import | Imported the built wheel, both console scripts, FastAPI app, and administration routes |
+| Application and CLI smoke | Loaded `/health`, the admin Bearer schema, and `veridoc-reference --help` |
+| Local Markdown links | All links resolved across 19 tracked Markdown files |
+| `git diff --check` and `git status --short` | Passed with a clean worktree |
+
+`pip-audit` again skipped only the unpublished local `veridoc` package. Locked
+synchronization repeated the pre-existing stale `websockets` metadata repair
+warning but completed successfully. The first local isolated-wheel attempt
+demonstrated that uv could reuse a prior same-version wheel from its cache; the
+CI and documented smoke command now use `--no-cache`, and the cache-free rerun
+verified the current Phase 8 artifact.
+
 ## Evidence boundaries
 
 The repository workflow reproduces these gates on GitHub-hosted Ubuntu runners,
