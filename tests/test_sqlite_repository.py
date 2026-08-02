@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from veridoc.persistence.migrations import LATEST_SCHEMA_VERSION
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.verification.references import (
@@ -94,6 +95,30 @@ def test_repository_maps_storage_initialization_errors_to_a_safe_boundary_error(
         raise OSError("storage is unavailable")
 
     monkeypatch.setattr(Path, "mkdir", fail_to_create_directory)
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
+def test_repository_maps_unsupported_schema_versions_to_a_safe_boundary_error(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
+            (LATEST_SCHEMA_VERSION + 1, "2026-08-03T00:00:00Z"),
+        )
+
+    repository = SQLiteInvoiceRepository(database_path)
 
     with pytest.raises(ReferenceDataUnavailableError):
         repository.initialize()

@@ -10,66 +10,13 @@ from decimal import Decimal
 from pathlib import Path
 from typing import cast
 
+from veridoc.persistence.migrations import UnsupportedSchemaVersionError, migrate
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
     ReferenceLineItem,
 )
-
-_SCHEMA = """
-CREATE TABLE IF NOT EXISTS vendor_invoices (
-    id INTEGER PRIMARY KEY,
-    vendor_key TEXT NOT NULL,
-    invoice_number TEXT,
-    purchase_order_number TEXT,
-    invoice_date TEXT,
-    due_date TEXT,
-    currency TEXT,
-    subtotal TEXT,
-    tax TEXT,
-    discount TEXT,
-    total TEXT,
-    payment_terms TEXT
-);
-
-CREATE INDEX IF NOT EXISTS vendor_invoices_vendor_key_index
-ON vendor_invoices(vendor_key);
-
-CREATE INDEX IF NOT EXISTS vendor_invoices_vendor_invoice_number_index
-ON vendor_invoices(vendor_key, invoice_number);
-
-CREATE TABLE IF NOT EXISTS invoice_line_items (
-    id INTEGER PRIMARY KEY,
-    invoice_id INTEGER NOT NULL REFERENCES vendor_invoices(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    description TEXT,
-    product_identifier TEXT,
-    quantity TEXT,
-    unit_price TEXT,
-    total_price TEXT
-);
-
-CREATE TABLE IF NOT EXISTS purchase_orders (
-    id INTEGER PRIMARY KEY,
-    vendor_key TEXT NOT NULL,
-    purchase_order_number TEXT NOT NULL,
-    currency TEXT,
-    total TEXT,
-    UNIQUE(vendor_key, purchase_order_number)
-);
-
-CREATE TABLE IF NOT EXISTS purchase_order_line_items (
-    id INTEGER PRIMARY KEY,
-    purchase_order_id INTEGER NOT NULL REFERENCES purchase_orders(id) ON DELETE CASCADE,
-    position INTEGER NOT NULL,
-    description TEXT,
-    product_identifier TEXT,
-    quantity TEXT,
-    unit_price TEXT,
-    total_price TEXT
-);
-"""
 
 
 class SQLiteInvoiceRepository:
@@ -79,13 +26,13 @@ class SQLiteInvoiceRepository:
         self._database_path = Path(database_path)
 
     def initialize(self) -> None:
-        """Create the Phase 3 reference-data schema when it is absent."""
+        """Migrate the reference-data database to the latest supported schema."""
         try:
             self._database_path.parent.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
             raise ReferenceDataUnavailableError from exc
         with self._connection() as connection:
-            connection.executescript(_SCHEMA)
+            migrate(connection)
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""
@@ -207,7 +154,7 @@ class SQLiteInvoiceRepository:
         try:
             with self._connect() as connection:
                 yield connection
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, UnsupportedSchemaVersionError) as exc:
             raise ReferenceDataUnavailableError from exc
 
 
