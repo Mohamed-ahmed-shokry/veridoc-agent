@@ -1,10 +1,12 @@
 # API
 
-The Phase 6 API accepts one bounded invoice image or PDF. `POST /ocr` returns
+The document-processing API accepts one bounded invoice image or PDF. `POST /ocr` returns
 raw OCR text; `POST /extract` adds typed invoice extraction with page-level
 evidence and declared uncertainty; `POST /process` runs the complete typed
 workflow and returns findings, explanations, and a deterministic verdict.
-`GET /review` is a minimal local page that submits to `/process`.
+`GET /review` is a minimal local page that submits to `/process`. Phase 8 also
+provides token-authenticated local reference-data administration under
+`/admin/reference-data`.
 
 ## Local base URL
 
@@ -307,6 +309,132 @@ plus:
 | `422` | `processing_failed` | The complete workflow did not produce a typed result. |
 | `503` | `reference_data_unavailable` | The configured local reference data could not be opened safely. |
 
+## Reference-data administration
+
+Phase 8 provides local CRUD and bounded import routes for approved historical
+invoice and purchase-order facts. These routes never accept or return uploaded
+document bytes, OCR text, extraction evidence, model prompts, or credentials.
+
+### Authentication and configuration
+
+Set a dedicated token containing 32 to 256 letters, digits, or the documented
+safe token punctuation:
+
+```powershell
+$env:VERIDOC_ADMIN_TOKEN = "replace-with-a-random-token-at-least-32-characters"
+```
+
+Send it with every administration request:
+
+```text
+Authorization: Bearer <VERIDOC_ADMIN_TOKEN>
+```
+
+The token is independent of `OPENAI_API_KEY`. Missing or invalid server
+configuration returns `503`; missing, malformed, and incorrect request
+credentials all return the same `401` response with `WWW-Authenticate: Bearer`.
+The shared token has no user identity or role semantics and is not suitable for
+remote production administration.
+
+### Record metadata and limits
+
+Every managed record contains:
+
+- a server-generated `record_id`;
+- immutable client provenance in `source` and `external_id`;
+- server-managed `created_at` and `updated_at` timestamps; and
+- an optional `retention_until` date.
+
+`source` is limited to 64 safe identifier characters; `external_id` is limited
+to 128. Invoice and purchase-order fields and line-item text are bounded, one
+record may contain at most 200 line items, list requests return at most 200
+records, and decimal values allow at most 24 digits with 6 decimal places.
+`retention_until` is metadata for operator policy; Phase 8 does not delete a
+record automatically when the date passes.
+
+### CRUD routes
+
+| Method and path | Result |
+| --- | --- |
+| `POST /admin/reference-data/invoices` | Create one managed invoice; returns `201`. |
+| `GET /admin/reference-data/invoices` | List invoices with optional `vendor_key`, `offset`, and `limit`. |
+| `GET /admin/reference-data/invoices/{record_id}` | Fetch one invoice. |
+| `PUT /admin/reference-data/invoices/{record_id}` | Replace invoice facts and retention while preserving provenance. |
+| `DELETE /admin/reference-data/invoices/{record_id}` | Delete one invoice and its line items; returns `204`. |
+| `POST /admin/reference-data/purchase-orders` | Create one managed purchase order; returns `201`. |
+| `GET /admin/reference-data/purchase-orders` | List purchase orders with optional `vendor_key`, `offset`, and `limit`. |
+| `GET /admin/reference-data/purchase-orders/{record_id}` | Fetch one purchase order. |
+| `PUT /admin/reference-data/purchase-orders/{record_id}` | Replace PO facts and retention while preserving provenance. |
+| `DELETE /admin/reference-data/purchase-orders/{record_id}` | Delete one PO and its line items; returns `204`. |
+
+Create an invoice:
+
+```powershell
+$headers = @{ Authorization = "Bearer $env:VERIDOC_ADMIN_TOKEN" }
+$body = @{
+  metadata = @{
+    source = "approved-fixture"
+    external_id = "invoice-2026-001"
+    retention_until = "2027-12-31"
+  }
+  invoice = @{
+    vendor_key = "fictional-supplies"
+    invoice_number = "INV-001"
+    currency = "USD"
+    total = "42.00"
+  }
+} | ConvertTo-Json -Depth 6
+
+Invoke-RestMethod -Method Post `
+  -Uri http://127.0.0.1:8000/admin/reference-data/invoices `
+  -Headers $headers -ContentType application/json -Body $body
+```
+
+Create requests conflict when the same record type already owns the supplied
+`source` plus `external_id`. Purchase orders also conflict on duplicate
+`vendor_key` plus `purchase_order_number`.
+
+### Bounded atomic import
+
+`POST /admin/reference-data/import` accepts one multipart `file` with
+`application/json`. The service reads at most 1 MiB before parsing, accepts at
+most 500 combined invoice and purchase-order records, validates the complete
+batch, and then uses one SQLite transaction.
+
+Query parameters:
+
+| Parameter | Values | Default | Meaning |
+| --- | --- | --- | --- |
+| `dry_run` | `true`, `false` | `false` | Execute validation and conflict logic, then roll back. |
+| `conflict` | `reject`, `skip`, `replace` | `reject` | Select behavior for matching provenance. |
+
+`replace` updates only a record with matching `source` and `external_id`; it
+does not take over a purchase-order natural key owned by different provenance.
+Any rejected conflict rolls back the entire batch.
+
+```powershell
+curl.exe -X POST `
+  "http://127.0.0.1:8000/admin/reference-data/import?dry_run=true&conflict=reject" `
+  -H "Authorization: Bearer $env:VERIDOC_ADMIN_TOKEN" `
+  -F "file=@fictional-reference-data.json;type=application/json"
+```
+
+A successful response reports `dry_run`, `created`, `replaced`, and `skipped`
+counts. It does not return the imported records.
+
+### Administration errors
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `401` | `invalid_admin_credentials` | The Bearer credential is missing, malformed, or incorrect. |
+| `404` | `reference_record_not_found` | The requested server record identifier does not exist. |
+| `409` | `reference_data_conflict` | Provenance or a protected PO natural key conflicts. |
+| `413` | `reference_data_import_too_large` | The import exceeds 1 MiB. |
+| `415` | `unsupported_import_media_type` | The import is not declared as `application/json`. |
+| `422` | `invalid_reference_data_import` | Import JSON or its typed records are invalid. |
+| `503` | `admin_authentication_unavailable` | No valid server administration token is configured. |
+| `503` | `reference_data_unavailable` | The configured SQLite data cannot be opened or migrated safely. |
+
 ## `GET /review`
 
 Serves a small local HTML page for submitting one document to `/process` and
@@ -316,9 +444,10 @@ record. Use only fictional or otherwise approved documents.
 
 ## Current limitations
 
-The API has no authentication, versioned URL prefix, public reference-data
-management, standalone verification or explanation endpoint, approval action,
-persistent audit trail, or persistent review record. `/process` is synchronous
-and does not treat `clear` as approval or a guarantee that a document is
-trustworthy. It is a local development boundary and is not ready for real
-documents or production traffic.
+Only the local reference-data administration routes are authenticated. The API
+has no user accounts, roles, versioned URL prefix, standalone verification or
+explanation endpoint, approval action, persistent audit trail, or persistent
+review record. `/process` is synchronous and does not treat `clear` as approval
+or a guarantee that a document is trustworthy. The shared admin token does not
+make this local development boundary ready for real documents or production
+traffic.
