@@ -1,7 +1,7 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 5 accepts document bytes for one ephemeral OCR, extraction, or complete
+Phase 6 accepts document bytes for one ephemeral OCR, extraction, or complete
 processing request. Complete processing reads and writes local reference facts
 at an explicitly configured SQLite path, but never persists the current upload.
 When `/extract` or `/process` is used, the extraction adapter sends the current
@@ -31,7 +31,9 @@ Phase 3 SQLite and verification tests construct fictional vendor history in
 memory or in temporary test databases only.
 Phase 4 explanation tests construct typed fictional findings in memory and mock
 the provider boundary. Phase 5 processing and review tests use the same
-synthetic boundaries; no browser upload or reference database is committed.
+synthetic boundaries; Phase 6 integration tests use a temporary database and
+fake OCR/extraction boundaries. No browser upload or reference database is
+committed.
 
 ## Prohibited data
 
@@ -77,14 +79,17 @@ that any local `.env` remains ignored.
 
 ## Safe logging
 
-The application relies on Uvicorn's standard lifecycle and request logs. It does
+Every response carries an `X-Request-ID` correlation value. A caller-supplied
+value is accepted only when it is 1 to 128 safe letters, digits, periods,
+underscores, or hyphens; otherwise the service generates one. Do not include
+document identifiers, customer data, credentials, or secrets in that header.
+
+The `veridoc.request` logger writes one metadata-only completion record with the
+request ID, method, path without query text, status code, and duration. It does
 not log complete documents, raw OCR text, rendered pages, extracted names or
-identifiers, line items, credentials, authorization headers, raw Tesseract
-output, provider responses, local temporary paths, persisted reference facts, or
-verification findings, explanation narratives, or numerical context. Future logs
-may include
-only a generated correlation identifier, stage, safe error category, duration,
-and retryability.
+identifiers, line items, credentials, authorization headers, query values, raw
+Tesseract output, provider responses, local temporary paths, persisted reference
+facts, verification findings, explanation narratives, or numerical context.
 
 ## Upload validation
 
@@ -125,11 +130,11 @@ only at `VERIDOC_REFERENCE_DATABASE` (or the local default
 `veridoc-reference.sqlite3`) when `/process` is configured. It does not persist
 document bytes, OCR text, page images, evidence spans, credentials, provider
 responses, explanations, or final verdicts. Never seed it with real data in this
-local Phase 5 stage. The project ignores `*.db`, `*.sqlite`, and `*.sqlite3` as
+local Phase 6 stage. The project ignores `*.db`, `*.sqlite`, and `*.sqlite3` as
 defense against accidental commits; ignore rules do not encrypt data, set
 retention periods, control backups, or authorize storage.
 
-No API endpoint creates, exports, deletes, or exposes reference data in Phase 5;
+No API endpoint creates, exports, deletes, or exposes reference data in Phase 6;
 the repository schema is initialized locally only to support deterministic
 lookups. If a local database is no longer needed, remove it only after confirming
 its path and retention requirements. Future deployment work must add access
@@ -138,12 +143,12 @@ data.
 
 ## Current security limitations
 
-Phase 5 has no authentication, authorization, TLS termination, rate limit,
-request-correlation middleware, malware scanning, encrypted storage, secret
-manager, audit log, privacy workflow, provider data-residency controls, database
-access control, backup policy, retention service, or authenticated review
-workflow. The review page is a local display surface, not a decision or case
-management system. Tesseract availability, model selection, provider account
-controls, and trained-data selection are deployment responsibilities. The service
-is not production ready, enterprise grade, fraud proof, or safe for real
-documents.
+Phase 6 has no authentication, authorization, TLS termination, rate limit,
+malware scanning, encrypted storage, secret manager, audit log, privacy
+workflow, provider data-residency controls, database access control, backup
+policy, retention service, or authenticated review workflow. The request ID is
+an operational correlation value, not an audit trail. The review page is a local
+display surface, not a decision or case management system. Tesseract
+availability, model selection, provider account controls, and trained-data
+selection are deployment responsibilities. The service is not production ready,
+enterprise grade, fraud proof, or safe for real documents.
