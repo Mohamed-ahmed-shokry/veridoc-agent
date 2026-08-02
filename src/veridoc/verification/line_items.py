@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from decimal import Decimal
+from typing import Literal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.history import (
@@ -16,6 +17,10 @@ from veridoc.verification.references import HistoricalInvoice
 
 RARE_LINE_ITEM_MAX_FREQUENCY = Decimal("0.2")
 _WHITESPACE = re.compile(r"\s+")
+_LineItemOutlierType = Literal[
+    "historical_line_item_price_outlier",
+    "historical_line_item_quantity_outlier",
+]
 
 
 def check_line_item_occurrence(
@@ -133,7 +138,7 @@ def _check_metric(
     *,
     observed_value: Decimal | None,
     historical_values: list[Decimal],
-    finding_type: str,
+    finding_type: _LineItemOutlierType,
     metric: str,
     key: str,
     index: int,
@@ -159,7 +164,7 @@ def _check_metric(
             )
         ]
 
-    mean = sum(historical_values) / len(historical_values)
+    mean = sum(historical_values, start=Decimal(0)) / len(historical_values)
     standard_deviation = _population_standard_deviation(historical_values, mean)
     if standard_deviation == 0:
         return _check_zero_variance_metric(
@@ -203,7 +208,7 @@ def _check_zero_variance_metric(
     observed_value: Decimal,
     mean: Decimal,
     sample_size: int,
-    finding_type: str,
+    finding_type: _LineItemOutlierType,
     metric: str,
     key: str,
     index: int,
