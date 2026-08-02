@@ -7,6 +7,16 @@ from typing import Protocol
 from veridoc.verification.references import HistoricalInvoice, PurchaseOrder
 
 
+class ReferenceDataUnavailableError(RuntimeError):
+    """Raised when reference data cannot be read or written safely."""
+
+    code = "reference_data_unavailable"
+    message = "Reference data is not available on this server."
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
+
 class InvoiceRepository(Protocol):
     """Store and retrieve vendor invoices and purchase orders."""
 

@@ -1,7 +1,11 @@
 """SQLite repository integration tests using synthetic reference facts."""
 
+import sqlite3
 from decimal import Decimal
 
+import pytest
+
+from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.verification.references import (
     HistoricalInvoice,
@@ -61,3 +65,17 @@ def test_sqlite_repository_finds_duplicate_invoice_and_purchase_order(tmp_path) 
         repository.get_purchase_order("fictional-supplies", "PO-001") == purchase_order
     )
     assert repository.get_purchase_order("fictional-supplies", "PO-404") is None
+
+
+def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = SQLiteInvoiceRepository(tmp_path / "reference-data.sqlite")
+
+    def fail_to_connect() -> sqlite3.Connection:
+        raise sqlite3.OperationalError("database is unavailable")
+
+    monkeypatch.setattr(repository, "_connect", fail_to_connect)
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.list_vendor_invoices("fictional-supplies")

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
+from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -77,12 +80,12 @@ class SQLiteInvoiceRepository:
     def initialize(self) -> None:
         """Create the Phase 3 reference-data schema when it is absent."""
         self._database_path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as connection:
+        with self._connection() as connection:
             connection.executescript(_SCHEMA)
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""
-        with self._connect() as connection:
+        with self._connection() as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO vendor_invoices (
@@ -114,7 +117,7 @@ class SQLiteInvoiceRepository:
 
     def add_purchase_order(self, purchase_order: PurchaseOrder) -> None:
         """Persist one purchase order and its line items."""
-        with self._connect() as connection:
+        with self._connection() as connection:
             cursor = connection.execute(
                 """
                 INSERT INTO purchase_orders (
@@ -138,7 +141,7 @@ class SQLiteInvoiceRepository:
 
     def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
         """Return one vendor's invoices in insertion order."""
-        with self._connect() as connection:
+        with self._connection() as connection:
             rows = connection.execute(
                 "SELECT * FROM vendor_invoices WHERE vendor_key = ? ORDER BY id",
                 (vendor_key,),
@@ -149,7 +152,7 @@ class SQLiteInvoiceRepository:
         self, vendor_key: str, invoice_number: str
     ) -> HistoricalInvoice | None:
         """Return the earliest stored invoice with this vendor-local number."""
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 """
                 SELECT * FROM vendor_invoices
@@ -165,7 +168,7 @@ class SQLiteInvoiceRepository:
         self, vendor_key: str, purchase_order_number: str
     ) -> PurchaseOrder | None:
         """Return a stored purchase order by vendor and PO number."""
-        with self._connect() as connection:
+        with self._connection() as connection:
             row = connection.execute(
                 """
                 SELECT * FROM purchase_orders
@@ -193,6 +196,15 @@ class SQLiteInvoiceRepository:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
+
+    @contextmanager
+    def _connection(self) -> Iterator[sqlite3.Connection]:
+        """Translate SQLite failures without leaking database details."""
+        try:
+            with self._connect() as connection:
+                yield connection
+        except sqlite3.Error as exc:
+            raise ReferenceDataUnavailableError from exc
 
 
 def _insert_line_items(
