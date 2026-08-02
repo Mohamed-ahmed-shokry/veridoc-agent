@@ -270,13 +270,19 @@ tradeoffs.
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── ci.yml
 ├── AGENTS.md
+├── CHANGELOG.md
 ├── README.md
 ├── docs/
 │   ├── api.md
 │   ├── architecture.md
 │   ├── data-and-security.md
 │   ├── development.md
+│   ├── release-evidence.md
+│   ├── roadmap.md
 │   ├── testing.md
 │   └── decisions/
 │       ├── README.md
@@ -298,6 +304,8 @@ tradeoffs.
 │       ├── __init__.py
 │       ├── __main__.py
 │       └── app.py
+├── scripts/
+│   └── check_distribution.py
 ├── tests/
 │   ├── fixtures/
 │   │   └── README.md
