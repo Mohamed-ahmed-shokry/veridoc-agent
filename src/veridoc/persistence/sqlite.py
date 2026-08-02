@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
+from typing import cast
 
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.verification.references import (
@@ -114,7 +115,7 @@ class SQLiteInvoiceRepository:
                 connection,
                 "invoice_line_items",
                 "invoice_id",
-                cursor.lastrowid,
+                cast(int, cursor.lastrowid),
                 invoice.line_items,
             )
 
@@ -138,7 +139,7 @@ class SQLiteInvoiceRepository:
                 connection,
                 "purchase_order_line_items",
                 "purchase_order_id",
-                cursor.lastrowid,
+                cast(int, cursor.lastrowid),
                 purchase_order.line_items,
             )
 
