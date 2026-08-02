@@ -1,6 +1,6 @@
 # Development
 
-This guide covers the implemented Phase 5 upload, OCR, structured extraction,
+This guide covers the implemented Phase 6 upload, OCR, structured extraction,
 local reference persistence, deterministic verification, evidence-grounded
 explanations, complete processing orchestration, and a minimal local review
 interface. Approval workflows and persistent review records remain unimplemented.
@@ -12,7 +12,7 @@ interface. Approval workflows and persistent review records remain unimplemented
 - a platform supported by Python 3.12
 - Tesseract OCR executable and trained data for local OCR requests
 - an OpenAI API key and a current vision-capable Responses API model for
-  `POST /extract` and optional explanation-provider guidance
+  `POST /extract`, `POST /process`, and optional explanation-provider guidance
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -156,6 +156,8 @@ Stop either process with `Ctrl+C`.
 │   ├── test_explanation_*.py      explanation contracts, fallback, and graph tests
 │   ├── test_openai_explanations.py mocked explanation-provider adapter tests
 │   ├── test_processing_*.py  complete graph, API, model, and service tests
+│   ├── test_processing_integration.py complete dependency-composition test
+│   ├── test_request_context.py correlation header and safe-log tests
 │   ├── test_review_page.py   local review-interface route test
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
@@ -172,9 +174,9 @@ uv add PACKAGE
 uv add --dev PACKAGE
 ```
 
-Phase 5 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
+Phase 6 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
 pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
-standard library, so Phase 5 adds no package. Do not add a second OCR engine,
+standard library, so Phase 6 adds no package. Do not add a second OCR engine,
 extraction/explanation provider, database dependency, or frontend build system
 without approval.
 
@@ -221,16 +223,31 @@ comparison. Use only fictional or otherwise approved reference data. SQLite
 files are ignored by Git; see [data and security](data-and-security.md) and
 [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
 
-## Logging and data handling
+## Operational guidance
 
-Uvicorn owns basic request and lifecycle logs. The OCR, extraction, verification,
-explanation, processing, and review boundaries do not log document bodies, raw
-OCR text, extracted values, rendered pages, verification findings, explanation
-narratives, credentials, temporary paths, Tesseract output, or provider
-responses. Explanation providers receive only canonical verification findings
-and responses are requested with storage disabled. Uploaded bytes are private
-and ephemeral for one request; the temporary directory is removed after success
-or failure.
+`GET /health` is a liveness check only: it confirms that the API can serve a
+request, but does not call Tesseract, OpenAI, or SQLite. For a local startup
+check, call it after Uvicorn reports that the process is ready. A `503` from an
+OCR, extraction, or reference-data boundary indicates a dependency or
+configuration problem; inspect its safe error code and the matching
+`X-Request-ID` before retrying. Validation `400`, `413`, and `415` responses
+require a different upload rather than an automatic retry. A `422` means the
+validated document or typed processing result could not be handled safely.
+
+Every response includes `X-Request-ID`. Clients may submit a bounded safe value
+or let the service generate one; do not put invoice numbers, customer data, or
+secrets in it. Configure the deployment's standard-library logging to retain the
+`veridoc.request` logger at `INFO` when operational request records are needed.
+Each record contains only the request ID, HTTP method, path without query text,
+status code, and duration in milliseconds.
+
+The OCR, extraction, verification, explanation, processing, and review
+boundaries do not log document bodies, raw OCR text, extracted values, rendered
+pages, verification findings, explanation narratives, credentials, temporary
+paths, Tesseract output, or provider responses. Explanation providers receive
+only canonical verification findings and responses are requested with storage
+disabled. Uploaded bytes are private and ephemeral for one request; the
+temporary directory is removed after success or failure.
 
 ## Development workflow
 
