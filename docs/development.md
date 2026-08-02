@@ -189,6 +189,18 @@ uv run ruff format --check .
 uv run mypy
 ```
 
+Audit the synchronized environment against the Python Packaging Advisory
+Database with:
+
+```bash
+uv run pip-audit
+```
+
+The command fails when a resolved third-party distribution has a known
+vulnerability. It reports the unpublished local `veridoc` distribution as
+skipped because that package has no public advisory record; that skip does not
+exclude any of its locked dependencies from the audit.
+
 ## Static type checking
 
 Run the strict production type gate with:
