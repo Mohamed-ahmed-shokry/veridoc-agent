@@ -236,7 +236,7 @@ Status: `200 OK`
 
 The response has four typed sections. `extraction` uses the same complete
 schema as `/extract`, including its evidence map. The abbreviated example below
-omits unrelated nullable extraction fields for readability:
+omits unrelated nullable and repeated nested fields for readability:
 
 ```json
 {
@@ -276,7 +276,7 @@ omits unrelated nullable extraction fields for readability:
   ],
   "verdict": {
     "status": "review_required",
-    "summary": "1 deterministic verification finding require review.",
+    "summary": "1 deterministic verification finding requires review.",
     "finding_count": 1,
     "highest_severity": "high"
   }
