@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from io import BytesIO
 
 import fitz
@@ -50,10 +49,11 @@ def fictional_invoice_pdf(page_count: int = 1) -> bytes:
             "modDate": "D:20200101000000",
         }
     )
-    data = document.tobytes(garbage=4, deflate=True, clean=True)
-    document.close()
-    return re.sub(
-        rb"/ID\[<[0-9A-F]+><[0-9A-F]+>\]",
-        b"/ID[<00000000000000000000000000000000><11111111111111111111111111111111>]",
-        data,
+    data = document.tobytes(
+        garbage=4,
+        deflate=True,
+        clean=True,
+        no_new_id=True,
     )
+    document.close()
+    return data
