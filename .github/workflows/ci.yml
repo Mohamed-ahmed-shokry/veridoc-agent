@@ -50,10 +50,13 @@ jobs:
         run: uv run pytest --cov=veridoc
 
       - name: Build distributions
-        run: uv build
+        run: uv build --clear
 
       - name: Validate distribution metadata
         run: uv run twine check dist/*
+
+      - name: Validate distribution contents
+        run: uv run python scripts/check_distribution.py
 
       - name: Smoke-test the isolated wheel
         shell: bash

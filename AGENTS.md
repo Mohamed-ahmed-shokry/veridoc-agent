@@ -183,8 +183,9 @@ uv lock --check
 uv run pip-audit
 
 # Build and validate distribution metadata.
-uv build
+uv build --clear
 uv run twine check dist/*
+uv run python scripts/check_distribution.py
 
 # Apply formatting when needed.
 uv run ruff format .
