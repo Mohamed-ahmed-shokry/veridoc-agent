@@ -37,3 +37,22 @@ def test_verdict_requires_review_and_reports_the_highest_severity() -> None:
     assert verdict.status == "review_required"
     assert verdict.finding_count == 2
     assert verdict.highest_severity == "high"
+    assert verdict.summary == "2 deterministic verification findings require review."
+
+
+def test_single_finding_verdict_uses_singular_grammar() -> None:
+    verdict = derive_verdict(
+        VerificationResult(
+            findings=[
+                VerificationFinding(
+                    finding_type="duplicate_invoice_number",
+                    severity="high",
+                    explanation="The invoice number already exists for this vendor.",
+                    comparison_source="invoice_register",
+                    deterministic_rule="invoice_number must be unique within vendor history",
+                )
+            ]
+        )
+    )
+
+    assert verdict.summary == "1 deterministic verification finding requires review."

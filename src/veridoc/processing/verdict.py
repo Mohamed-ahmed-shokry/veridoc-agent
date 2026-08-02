@@ -26,9 +26,10 @@ def derive_verdict(verification: VerificationResult) -> ProcessingVerdict:
     )
     count = len(findings)
     suffix = "finding" if count == 1 else "findings"
+    verb = "requires" if count == 1 else "require"
     return ProcessingVerdict(
         status="review_required",
-        summary=f"{count} deterministic verification {suffix} require review.",
+        summary=f"{count} deterministic verification {suffix} {verb} review.",
         finding_count=count,
         highest_severity=highest_severity,
     )
