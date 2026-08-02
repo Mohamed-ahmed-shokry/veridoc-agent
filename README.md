@@ -337,6 +337,7 @@ release evidence without adding endpoints or processing features. See the
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md): completed version scope and unreleased changes.
 - [Development](docs/development.md): setup, commands, Tesseract configuration,
   logging, and atomic workflow.
 - [Testing](docs/testing.md): test organization, fixtures, mocks, and quality gates.
