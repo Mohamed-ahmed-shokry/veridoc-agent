@@ -1,11 +1,10 @@
 # API
 
-The Phase 4 API accepts one bounded invoice image or PDF. `POST /ocr` returns
+The Phase 5 API accepts one bounded invoice image or PDF. `POST /ocr` returns
 raw OCR text; `POST /extract` adds typed invoice extraction with page-level
-evidence and declared uncertainty. Phase 4 supplies internal SQLite persistence,
-deterministic verification, and evidence-grounded explanation services, but it
-intentionally adds no public verification endpoint, explanation route, or
-verdict.
+evidence and declared uncertainty; `POST /process` runs the complete typed
+workflow and returns findings, explanations, and a deterministic verdict.
+`GET /review` is a minimal local page that submits to `/process`.
 
 ## Local base URL
 
@@ -201,11 +200,116 @@ price, and evidence fields.
 | `422` | `extraction_processing_failed` | The provider did not return valid structured extraction data. |
 | `503` | `extraction_unavailable` | Required provider configuration is missing or the provider cannot be used safely. |
 
+## `POST /process`
+
+Validates the same multipart `file` upload as `/extract`, runs OCR, structured
+extraction, deterministic verification, evidence-grounded explanation, and
+deterministic verdict derivation. The upload limits, accepted media types, and
+temporary-file lifetime are identical to `/ocr` and `/extract`.
+
+### Required configuration
+
+`/process` requires the same non-empty extraction-provider settings as
+`/extract`. It uses an optional explanation provider when those settings are
+available; absent explanation settings result in deterministic explanations,
+not an error. It also opens and initializes a local SQLite reference-data file:
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | none | Required credential for structured extraction. |
+| `VERIDOC_LLM_MODEL` | none | Required vision-capable Responses API model for extraction. |
+| `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite invoice/PO reference-data path. |
+
+Reference data must be fictional or otherwise approved. `/process` does not
+seed, manage, export, or persist the uploaded document into that database.
+
+### Request
+
+```bash
+curl.exe -X POST http://127.0.0.1:8000/process \
+  -F "file=@fictional-invoice.png;type=image/png"
+```
+
+### Successful response
+
+Status: `200 OK`
+
+The response has four typed sections. `extraction` uses the same complete
+schema as `/extract`, including its evidence map. The abbreviated example below
+omits unrelated nullable extraction fields for readability:
+
+```json
+{
+  "extraction": {
+    "document_type": "invoice",
+    "vendor_name": "Fictional Supplies Ltd.",
+    "invoice_number": "INV-001",
+    "evidence": {
+      "invoice_number": [
+        {
+          "page_number": 1,
+          "source": "ocr_text",
+          "text_span": "Invoice No: INV-001"
+        }
+      ]
+    }
+  },
+  "findings": [
+    {
+      "finding_type": "duplicate_invoice_number",
+      "severity": "high",
+      "explanation": "This vendor already has an invoice with the extracted invoice number.",
+      "comparison_source": "invoice_register",
+      "deterministic_rule": "invoice_number must be unique within a vendor history",
+      "observed_value": "INV-001"
+    }
+  ],
+  "explanations": [
+    {
+      "finding": {
+        "finding_type": "duplicate_invoice_number"
+      },
+      "narrative": "Review the existing invoice record before proceeding.",
+      "numerical_context": "Observed value: INV-001. Expected value: no existing invoice with this number.",
+      "source": "deterministic"
+    }
+  ],
+  "verdict": {
+    "status": "review_required",
+    "summary": "1 deterministic verification finding require review.",
+    "finding_count": 1,
+    "highest_severity": "high"
+  }
+}
+```
+
+`findings` are canonical deterministic verification values. Each explanation
+contains its canonical finding and application-rendered numerical context.
+`verdict.status` is `review_required` when findings exist and `clear` when they
+do not. `clear` is not approval or a guarantee that the invoice is trustworthy.
+
+### Error responses
+
+`/process` returns the validation, OCR, and extraction errors documented above,
+plus:
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `422` | `processing_failed` | The complete workflow did not produce a typed result. |
+| `503` | `reference_data_unavailable` | The configured local reference data could not be opened safely. |
+
+## `GET /review`
+
+Serves a small local HTML page for submitting one document to `/process` and
+viewing the returned verdict, extraction evidence, findings, and explanations.
+It has no server-side review queue, session, approval control, or saved review
+record. Use only fictional or otherwise approved documents.
+
 ## Current limitations
 
 The API has no authentication, versioned URL prefix, request correlation
-middleware, public reference-data management, public verification or
-explanation endpoint, verdict, or review UI. `/extract` remains an
-extraction-only Phase 2 route; Phase 4 does not expose SQLite data, verification
-findings, or explanations over HTTP. It is a local development boundary and is
-not ready for real documents or production traffic.
+middleware, public reference-data management, standalone verification or
+explanation endpoint, approval action, or persistent review record. `/process`
+is synchronous and does not treat `clear` as approval or a guarantee that a
+document is trustworthy. It is a local development boundary and is not ready
+for real documents or production traffic.
