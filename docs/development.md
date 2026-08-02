@@ -1,6 +1,6 @@
 # Development
 
-This guide covers product behavior implemented through Phase 6 and the approved
+This guide covers product behavior implemented through Phase 6 and the completed
 Phase 7 release-engineering workflow. Approval workflows and persistent review
 records remain unimplemented.
 
