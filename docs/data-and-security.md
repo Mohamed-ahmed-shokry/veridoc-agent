@@ -1,7 +1,7 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 6 accepts document bytes for one ephemeral OCR, extraction, or complete
+Phase 8 accepts document bytes for one ephemeral OCR, extraction, or complete
 processing request. Complete processing reads and writes local reference facts
 at an explicitly configured SQLite path, but never persists the current upload.
 When `/extract` or `/process` is used, the extraction adapter sends the current
@@ -9,8 +9,9 @@ request's OCR text and normalized page images to the configured OpenAI provider.
 The internal explanation adapter sends only canonical verification findings,
 never document bytes, page images, or raw OCR text. The local `/review` page
 submits the selected document to `/process` without retaining it in the page.
-This is still a local development service and must not receive real invoices or
-production data.
+Authenticated `/admin/reference-data/*` routes can manage approved local
+reference facts; they never accept document uploads. This is still a local
+development service and must not receive real invoices or production data.
 
 ## Allowed development data
 
@@ -34,6 +35,8 @@ the provider boundary. Phase 5 processing and review tests use the same
 synthetic boundaries; Phase 6 integration tests use a temporary database and
 fake OCR/extraction boundaries. No browser upload or reference database is
 committed.
+Phase 8 administration, migration, import, backup, and restore tests use
+fictional records and pytest temporary databases only.
 
 ## Prohibited data
 
@@ -68,11 +71,19 @@ excludes `.env` and `.env.*` while explicitly allowing `.env.example`.
 
 The application reads optional `TESSERACT_CMD` and `TESSERACT_LANG`, plus the
 `OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` used by `/extract` and `/process`, and
-the optional `VERIDOC_REFERENCE_DATABASE` path used by `/process`, from the
-process environment; it does not load `.env` files. Keep executable paths,
-model names, language choices, and local database paths out of committed
-secrets, and use unmistakably fake placeholders in `.env.example` when examples
-are needed.
+the optional `VERIDOC_REFERENCE_DATABASE` path used by processing and
+administration, from the process environment. `VERIDOC_ADMIN_TOKEN` is required
+for administration and must be a randomly generated 32-256 character value.
+The application does not load `.env` files. Keep credentials and deployment
+paths out of committed files, and use unmistakably fake placeholders in
+`.env.example` when examples are needed.
+
+Send the administration token only in the `Authorization: Bearer` header. Never
+put it in a URL, query value, request body, source file, shell history, or log.
+Missing configuration returns a safe `503`; missing or invalid request
+credentials return the same generic `401` challenge. Comparison is constant
+time, but the shared token provides neither individual identity nor role-based
+authorization.
 
 Before committing, inspect staged changes for accidental credentials and verify
 that any local `.env` remains ignored.
@@ -123,32 +134,67 @@ deterministic numerical context rather than a provider calculation. That request
 option and narrowed data payload do not replace an organization-specific review
 of provider retention, regional-processing, account, and contractual controls.
 
+## Reference-data administration boundary
+
+Administration accepts typed invoice and purchase-order facts, not document
+bytes, OCR text, provider responses, or verdicts. Each created record stores a
+server-generated identifier, client-declared source and external identifier,
+creation time, update time, and optional `retention_until` date. Source and
+external identifier remain immutable on update so later facts retain their
+declared provenance. These fields are metadata, not proof that a source is
+trustworthy; operators must admit only approved reference facts.
+
+The boundary validates schemas before opening a write transaction. Each invoice
+or purchase order is limited to 200 line items, each import contains at most 500
+total records, and a raw JSON import file is limited to 1 MiB before parsing.
+Imports apply one explicit `reject`, `skip`, or `replace` conflict policy inside
+one transaction. Invalid input or a rejected conflict rolls back the entire
+write, and dry runs always roll back.
+
+Purchase-order natural-key conflicts are scoped to vendor key plus purchase
+order number. Parameterized repository queries protect SQL boundaries; this
+does not make unreviewed input trustworthy. Public errors identify the safe
+error category without exposing database paths, SQL text, credentials, or raw
+reference payloads.
+
 ## Local reference-data retention
 
 `SQLiteInvoiceRepository` persists invoice and purchase-order reference fields
 only at `VERIDOC_REFERENCE_DATABASE` (or the local default
-`veridoc-reference.sqlite3`) when `/process` is configured. It does not persist
+`veridoc-reference.sqlite3`) when processing or administration is configured.
+It does not persist
 document bytes, OCR text, page images, evidence spans, credentials, provider
 responses, explanations, or final verdicts. Never seed it with real data in this
-local Phase 6 stage. The project ignores `*.db`, `*.sqlite`, and `*.sqlite3` as
+local Phase 8 stage. The project ignores `*.db`, `*.sqlite`, and `*.sqlite3` as
 defense against accidental commits; ignore rules do not encrypt data, set
 retention periods, control backups, or authorize storage.
 
-No API endpoint creates, exports, deletes, or exposes reference data in Phase 6;
-the repository schema is initialized locally only to support deterministic
-lookups. If a local database is no longer needed, remove it only after confirming
-its path and retention requirements. Future deployment work must add access
-control, encryption, backup, lifecycle, and audit policies before handling real
-data.
+Phase 8 routes create, read, update, delete, and import reference records behind
+the shared local token. A `retention_until` value records an operator-supplied
+policy date but does not automatically delete or archive data. Operators remain
+responsible for authorized lifecycle decisions.
+
+The `veridoc-reference backup` command uses SQLite's online backup API and
+atomically replaces the requested backup only after integrity and migration
+checks. Restore requires a stopped service, explicit `--confirm-replace`, a
+valid source backup, and no live WAL or SHM sidecar. It validates a temporary
+sibling copy before atomically replacing the configured database, so a failed
+restore leaves the existing database unchanged. Store backups outside the
+repository with the same confidentiality, access, retention, encryption, and
+disposal controls as the database. The command supplies a mechanism, not a
+backup policy or recovery guarantee.
 
 ## Current security limitations
 
-Phase 6 has no authentication, authorization, TLS termination, rate limit,
-malware scanning, encrypted storage, secret manager, audit log, privacy
-workflow, provider data-residency controls, database access control, backup
-policy, retention service, or authenticated review workflow. The request ID is
-an operational correlation value, not an audit trail. The review page is a local
-display surface, not a decision or case management system. Tesseract
+Phase 8 authenticates only local reference-data administration with one shared
+Bearer token. It has no user accounts, per-operator authorization, token
+rotation/revocation service, TLS termination, rate limit, malware scanning,
+encrypted storage, secret manager, durable audit log, privacy workflow, provider
+data-residency controls, database access control, managed backup policy,
+automated retention service, or authenticated review workflow. Public
+processing and review routes are still unauthenticated. The request ID and
+record timestamps are operational metadata, not an audit trail. The review page
+is a local display surface, not a decision or case management system. Tesseract
 availability, model selection, provider account controls, and trained-data
 selection are deployment responsibilities. The service is not production ready,
 enterprise grade, fraud proof, or safe for real documents.
