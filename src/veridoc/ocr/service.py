@@ -7,7 +7,7 @@ from io import BytesIO
 from pathlib import Path
 
 import fitz
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
 from veridoc.ingestion.storage import temporary_upload
@@ -85,7 +85,7 @@ def _iter_raster_page(path: Path) -> Iterator[Image.Image]:
         with Image.open(path) as source:
             source.load()
             yield source.convert("RGB")
-    except (Image.DecompressionBombError, Image.UnidentifiedImageError, OSError) as exc:
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError) as exc:
         raise OCRProcessingError from exc
 
 
