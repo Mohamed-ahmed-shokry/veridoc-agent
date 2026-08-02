@@ -23,6 +23,14 @@ http://127.0.0.1:8000
 FastAPI also exposes generated local documentation at `/docs`, `/redoc`, and
 the OpenAPI document at `/openapi.json`.
 
+## Request correlation
+
+Every response includes an `X-Request-ID` header. Clients may provide a safe
+identifier containing 1 to 128 letters, digits, periods, underscores, or
+hyphens; otherwise the service generates a 32-character hexadecimal value.
+Record this header when reporting a request failure. It identifies operational
+metadata only and is not a document, user, or review identifier.
+
 ## `GET /health`
 
 Reports that the API process can serve requests. It does not probe OCR or any
@@ -227,6 +235,7 @@ seed, manage, export, or persist the uploaded document into that database.
 
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/process \
+  -H "X-Request-ID: local-process-example-001" \
   -F "file=@fictional-invoice.png;type=image/png"
 ```
 
