@@ -1,9 +1,8 @@
 # Development
 
-This guide covers the implemented Phase 6 upload, OCR, structured extraction,
-local reference persistence, deterministic verification, evidence-grounded
-explanations, complete processing orchestration, and a minimal local review
-interface. Approval workflows and persistent review records remain unimplemented.
+This guide covers product behavior implemented through Phase 6 and the approved
+Phase 7 release-engineering workflow. Approval workflows and persistent review
+records remain unimplemented.
 
 ## Prerequisites
 
@@ -187,7 +186,21 @@ uv lock --check
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
+uv run mypy
 ```
+
+## Static type checking
+
+Run the strict production type gate with:
+
+```bash
+uv run mypy
+```
+
+Mypy checks every module under `src/veridoc`. The configuration narrowly ignores
+missing type information from PyMuPDF and pytesseract; application code remains
+strictly checked. Tests that deliberately pass coercible or invalid values into
+Pydantic models are validated by pytest instead of the production type gate.
 
 ## Configuration
 
