@@ -63,7 +63,7 @@ def _result() -> ProcessingResult:
         ],
         verdict=ProcessingVerdict(
             status="review_required",
-            summary="1 deterministic verification finding require review.",
+            summary="1 deterministic verification finding requires review.",
             finding_count=1,
             highest_severity="high",
         ),
