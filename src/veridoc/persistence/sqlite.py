@@ -5,11 +5,21 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import cast
+from uuid import uuid4
 
+from veridoc.administration.models import (
+    InvoiceRecord,
+    InvoiceRecordInput,
+    InvoiceRecordPage,
+    InvoiceRecordUpdate,
+    InvoiceReferenceInput,
+    ReferenceRecordMetadata,
+)
+from veridoc.administration.protocol import ReferenceDataConflictError
 from veridoc.persistence.migrations import UnsupportedSchemaVersionError, migrate
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.verification.references import (
@@ -36,35 +46,109 @@ class SQLiteInvoiceRepository:
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""
+        record_id = uuid4().hex
+        timestamp = _timestamp()
+        with self._connection() as connection:
+            _insert_invoice(
+                connection,
+                invoice,
+                record_id=record_id,
+                source="application",
+                external_id=f"invoice-{record_id}",
+                created_at=timestamp,
+                updated_at=timestamp,
+                retention_until=None,
+            )
+
+    def create_invoice(self, record: InvoiceRecordInput) -> InvoiceRecord:
+        """Create one managed invoice with server identity and timestamps."""
+        record_id = uuid4().hex
+        timestamp = _timestamp()
+        with self._connection() as connection:
+            try:
+                invoice_id = _insert_invoice(
+                    connection,
+                    record.invoice.to_domain(),
+                    record_id=record_id,
+                    source=record.metadata.source,
+                    external_id=record.metadata.external_id,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                    retention_until=record.metadata.retention_until,
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ReferenceDataConflictError from exc
+            row = connection.execute(
+                "SELECT * FROM vendor_invoices WHERE id = ?", (invoice_id,)
+            ).fetchone()
+            return _admin_invoice_from_row(connection, row)
+
+    def list_invoices(
+        self, *, vendor_key: str | None, offset: int, limit: int
+    ) -> InvoiceRecordPage:
+        """Return managed invoices in stable insertion order."""
+        where_clause = " WHERE vendor_key = ?" if vendor_key is not None else ""
+        parameters: tuple[object, ...] = (vendor_key,) if vendor_key is not None else ()
+        with self._connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM vendor_invoices{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM vendor_invoices{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return InvoiceRecordPage(
+                records=[_admin_invoice_from_row(connection, row) for row in rows],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
+
+    def get_admin_invoice(self, record_id: str) -> InvoiceRecord | None:
+        """Return one managed invoice by its server identifier."""
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM vendor_invoices WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            return _admin_invoice_from_row(connection, row) if row is not None else None
+
+    def update_admin_invoice(
+        self, record_id: str, update: InvoiceRecordUpdate
+    ) -> InvoiceRecord | None:
+        """Replace invoice facts while preserving identity and provenance."""
+        with self._connection() as connection:
+            row = connection.execute(
+                "SELECT id FROM vendor_invoices WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            invoice_id = int(row["id"])
+            _update_invoice(
+                connection,
+                invoice_id,
+                update.invoice.to_domain(),
+                retention_until=update.retention_until,
+                updated_at=_timestamp(),
+            )
+            updated_row = connection.execute(
+                "SELECT * FROM vendor_invoices WHERE id = ?", (invoice_id,)
+            ).fetchone()
+            return _admin_invoice_from_row(connection, updated_row)
+
+    def delete_admin_invoice(self, record_id: str) -> bool:
+        """Delete one managed invoice and its child line items."""
         with self._connection() as connection:
             cursor = connection.execute(
-                """
-                INSERT INTO vendor_invoices (
-                    vendor_key, invoice_number, purchase_order_number, invoice_date,
-                    due_date, currency, subtotal, tax, discount, total, payment_terms
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    invoice.vendor_key,
-                    invoice.invoice_number,
-                    invoice.purchase_order_number,
-                    _date_to_text(invoice.invoice_date),
-                    _date_to_text(invoice.due_date),
-                    invoice.currency,
-                    _decimal_to_text(invoice.subtotal),
-                    _decimal_to_text(invoice.tax),
-                    _decimal_to_text(invoice.discount),
-                    _decimal_to_text(invoice.total),
-                    invoice.payment_terms,
-                ),
+                "DELETE FROM vendor_invoices WHERE record_id = ?", (record_id,)
             )
-            _insert_line_items(
-                connection,
-                "invoice_line_items",
-                "invoice_id",
-                cast(int, cursor.lastrowid),
-                invoice.line_items,
-            )
+            return cursor.rowcount > 0
 
     def add_purchase_order(self, purchase_order: PurchaseOrder) -> None:
         """Persist one purchase order and its line items."""
@@ -188,6 +272,102 @@ def _insert_line_items(
     )
 
 
+def _insert_invoice(
+    connection: sqlite3.Connection,
+    invoice: HistoricalInvoice,
+    *,
+    record_id: str,
+    source: str,
+    external_id: str,
+    created_at: str,
+    updated_at: str,
+    retention_until: date | None,
+) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO vendor_invoices (
+            vendor_key, invoice_number, purchase_order_number, invoice_date,
+            due_date, currency, subtotal, tax, discount, total, payment_terms,
+            record_id, source, external_id, created_at, updated_at, retention_until
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            invoice.vendor_key,
+            invoice.invoice_number,
+            invoice.purchase_order_number,
+            _date_to_text(invoice.invoice_date),
+            _date_to_text(invoice.due_date),
+            invoice.currency,
+            _decimal_to_text(invoice.subtotal),
+            _decimal_to_text(invoice.tax),
+            _decimal_to_text(invoice.discount),
+            _decimal_to_text(invoice.total),
+            invoice.payment_terms,
+            record_id,
+            source,
+            external_id,
+            created_at,
+            updated_at,
+            _date_to_text(retention_until),
+        ),
+    )
+    invoice_id = cast(int, cursor.lastrowid)
+    _insert_line_items(
+        connection,
+        "invoice_line_items",
+        "invoice_id",
+        invoice_id,
+        invoice.line_items,
+    )
+    return invoice_id
+
+
+def _update_invoice(
+    connection: sqlite3.Connection,
+    invoice_id: int,
+    invoice: HistoricalInvoice,
+    *,
+    retention_until: date | None,
+    updated_at: str,
+) -> None:
+    connection.execute(
+        """
+        UPDATE vendor_invoices
+        SET vendor_key = ?, invoice_number = ?, purchase_order_number = ?,
+            invoice_date = ?, due_date = ?, currency = ?, subtotal = ?, tax = ?,
+            discount = ?, total = ?, payment_terms = ?, updated_at = ?,
+            retention_until = ?
+        WHERE id = ?
+        """,
+        (
+            invoice.vendor_key,
+            invoice.invoice_number,
+            invoice.purchase_order_number,
+            _date_to_text(invoice.invoice_date),
+            _date_to_text(invoice.due_date),
+            invoice.currency,
+            _decimal_to_text(invoice.subtotal),
+            _decimal_to_text(invoice.tax),
+            _decimal_to_text(invoice.discount),
+            _decimal_to_text(invoice.total),
+            invoice.payment_terms,
+            updated_at,
+            _date_to_text(retention_until),
+            invoice_id,
+        ),
+    )
+    connection.execute(
+        "DELETE FROM invoice_line_items WHERE invoice_id = ?", (invoice_id,)
+    )
+    _insert_line_items(
+        connection,
+        "invoice_line_items",
+        "invoice_id",
+        invoice_id,
+        invoice.line_items,
+    )
+
+
 def _invoice_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> HistoricalInvoice:
@@ -206,6 +386,23 @@ def _invoice_from_row(
         line_items=_line_items_from_rows(
             connection, "invoice_line_items", "invoice_id", row["id"]
         ),
+    )
+
+
+def _admin_invoice_from_row(
+    connection: sqlite3.Connection, row: sqlite3.Row
+) -> InvoiceRecord:
+    invoice = _invoice_from_row(connection, row)
+    return InvoiceRecord(
+        metadata=ReferenceRecordMetadata(
+            record_id=row["record_id"],
+            source=row["source"],
+            external_id=row["external_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+            retention_until=_text_to_date(row["retention_until"]),
+        ),
+        invoice=InvoiceReferenceInput.model_validate(invoice.model_dump()),
     )
 
 
@@ -245,3 +442,7 @@ def _date_to_text(value: date | None) -> str | None:
 
 def _text_to_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value is not None else None
+
+
+def _timestamp() -> str:
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
