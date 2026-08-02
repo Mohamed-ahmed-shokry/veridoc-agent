@@ -1,6 +1,6 @@
 # API
 
-The Phase 5 API accepts one bounded invoice image or PDF. `POST /ocr` returns
+The Phase 6 API accepts one bounded invoice image or PDF. `POST /ocr` returns
 raw OCR text; `POST /extract` adds typed invoice extraction with page-level
 evidence and declared uncertainty; `POST /process` runs the complete typed
 workflow and returns findings, explanations, and a deterministic verdict.
@@ -316,9 +316,9 @@ record. Use only fictional or otherwise approved documents.
 
 ## Current limitations
 
-The API has no authentication, versioned URL prefix, request correlation
-middleware, public reference-data management, standalone verification or
-explanation endpoint, approval action, or persistent review record. `/process`
-is synchronous and does not treat `clear` as approval or a guarantee that a
-document is trustworthy. It is a local development boundary and is not ready
-for real documents or production traffic.
+The API has no authentication, versioned URL prefix, public reference-data
+management, standalone verification or explanation endpoint, approval action,
+persistent audit trail, or persistent review record. `/process` is synchronous
+and does not treat `clear` as approval or a guarantee that a document is
+trustworthy. It is a local development boundary and is not ready for real
+documents or production traffic.
