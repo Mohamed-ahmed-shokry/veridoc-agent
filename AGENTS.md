@@ -170,6 +170,9 @@ uv run pytest tests/test_review_page.py
 uv run ruff check .
 uv run ruff format --check .
 
+# Check production type contracts.
+uv run mypy
+
 # Confirm pyproject.toml and uv.lock agree.
 uv lock --check
 
@@ -177,8 +180,8 @@ uv lock --check
 uv run ruff format .
 ```
 
-No static type checker is configured in Phase 6. When one is introduced, add
-its exact command here in the same commit as its configuration.
+Mypy strictly checks `src/veridoc`. Runtime-negative tests deliberately exercise
+Pydantic coercion and rejection paths, so pytest remains their validation gate.
 
 Add runtime dependencies with `uv add <package>` and development dependencies
 with `uv add --dev <package>`. Never use pip, Conda, Poetry, Pipenv, or a

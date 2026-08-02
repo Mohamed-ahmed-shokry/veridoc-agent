@@ -31,3 +31,13 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.12"
+files = ["src/veridoc"]
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = ["fitz", "pytesseract", "pytesseract.*"]
+ignore_missing_imports = true
