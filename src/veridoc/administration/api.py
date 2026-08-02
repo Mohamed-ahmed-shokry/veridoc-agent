@@ -20,6 +20,10 @@ from veridoc.administration.models import (
     InvoiceRecordInput,
     InvoiceRecordPage,
     InvoiceRecordUpdate,
+    PurchaseOrderRecord,
+    PurchaseOrderRecordInput,
+    PurchaseOrderRecordPage,
+    PurchaseOrderRecordUpdate,
 )
 from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
@@ -177,6 +181,95 @@ def delete_invoice(
 ) -> Response:
     """Delete one managed invoice and its line items."""
     if not repository.delete_admin_invoice(record_id):
+        raise _not_found()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/purchase-orders",
+    response_model=PurchaseOrderRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_purchase_order(
+    record: PurchaseOrderRecordInput,
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> PurchaseOrderRecord:
+    """Create one provenance-tracked purchase order."""
+    try:
+        return repository.create_purchase_order(record)
+    except ReferenceDataConflictError as exc:
+        raise _conflict(exc) from exc
+
+
+@router.get("/purchase-orders", response_model=PurchaseOrderRecordPage)
+def list_purchase_orders(
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+    vendor_key: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> PurchaseOrderRecordPage:
+    """Return a bounded page of managed purchase orders."""
+    return repository.list_purchase_orders(
+        vendor_key=vendor_key,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.get("/purchase-orders/{record_id}", response_model=PurchaseOrderRecord)
+def get_purchase_order(
+    record_id: Annotated[str, _RECORD_ID],
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> PurchaseOrderRecord:
+    """Return one managed purchase order without document content."""
+    record = repository.get_admin_purchase_order(record_id)
+    if record is None:
+        raise _not_found()
+    return record
+
+
+@router.put("/purchase-orders/{record_id}", response_model=PurchaseOrderRecord)
+def update_purchase_order(
+    record_id: Annotated[str, _RECORD_ID],
+    update: PurchaseOrderRecordUpdate,
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> PurchaseOrderRecord:
+    """Replace mutable purchase-order facts while preserving provenance."""
+    try:
+        record = repository.update_admin_purchase_order(record_id, update)
+    except ReferenceDataConflictError as exc:
+        raise _conflict(exc) from exc
+    if record is None:
+        raise _not_found()
+    return record
+
+
+@router.delete(
+    "/purchase-orders/{record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_purchase_order(
+    record_id: Annotated[str, _RECORD_ID],
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> Response:
+    """Delete one managed purchase order and its line items."""
+    if not repository.delete_admin_purchase_order(record_id):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
