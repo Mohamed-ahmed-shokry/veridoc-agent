@@ -23,3 +23,4 @@ Accepted decisions:
 - [0004: Use validated LLM proposals for explanations](0004-use-validated-llm-proposals-for-explanations.md)
 - [0005: Use review-required processing verdicts](0005-use-review-required-processing-verdicts.md)
 - [0006: Use a bearer token for local administration](0006-use-bearer-token-for-local-administration.md)
+- [0007: Use forward-only SQLite migrations](0007-use-forward-only-sqlite-migrations.md)
