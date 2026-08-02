@@ -7,7 +7,8 @@ reference persistence, deterministic verification services, and an internal
 evidence-grounded explanation layer. `POST /process` now orchestrates those
 stages into a typed final response and `GET /review` provides a minimal local
 review page. Authentication, review records, and policy decisions remain later
-work.
+work. Approved Phase 7 changes only release engineering and does not alter this
+runtime architecture.
 
 ## System boundary
 
@@ -177,6 +178,23 @@ explanation, and processing services do not import FastAPI or an OpenAI SDK.
 Verification and explanation domain logic must not import FastAPI, LangGraph,
 SQLite connection code, or vendor SDKs.
 
+## Planned evolution boundaries
+
+The [project roadmap](roadmap.md) describes later candidates without approving
+their implementation. If those phases are approved, they must extend the
+current boundaries rather than bypass them:
+
+- reference-data administration must call the repository protocol and must not
+  expose SQLite connection details to API or review code;
+- persistent review records must preserve canonical findings, explanations, and
+  verdicts rather than mutating them into reviewer-approved facts;
+- deployment controls such as authentication, secrets, TLS, retention, and
+  observability export must remain outside deterministic domain rules; and
+- evaluation must report OCR/extraction quality separately from deterministic
+  verification-rule coverage and end-to-end operational performance.
+
+Phases 8 through 11 remain unapproved and unimplemented.
+
 ## External boundaries
 
 ### OCR
@@ -266,8 +284,9 @@ provider, or SQLite dependencies.
 - Explanation-provider prose is deliberately constrained. Any invalid, unsafe,
   or unavailable provider output yields a deterministic result rather than an
   unsupported claim.
-- Phase 6 has one synchronous processing endpoint and a stateless local review
-  page. It has no public reference-data management, standalone verification or
-  explanation endpoint, approval action, authentication, malware scanning,
+- The product behavior completed through Phase 6 has one synchronous processing
+  endpoint and a stateless local review page. Phase 7 adds no runtime feature.
+  The service has no public reference-data management, standalone verification
+  or explanation endpoint, approval action, authentication, malware scanning,
   retention service, persistent audit trail, or review record. Its request ID
   is useful for operational correlation but does not replace those controls.
