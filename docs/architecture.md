@@ -1,6 +1,6 @@
 # Architecture
 
-Veridoc's implemented Phase 5 boundary accepts one bounded invoice or
+Veridoc's implemented Phase 6 boundary accepts one bounded invoice or
 purchase-order image/PDF, runs OCR, and returns typed extraction data with
 page-level evidence and explicit uncertainty. It also provides local SQLite
 reference persistence, deterministic verification services, and an internal
@@ -17,7 +17,9 @@ system of record, or autonomous payment approver.
 
 ```mermaid
 flowchart LR
-    Client["HTTP multipart client"] --> App["FastAPI application"]
+    Client["HTTP multipart client"] --> Context["Request correlation"]
+    Context --> App["FastAPI application"]
+    Context --> RequestLog["Metadata-only request log"]
     App --> Validate["Bounded upload validation"]
     Validate --> ProcessGraph["Typed complete processing graph at POST /process"]
     ProcessGraph --> OCR
@@ -54,8 +56,8 @@ images are normalized in memory and are not retained after the request.
 
 ## Package boundaries
 
-- `veridoc.app` owns FastAPI routes, dependency injection, and safe HTTP error
-  translation for `/ocr`, `/extract`, and `/process`.
+- `veridoc.app` owns FastAPI routes, request correlation, dependency injection,
+  and safe HTTP error translation for `/ocr`, `/extract`, and `/process`.
 - `veridoc.ingestion` bounds uploads, validates signatures and decoded limits,
   sanitizes filenames, and manages private temporary uploads.
 - `veridoc.ocr` decodes validated documents, invokes the replaceable OCR engine,
@@ -241,6 +243,16 @@ normalized page images. Explanation provider calls send canonical verification
 findings only; neither provider adapter retains a response through the request
 it makes.
 
+## Operational observability
+
+The FastAPI middleware assigns a safe request ID before route handling, returns
+it as `X-Request-ID`, and emits one `veridoc.request` completion record. The
+record includes the ID, method, path without query text, status code, and
+duration only. The header may carry a bounded safe client correlation value, but
+does not identify a document, reviewer, or approval decision. `GET /health` is
+a liveness signal for the HTTP application, not a readiness probe for OCR,
+provider, or SQLite dependencies.
+
 ## Current tradeoffs and limitations
 
 - OCR text and images are combined to preserve layout context that plain text
@@ -254,7 +266,8 @@ it makes.
 - Explanation-provider prose is deliberately constrained. Any invalid, unsafe,
   or unavailable provider output yields a deterministic result rather than an
   unsupported claim.
-- Phase 5 has one synchronous processing endpoint and a stateless local review
+- Phase 6 has one synchronous processing endpoint and a stateless local review
   page. It has no public reference-data management, standalone verification or
-  explanation endpoint, approval action, authentication, request correlation,
-  malware scanning, retention service, or review record.
+  explanation endpoint, approval action, authentication, malware scanning,
+  retention service, persistent audit trail, or review record. Its request ID
+  is useful for operational correlation but does not replace those controls.
