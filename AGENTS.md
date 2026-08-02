@@ -69,6 +69,9 @@ deliberately small:
   graph with a temporary SQLite repository and deterministic external fakes.
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
+- `scripts/check_distribution.py` validates wheel and source-distribution
+  metadata, required contents, safe paths, and sensitive-file exclusions.
+- `tests/test_distribution_check.py` covers archive validation rejection paths.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 may add only
@@ -165,6 +168,7 @@ uv run pytest tests/test_processing_api.py
 uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
+uv run pytest tests/test_distribution_check.py
 
 # Check lint and formatting.
 uv run ruff check .
@@ -259,6 +263,7 @@ the focused health test when the documented development workflow is affected.
 `README.md` is the concise user and contributor entry point. The current
 documentation set is:
 
+- `CHANGELOG.md` for completed version scope and unreleased changes;
 - `docs/architecture.md` for current boundaries and the explicitly planned flow;
 - `docs/development.md` for setup, commands, configuration, and workflow;
 - `docs/testing.md` for tests, fixtures, mocks, and required evidence;
