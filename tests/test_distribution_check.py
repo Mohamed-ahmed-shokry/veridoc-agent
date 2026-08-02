@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from scripts.check_distribution import (
+    _check_console_scripts,
     _check_member_paths,
     _require_members,
     _required_package_members,
@@ -43,3 +44,15 @@ def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:
     assert "veridoc/administration/cli.py" in required
     assert "veridoc/persistence/migrations.py" in required
     assert "veridoc/persistence/maintenance.py" in required
+
+
+def test_distribution_check_requires_both_console_scripts() -> None:
+    valid = b"""[console_scripts]\nveridoc = veridoc.__main__:main\nveridoc-reference = veridoc.administration.cli:main\n"""
+
+    _check_console_scripts(valid, Path("dist/veridoc.whl"))
+
+    with pytest.raises(RuntimeError, match="console scripts"):
+        _check_console_scripts(
+            b"[console_scripts]\nveridoc = veridoc.__main__:main\n",
+            Path("dist/veridoc.whl"),
+        )

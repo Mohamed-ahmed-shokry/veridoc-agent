@@ -5,6 +5,7 @@ from __future__ import annotations
 import tarfile
 import tomllib
 import zipfile
+from configparser import ConfigParser
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
@@ -62,6 +63,16 @@ def _check_wheel(path: Path, *, name: str, version: str) -> None:
         metadata = BytesParser(policy=policy.default).parsebytes(
             archive.read(metadata_members[0])
         )
+        entry_point_members = [
+            member
+            for member in members
+            if member.endswith(".dist-info/entry_points.txt")
+        ]
+        if len(entry_point_members) != 1:
+            raise RuntimeError(
+                f"{path} must contain exactly one entry_points.txt file."
+            )
+        _check_console_scripts(archive.read(entry_point_members[0]), path)
 
     expected_metadata = {
         "Name": name,
@@ -93,6 +104,24 @@ def _check_source_distribution(path: Path, *, name: str, version: str) -> None:
 
 def _required_package_members(package_root: str) -> set[str]:
     return {f"{package_root}/{member}" for member in _REQUIRED_RUNTIME_FILES}
+
+
+def _check_console_scripts(contents: bytes, archive: Path) -> None:
+    parser = ConfigParser(interpolation=None)
+    parser.read_string(contents.decode("utf-8"))
+    expected = {
+        "veridoc": "veridoc.__main__:main",
+        "veridoc-reference": "veridoc.administration.cli:main",
+    }
+    actual = (
+        dict(parser.items("console_scripts"))
+        if parser.has_section("console_scripts")
+        else {}
+    )
+    if actual != expected:
+        raise RuntimeError(
+            f"{archive} console scripts are {actual!r}, expected {expected!r}."
+        )
 
 
 def _check_member_paths(members: list[str]) -> None:
