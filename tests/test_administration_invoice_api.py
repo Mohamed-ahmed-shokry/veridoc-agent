@@ -71,6 +71,36 @@ def test_admin_routes_publish_the_bearer_security_contract() -> None:
 
 
 @pytest.mark.anyio
+async def test_admin_authentication_precedes_repository_resolution(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository_resolved = False
+
+    def resolve_repository() -> None:
+        nonlocal repository_resolved
+        repository_resolved = True
+        raise AssertionError("unauthenticated requests must not resolve storage")
+
+    monkeypatch.delenv("VERIDOC_ADMIN_TOKEN", raising=False)
+    app.dependency_overrides[get_admin_repository] = resolve_repository
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/admin/reference-data/invoices",
+                headers=_AUTHORIZATION,
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert repository_resolved is False
+
+
+@pytest.mark.anyio
 async def test_invoice_admin_requires_configured_valid_bearer_token(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
