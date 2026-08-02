@@ -1,8 +1,9 @@
 # Project Roadmap
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
-Phase 6. Phase 7 release-engineering hardening is also complete. Later phases
-are planning boundaries only and require separate approval before implementation.
+Phase 6. Phase 7 release-engineering hardening is also complete. Phase 8 is
+approved for controlled local reference-data administration. Later phases are
+planning boundaries only and require separate approval before implementation.
 
 ## Phase status
 
@@ -10,7 +11,7 @@ are planning boundaries only and require separate approval before implementation
 | --- | --- | --- |
 | 0-6 | Version 1 application, processing workflow, integration, and documentation | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
-| 8 | Controlled reference-data administration | Planned; not approved |
+| 8 | Controlled reference-data administration | Approved; in progress |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
@@ -56,7 +57,7 @@ separately approved phase or decision.
 
 ## Phase 8: controlled reference-data administration
 
-Candidate scope:
+Approved scope:
 
 - authenticated local administration boundary for fictional/approved invoice
   history and purchase orders;
@@ -68,6 +69,36 @@ Candidate scope:
 This phase must select an authentication model and migration strategy before
 implementation. SQLite remains behind `InvoiceRepository` unless evidence
 supports a new adapter.
+
+Selected boundaries:
+
+- administrative HTTP routes use a dedicated bearer token read from the
+  process environment and compared in constant time;
+- every managed record has a server identifier plus source, external identifier,
+  creation/update time, and optional retention date;
+- bulk JSON imports are bounded and fully validated before one SQLite
+  transaction, with dry-run and explicit reject, skip, or replace conflicts;
+- numbered forward-only migrations upgrade existing local databases;
+- backup and restore use SQLite's online backup API plus atomic replacement; and
+- administrative responses contain structured reference facts and metadata,
+  never uploaded document bytes, OCR text, or model prompts.
+
+Expected atomic implementation sequence:
+
+1. Record the authentication and migration decisions.
+2. Add migration tracking and provenance columns with upgrade tests.
+3. Add bounded administrative models.
+4. Add invoice and purchase-order CRUD in separate repository commits.
+5. Add atomic import and conflict handling.
+6. Add authentication and one endpoint group per focused commit.
+7. Add backup and restore tooling.
+8. Synchronize configuration, API, architecture, development, testing, security,
+   changelog, README, and operating guidance.
+9. Run and record the complete Phase 8 gate.
+
+Phase 8 excludes persistent reviewer workflow, user accounts, role management,
+remote database services, production deployment, and document storage. Those
+remain later-phase decisions.
 
 ## Phase 9: persistent review and audit workflow
 
@@ -116,7 +147,7 @@ environment.
 
 ## Approval rule
 
-Phase 7 is complete, and no later phase is approved. Before any later phase,
-inspect the current repository, run the full existing gate, present the exact
-implementation and atomic commit plan, identify data/security decisions, and
-wait for explicit user approval.
+Phase 8 is approved; no later phase is approved. Before Phase 9 or any later
+phase, inspect the current repository, run the full existing gate, present the
+exact implementation and atomic commit plan, identify data/security decisions,
+and wait for explicit user approval.
