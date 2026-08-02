@@ -13,6 +13,7 @@ from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
 
 from veridoc import __version__
+from veridoc.administration.api import router as administration_router
 from veridoc.explanation.config import OpenAIExplanationSettings
 from veridoc.explanation.openai_responses import OpenAIResponsesExplainer
 from veridoc.explanation.protocol import ExplanationUnavailableError
@@ -60,6 +61,7 @@ app = FastAPI(
     description="Invoice and purchase-order verification service.",
     version=__version__,
 )
+app.include_router(administration_router)
 
 
 @app.middleware("http")
