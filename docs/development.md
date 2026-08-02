@@ -239,6 +239,28 @@ CI is remote evidence only after GitHub reports the job result. Run the same
 documented commands locally before committing; a local pass does not imply that
 an unobserved GitHub job passed.
 
+## Package validation
+
+Build fresh wheel and source archives, validate their metadata, and inspect
+their contents with:
+
+```bash
+uv build --clear
+uv run twine check dist/*
+uv run python scripts/check_distribution.py
+```
+
+The content validator requires the application entry points and package
+metadata, rejects unsafe archive paths, and rejects environment, database, and
+private-key artifacts. On PowerShell, smoke-test the built wheel outside the
+project environment with:
+
+```powershell
+$wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
+uv run --isolated --no-project --with $wheel.FullName python -c `
+  "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
+```
+
 ## Configuration
 
 The application has these process environment variables:
