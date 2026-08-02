@@ -1,9 +1,10 @@
 # Project Roadmap
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
-Phase 6. Phase 7 release-engineering hardening is also complete. Phase 8 is
-approved for controlled local reference-data administration. Later phases are
-planning boundaries only and require separate approval before implementation.
+Phase 6. Phase 7 release-engineering hardening is also complete. Phase 8
+controlled local reference-data administration is implemented and awaiting its
+final completion gate. Later phases are planning boundaries only and require
+separate approval before implementation.
 
 ## Phase status
 
@@ -11,7 +12,7 @@ planning boundaries only and require separate approval before implementation.
 | --- | --- | --- |
 | 0-6 | Version 1 application, processing workflow, integration, and documentation | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
-| 8 | Controlled reference-data administration | Approved; in progress |
+| 8 | Controlled reference-data administration | Implemented; final gate pending |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
@@ -57,7 +58,7 @@ separately approved phase or decision.
 
 ## Phase 8: controlled reference-data administration
 
-Approved scope:
+Implemented scope:
 
 - authenticated local administration boundary for fictional/approved invoice
   history and purchase orders;
@@ -66,9 +67,12 @@ Approved scope:
 - conflict, provenance, and retention metadata; and
 - safe list/add/update/delete APIs that never expose document bodies.
 
-This phase must select an authentication model and migration strategy before
-implementation. SQLite remains behind `InvoiceRepository` unless evidence
-supports a new adapter.
+[ADR 0006](decisions/0006-use-bearer-token-for-local-administration.md) selects
+the local authentication model, and
+[ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md) selects the
+migration strategy. Processing uses `InvoiceRepository`; administration uses
+the separate `ReferenceDataAdminRepository` boundary implemented by the same
+local SQLite adapter.
 
 Selected boundaries:
 
@@ -83,18 +87,18 @@ Selected boundaries:
 - administrative responses contain structured reference facts and metadata,
   never uploaded document bytes, OCR text, or model prompts.
 
-Expected atomic implementation sequence:
+Implemented atomic sequence:
 
-1. Record the authentication and migration decisions.
-2. Add migration tracking and provenance columns with upgrade tests.
-3. Add bounded administrative models.
-4. Add invoice and purchase-order CRUD in separate repository commits.
-5. Add atomic import and conflict handling.
-6. Add authentication and one endpoint group per focused commit.
-7. Add backup and restore tooling.
-8. Synchronize configuration, API, architecture, development, testing, security,
-   changelog, README, and operating guidance.
-9. Run and record the complete Phase 8 gate.
+1. Recorded the authentication and migration decisions.
+2. Added migration tracking and provenance columns with upgrade tests.
+3. Added bounded administrative models.
+4. Added invoice and purchase-order CRUD in separate repository commits.
+5. Added atomic import and conflict handling.
+6. Added authentication and one endpoint group per focused commit.
+7. Added backup and restore tooling plus its console entry point.
+8. Synchronized configuration, API, architecture, development, testing,
+   security, changelog, README, and operating guidance.
+9. The complete Phase 8 gate and evidence snapshot remain the final step.
 
 Phase 8 excludes persistent reviewer workflow, user accounts, role management,
 remote database services, production deployment, and document storage. Those
