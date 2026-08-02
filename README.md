@@ -232,8 +232,21 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-No static type checker or coverage threshold is configured in Phase 6. See the
-[testing guide](docs/testing.md) for test boundaries and required evidence.
+Run the Phase 7 release-engineering gates:
+
+```bash
+uv run mypy
+uv run pytest --cov=veridoc
+uv lock --check
+uv run pip-audit
+uv build --clear
+uv run twine check dist/*
+uv run python scripts/check_distribution.py
+```
+
+The coverage gate measures branches and fails below 90%. See the
+[testing guide](docs/testing.md) for focused-test boundaries and the
+[development guide](docs/development.md) for package and isolated-wheel checks.
 
 ## Architecture
 
