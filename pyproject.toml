@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 veridoc = "veridoc.__main__:main"
+veridoc-reference = "veridoc.administration.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.9.13,<0.10.0"]
