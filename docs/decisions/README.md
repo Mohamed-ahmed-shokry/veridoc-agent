@@ -22,3 +22,4 @@ Accepted decisions:
 - [0003: Use SQLite for Phase 3 reference data](0003-use-sqlite-for-phase-3-reference-data.md)
 - [0004: Use validated LLM proposals for explanations](0004-use-validated-llm-proposals-for-explanations.md)
 - [0005: Use review-required processing verdicts](0005-use-review-required-processing-verdicts.md)
+- [0006: Use a bearer token for local administration](0006-use-bearer-token-for-local-administration.md)
