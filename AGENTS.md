@@ -15,10 +15,8 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 7 are complete. Phase 8 controlled reference-data
-administration is approved and implemented; its final release gate and status
-documentation are pending. Phase 9 and later are not approved. The runtime
-implementation remains deliberately small:
+Phase 0 through Phase 8 are complete. Phase 9 and later are not approved. The
+runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -380,8 +378,7 @@ following documentation commit.
 - Phase 6: final integration, documentation, and operational pass. **Complete.**
 - Phase 7: release engineering and reproducible quality gates. **Complete.**
 - Phase 8: controlled local reference-data administration, migrations, bounded
-  imports, and backup/restore. **Approved; implementation complete and final
-  gate pending.**
+  imports, and backup/restore. **Complete.**
 - Phase 9 through Phase 11: candidate review/audit persistence, deployment
   security, and readiness evaluation. **Planned; not approved.** See
   `docs/roadmap.md` for their boundaries.
