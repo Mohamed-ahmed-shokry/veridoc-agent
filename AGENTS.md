@@ -15,15 +15,16 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 are complete.
-Phase 7 release engineering is also complete. No later phase is approved. The
-runtime implementation is deliberately small:
+Phase 0 through Phase 7 are complete. Phase 8 controlled reference-data
+administration is approved and implemented; its final release gate and status
+documentation are pending. Phase 9 and later are not approved. The runtime
+implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
 - `src/veridoc/app.py` creates the FastAPI application, safe request correlation,
   `GET /health`, `POST /ocr`, `POST /extract`, `POST /process`, and `GET
-  /review`.
+  /review`, and includes the authenticated reference-data administration router.
 - `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
   uploads before decoding.
 - `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
@@ -41,7 +42,15 @@ runtime implementation is deliberately small:
   Responses API through the typed boundary.
 - `src/veridoc/persistence/protocol.py` defines the SQLite-independent invoice
   and purchase-order reference-data repository boundary.
-- `src/veridoc/persistence/sqlite.py` implements that boundary with local SQLite.
+- `src/veridoc/administration/` owns strict administration schemas, the
+  repository protocol, local Bearer authentication, FastAPI routes, and the
+  maintenance CLI.
+- `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
+  migrations and rejects unsupported future schema versions.
+- `src/veridoc/persistence/sqlite.py` implements processing and administration
+  repository boundaries with local SQLite.
+- `src/veridoc/persistence/maintenance.py` provides integrity-checked online
+  backup and stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
   rules, an API-neutral service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
@@ -69,6 +78,10 @@ runtime implementation is deliberately small:
   graph with a temporary SQLite repository and deterministic external fakes.
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
+- `tests/test_administration_*.py`, `tests/test_sqlite_migrations.py`, and
+  `tests/test_reference_data_maintenance.py` cover bounded schemas, credentials,
+  OpenAPI security, auth-before-storage ordering, CRUD, atomic imports,
+  migrations, backup/restore, and CLI failures with temporary databases.
 - `scripts/check_distribution.py` validates wheel and source-distribution
   metadata, required contents, safe paths, and sensitive-file exclusions.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
@@ -76,7 +89,9 @@ runtime implementation is deliberately small:
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
 quality and release gates without adding endpoints, domain behavior, deployment
-targets, or workflow features.
+targets, or workflow features. Phase 8 adds controlled local reference-data
+operations without adding user accounts, an audit workflow, or deployment
+infrastructure.
 
 The current and planned workflow is:
 
@@ -106,8 +121,9 @@ SQLite connection code, or vendor SDKs.
 - Tesseract is the selected version 1 OCR baseline and is integrated behind the
   typed `OCREngine` protocol in Phase 1. See ADR 0001 for limitations and
   Arabic/Latin installation and runtime instructions.
-- Use SQLite behind the `InvoiceRepository` interface for Phase 3 reference data
-  and Phase 5 processing lookups.
+- Use SQLite behind the `InvoiceRepository` and
+  `ReferenceDataAdminRepository` interfaces. Apply schema changes only through
+  the Phase 8 forward-only migration ledger.
 - Use pytest for tests.
 
 Do not replace the fixed stack without asking first. Add dependencies only when
@@ -131,7 +147,7 @@ uv run pytest
 # Run the focused health test.
 uv run pytest tests/test_health.py
 
-# Run focused Phase 1 through Phase 6 boundary tests.
+# Run focused Phase 1 through Phase 8 boundary tests.
 uv run pytest tests/test_ingestion_validation.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
@@ -169,6 +185,20 @@ uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
 uv run pytest tests/test_distribution_check.py
+uv run pytest tests/test_administration_models.py
+uv run pytest tests/test_administration_auth.py
+uv run pytest tests/test_sqlite_migrations.py
+uv run pytest tests/test_administration_sqlite_invoices.py
+uv run pytest tests/test_administration_sqlite_purchase_orders.py
+uv run pytest tests/test_administration_sqlite_import.py
+uv run pytest tests/test_administration_invoice_api.py
+uv run pytest tests/test_administration_purchase_order_api.py
+uv run pytest tests/test_administration_import_api.py
+uv run pytest tests/test_reference_data_maintenance.py
+uv run pytest tests/test_administration_cli.py
+
+# Inspect the reference-data maintenance interface.
+uv run veridoc-reference --help
 
 # Check lint and formatting.
 uv run ruff check .
@@ -250,6 +280,12 @@ state its exact intended purpose.
   processing tests must retain the real typed graph and deterministic services;
   at least one Phase 6 ASGI scenario must retain real dependency composition and
   temporary SQLite reference data.
+- Administration API tests must inject the repository protocol and synthetic
+  credentials. Migration, CRUD, import, backup, restore, and CLI tests must use
+  temporary SQLite paths and must not touch a configured developer database.
+- Test authentication failures before storage resolution, bounded import
+  rejection before parsing/writing, transactional conflict behavior, migration
+  compatibility, and restore integrity/atomicity at those boundaries.
 - Use only deterministic synthetic or appropriately licensed fixtures. Never
   copy real invoice or customer data into tests.
 - Run the full suite after dependency, cross-cutting, or graph integration
@@ -283,6 +319,10 @@ documentation set is:
   explanation-provider safety decision.
 - `docs/decisions/0005-use-review-required-processing-verdicts.md` for the
   deterministic processing-verdict decision.
+- `docs/decisions/0006-use-bearer-token-for-local-administration.md` for the
+  local administration authentication decision.
+- `docs/decisions/0007-use-forward-only-sqlite-migrations.md` for the schema
+  evolution decision.
 - `tests/fixtures/README.md` for deterministic fictional fixture use and
   extension guidance.
 
@@ -316,6 +356,15 @@ following documentation commit.
   and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw
   document content.
+- Require `VERIDOC_ADMIN_TOKEN` only at the administration boundary, compare it
+  in constant time, never accept it in URLs or bodies, and resolve storage only
+  after authentication succeeds.
+- Bound administration imports to 1 MiB, 500 total records, and 200 line items
+  per record before writes. Preserve immutable provenance and apply bulk writes
+  in one transaction.
+- Treat local SQLite files and backups as sensitive reference data. Restore only
+  while the service is stopped, reject live WAL/SHM sidecars, and replace the
+  database only after integrity and migration checks pass.
 
 ## Phase boundaries
 
@@ -330,11 +379,13 @@ following documentation commit.
 - Phase 5: complete processing API and minimal review interface. **Complete.**
 - Phase 6: final integration, documentation, and operational pass. **Complete.**
 - Phase 7: release engineering and reproducible quality gates. **Complete.**
-- Phase 8 through Phase 11: candidate reference-data administration, review and
-  audit persistence, deployment security, and readiness evaluation. **Planned;
-  not approved.** See `docs/roadmap.md` for their boundaries.
+- Phase 8: controlled local reference-data administration, migrations, bounded
+  imports, and backup/restore. **Approved; implementation complete and final
+  gate pending.**
+- Phase 9 through Phase 11: candidate review/audit persistence, deployment
+  security, and readiness evaluation. **Planned; not approved.** See
+  `docs/roadmap.md` for their boundaries.
 
-Version 1 product behavior is complete through Phase 6, and Phase 7 release
-engineering is complete. Before Phase 8 or any later phase, inspect the
-repository, run the existing suite, present the implementation and commit plan,
-identify documentation changes, and wait for explicit approval.
+Do not begin Phase 9. Before Phase 9 or any later phase, inspect the repository,
+run the existing suite, present the implementation and commit plan, identify
+documentation changes, and wait for explicit approval.
