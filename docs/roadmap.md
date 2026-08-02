@@ -22,7 +22,8 @@ invoice-processing features or changing its public API.
 
 Planned deliverables:
 
-- configure a static type checker and make the source/test suite pass it;
+- configure a strict type checker for the production package while pytest
+  validates runtime-negative model tests;
 - measure branch-aware test coverage and set an evidence-based minimum gate;
 - add CI for locked dependency sync, lint, format, types, tests, lock validation,
   package build, and installed-wheel smoke testing;
