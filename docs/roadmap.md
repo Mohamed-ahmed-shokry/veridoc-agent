@@ -1,15 +1,15 @@
 # Project Roadmap
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
-Phase 6. Phase 7 is approved for release-engineering hardening. Later phases are
-planning boundaries only and require separate approval before implementation.
+Phase 6. Phase 7 release-engineering hardening is also complete. Later phases
+are planning boundaries only and require separate approval before implementation.
 
 ## Phase status
 
 | Phase | Scope | Status |
 | --- | --- | --- |
 | 0-6 | Version 1 application, processing workflow, integration, and documentation | Complete |
-| 7 | Release engineering and reproducible quality gates | Approved; in progress |
+| 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Planned; not approved |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
@@ -20,7 +20,7 @@ planning boundaries only and require separate approval before implementation.
 Phase 7 improves confidence in the existing Version 1 behavior without adding
 invoice-processing features or changing its public API.
 
-Planned deliverables:
+Completed deliverables:
 
 - configure a strict type checker for the production package while pytest
   validates runtime-negative model tests;
@@ -113,7 +113,7 @@ environment.
 
 ## Approval rule
 
-Only Phase 7 is currently approved. Before any later phase, inspect the current
-repository, run the full existing gate, present the exact implementation and
-atomic commit plan, identify data/security decisions, and wait for explicit user
-approval.
+Phase 7 is complete, and no later phase is approved. Before any later phase,
+inspect the current repository, run the full existing gate, present the exact
+implementation and atomic commit plan, identify data/security decisions, and
+wait for explicit user approval.
