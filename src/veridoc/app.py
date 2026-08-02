@@ -1,7 +1,11 @@
 """FastAPI application setup for Veridoc."""
 
+import logging
 import os
+import re
+import time
 from typing import Annotated, Literal
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -40,6 +44,9 @@ from veridoc.processing.service import ProcessingError, ProcessingService
 from veridoc.review.page import render_review_page
 from veridoc.verification.service import VerificationService
 
+_REQUEST_LOGGER = logging.getLogger("veridoc.request")
+_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
 
 class HealthResponse(BaseModel):
     """Typed response returned by the service health check."""
@@ -52,6 +59,36 @@ app = FastAPI(
     description="Invoice and purchase-order verification service.",
     version=__version__,
 )
+
+
+@app.middleware("http")
+async def add_request_context(request: Request, call_next):
+    """Attach a safe request identifier and log one metadata-only completion line."""
+    request_id = _request_id(request.headers.get("X-Request-ID"))
+    request.state.request_id = request_id
+    started_at = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["X-Request-ID"] = request_id
+        return response
+    finally:
+        _REQUEST_LOGGER.info(
+            "request_complete request_id=%s method=%s path=%s status_code=%s duration_ms=%.1f",
+            request_id,
+            request.method,
+            request.url.path,
+            status_code,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+
+def _request_id(supplied_value: str | None) -> str:
+    """Return a bounded safe client correlation value or a generated identifier."""
+    if supplied_value and _REQUEST_ID_PATTERN.fullmatch(supplied_value):
+        return supplied_value
+    return uuid4().hex
 
 
 @app.exception_handler(ExtractionUnavailableError)
