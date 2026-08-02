@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      - name: Synchronize locked environment
+        run: uv sync --all-groups --locked
+
+      - name: Validate lockfile
+        run: uv lock --check
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Check formatting
+        run: uv run ruff format --check .
+
+      - name: Check types
+        run: uv run mypy
+
+      - name: Test with branch coverage
+        run: uv run pytest --cov=veridoc
+
+      - name: Build distributions
+        run: uv build
+
+      - name: Smoke-test the isolated wheel
+        shell: bash
+        run: |
+          wheel_path="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
+          test -n "$wheel_path"
+          uv run --isolated --no-project --with "$wheel_path" python -c \
+            "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
