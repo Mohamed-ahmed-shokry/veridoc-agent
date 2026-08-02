@@ -55,6 +55,21 @@ def _payload(
     }
 
 
+def test_admin_routes_publish_the_bearer_security_contract() -> None:
+    schema = app.openapi()
+
+    assert schema["components"]["securitySchemes"]["AdminBearer"] == {
+        "type": "http",
+        "description": "Local reference-data administration token.",
+        "scheme": "bearer",
+    }
+    for path, operations in schema["paths"].items():
+        for operation in operations.values():
+            if path.startswith("/admin/reference-data/"):
+                assert operation["security"] == [{"AdminBearer": []}]
+    assert "security" not in schema["paths"]["/health"]["get"]
+
+
 @pytest.mark.anyio
 async def test_invoice_admin_requires_configured_valid_bearer_token(
     tmp_path, monkeypatch: pytest.MonkeyPatch
