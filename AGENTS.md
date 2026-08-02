@@ -16,8 +16,8 @@ them, and otherwise follow YAGNI.
 ## Current phase and implementation
 
 Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 are complete.
-Phase 7 is approved for release engineering only. The runtime implementation is
-deliberately small:
+Phase 7 release engineering is also complete. No later phase is approved. The
+runtime implementation is deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -74,9 +74,9 @@ deliberately small:
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
 
 Phase 6 completes product behavior, integration coverage, documentation,
-fixture guidance, and local operational correlation. Phase 7 may add only
-reproducible quality and release gates; it must not add endpoints, domain
-behavior, deployment targets, or workflow features.
+fixture guidance, and local operational correlation. Phase 7 adds reproducible
+quality and release gates without adding endpoints, domain behavior, deployment
+targets, or workflow features.
 
 The current and planned workflow is:
 
@@ -327,13 +327,12 @@ following documentation commit.
   **Complete.**
 - Phase 5: complete processing API and minimal review interface. **Complete.**
 - Phase 6: final integration, documentation, and operational pass. **Complete.**
-- Phase 7: release engineering and reproducible quality gates. **Approved; in
-  progress.**
+- Phase 7: release engineering and reproducible quality gates. **Complete.**
 - Phase 8 through Phase 11: candidate reference-data administration, review and
   audit persistence, deployment security, and readiness evaluation. **Planned;
   not approved.** See `docs/roadmap.md` for their boundaries.
 
-Version 1 product behavior is complete through Phase 6. Complete only the
-approved Phase 7 release-engineering scope. Before Phase 8 or any later phase,
-inspect the repository, run the existing suite, present the implementation and
-commit plan, identify documentation changes, and wait for explicit approval.
+Version 1 product behavior is complete through Phase 6, and Phase 7 release
+engineering is complete. Before Phase 8 or any later phase, inspect the
+repository, run the existing suite, present the implementation and commit plan,
+identify documentation changes, and wait for explicit approval.
