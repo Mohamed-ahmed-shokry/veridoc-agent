@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import NotRequired, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from veridoc.explanation.graph import build_explanation_graph
 from veridoc.explanation.models import ExplanationResult
@@ -39,12 +40,17 @@ class ProcessingState(TypedDict):
     result: NotRequired[ProcessingResult]
 
 
+class _VerdictUpdate(TypedDict):
+    verdict: ProcessingVerdict
+    result: ProcessingResult
+
+
 def build_processing_graph(
     ocr_engine: OCREngine,
     extractor: StructuredExtractor,
     verification_service: VerificationService,
     explanation_service: ExplanationService,
-):
+) -> CompiledStateGraph[ProcessingState]:
     """Compile OCR through verdict while reusing each phase's typed graph."""
     extraction_graph = build_extraction_graph(extractor)
     verification_graph = build_verification_graph(verification_service)
@@ -88,7 +94,7 @@ def build_processing_graph(
             raise TypeError("Explanation graph did not return a typed result.")
         return {"explanations": explanations}
 
-    def determine_verdict(state: ProcessingState) -> dict[str, ProcessingResult]:
+    def determine_verdict(state: ProcessingState) -> _VerdictUpdate:
         verification = state["verification"]
         verdict = derive_verdict(verification)
         return {
