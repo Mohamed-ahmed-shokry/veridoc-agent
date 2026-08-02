@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import base64
-from typing import Any
 
 from openai import APIError, AsyncOpenAI
+from openai.types.responses import ResponseInputContentParam, ResponseInputParam
 from pydantic import ValidationError
 
 from veridoc.extraction.config import OpenAIExtractionSettings
@@ -58,9 +58,9 @@ class OpenAIResponsesExtractor:
         )
 
 
-def _build_response_input(request: ExtractionRequest) -> list[dict[str, Any]]:
+def _build_response_input(request: ExtractionRequest) -> ResponseInputParam:
     """Build one multimodal Responses message from normalized OCR pages."""
-    content: list[dict[str, Any]] = [
+    content: list[ResponseInputContentParam] = [
         {"type": "input_text", "text": _format_ocr_pages(request)}
     ]
     content.extend(
