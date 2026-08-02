@@ -202,6 +202,19 @@ missing type information from PyMuPDF and pytesseract; application code remains
 strictly checked. Tests that deliberately pass coercible or invalid values into
 Pydantic models are validated by pytest instead of the production type gate.
 
+## Coverage gate
+
+Run the complete branch-aware coverage gate with:
+
+```bash
+uv run pytest --cov=veridoc
+```
+
+The committed floor is 90%; the Phase 7 baseline that established it was
+93.35%. Use ordinary `uv run pytest <focused target>` commands while developing
+one behavior, then run the coverage gate before completing cross-cutting or
+phase-level work.
+
 ## Configuration
 
 The application has these process environment variables:
