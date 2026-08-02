@@ -25,6 +25,7 @@ class _FakeExtractor:
     async def extract(self, request: ExtractionRequest) -> InvoiceExtraction:
         return InvoiceExtraction(
             document_type="invoice",
+            vendor_name="Fictional Supplies Ltd.",
             invoice_number="INV-002",
             ocr_confidence=request.document.confidence,
         )
@@ -43,6 +44,18 @@ class _EmptyRepository:
         self, vendor_key: str, purchase_order_number: str
     ) -> PurchaseOrder | None:
         return None
+
+
+class _DuplicateRepository(_EmptyRepository):
+    def find_invoice(
+        self, vendor_key: str, invoice_number: str
+    ) -> HistoricalInvoice | None:
+        assert vendor_key == "fictional-supplies-ltd"
+        assert invoice_number == "INV-002"
+        return HistoricalInvoice(
+            vendor_key=vendor_key,
+            invoice_number=invoice_number,
+        )
 
 
 def _png_bytes() -> bytes:
@@ -69,3 +82,25 @@ async def test_processing_service_returns_the_complete_typed_result() -> None:
 
     assert result.extraction.invoice_number == "INV-002"
     assert result.verdict.status == "clear"
+
+
+@pytest.mark.anyio
+async def test_processing_service_carries_a_duplicate_finding_to_review() -> None:
+    service = ProcessingService(
+        _FakeOCREngine(),
+        _FakeExtractor(),
+        VerificationService(_DuplicateRepository()),
+        ExplanationService(),
+    )
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+
+    result = await service.process(upload)
+
+    assert result.findings[0].finding_type == "duplicate_invoice_number"
+    assert result.explanations[0].finding == result.findings[0]
+    assert result.explanations[0].source == "deterministic"
+    assert result.verdict.status == "review_required"
