@@ -11,6 +11,15 @@ from pathlib import Path, PurePosixPath
 
 _DIST_DIRECTORY = Path("dist")
 _SENSITIVE_SUFFIXES = {".db", ".key", ".pem", ".sqlite", ".sqlite3"}
+_REQUIRED_RUNTIME_FILES = {
+    "__init__.py",
+    "administration/api.py",
+    "administration/cli.py",
+    "app.py",
+    "persistence/maintenance.py",
+    "persistence/migrations.py",
+    "review/page.py",
+}
 
 
 def main() -> None:
@@ -42,11 +51,7 @@ def _check_wheel(path: Path, *, name: str, version: str) -> None:
     with zipfile.ZipFile(path) as archive:
         members = archive.namelist()
         _check_member_paths(members)
-        required = {
-            f"{name}/__init__.py",
-            f"{name}/app.py",
-            f"{name}/review/page.py",
-        }
+        required = _required_package_members(name)
         _require_members(members, required, path)
 
         metadata_members = [
@@ -80,14 +85,14 @@ def _check_source_distribution(path: Path, *, name: str, version: str) -> None:
         raise RuntimeError(f"{path} contains a member outside the {root!r} root.")
     _require_members(
         members,
-        {
-            f"{root}/README.md",
-            f"{root}/pyproject.toml",
-            f"{root}/src/{name}/__init__.py",
-            f"{root}/src/{name}/app.py",
-        },
+        _required_package_members(f"{root}/src/{name}")
+        | {f"{root}/README.md", f"{root}/pyproject.toml"},
         path,
     )
+
+
+def _required_package_members(package_root: str) -> set[str]:
+    return {f"{package_root}/{member}" for member in _REQUIRED_RUNTIME_FILES}
 
 
 def _check_member_paths(members: list[str]) -> None:
