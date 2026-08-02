@@ -8,8 +8,9 @@ from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
+from starlette.middleware.base import RequestResponseEndpoint
 
 from veridoc import __version__
 from veridoc.explanation.config import OpenAIExplanationSettings
@@ -62,7 +63,9 @@ app = FastAPI(
 
 
 @app.middleware("http")
-async def add_request_context(request: Request, call_next):
+async def add_request_context(
+    request: Request, call_next: RequestResponseEndpoint
+) -> Response:
     """Attach a safe request identifier and log one metadata-only completion line."""
     request_id = _request_id(request.headers.get("X-Request-ID"))
     request.state.request_id = request_id
