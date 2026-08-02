@@ -28,7 +28,7 @@ def check_historical_total(
     if len(values) < MINIMUM_HISTORY_SAMPLE_SIZE:
         return [_insufficient_history_finding(invoice, len(values))]
 
-    mean = sum(values) / len(values)
+    mean = sum(values, start=Decimal(0)) / len(values)
     standard_deviation = _population_standard_deviation(values, mean)
     if standard_deviation == 0:
         return _check_zero_variance_total(invoice, mean, len(values))
@@ -98,7 +98,9 @@ def _insufficient_history_finding(
 
 
 def _population_standard_deviation(values: list[Decimal], mean: Decimal) -> Decimal:
-    variance = sum((value - mean) ** 2 for value in values) / len(values)
+    variance = sum(((value - mean) ** 2 for value in values), start=Decimal(0)) / len(
+        values
+    )
     with localcontext() as context:
         context.prec = 28
         return variance.sqrt()
