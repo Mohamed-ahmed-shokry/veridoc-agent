@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import NotRequired, TypedDict
 
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 
 from veridoc.explanation.models import ExplanationResult
 from veridoc.explanation.service import ExplanationService
@@ -18,7 +19,9 @@ class ExplanationState(TypedDict):
     explanations: NotRequired[ExplanationResult]
 
 
-def build_explanation_graph(service: ExplanationService):
+def build_explanation_graph(
+    service: ExplanationService,
+) -> CompiledStateGraph[ExplanationState]:
     """Compile the single-node graph for evidence-grounded explanations."""
 
     async def explain(state: ExplanationState) -> dict[str, ExplanationResult]:
