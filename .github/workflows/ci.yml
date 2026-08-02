@@ -63,5 +63,5 @@ jobs:
         run: |
           wheel_path="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
           test -n "$wheel_path"
-          uv run --isolated --no-project --with "$wheel_path" python -c \
+          uv run --isolated --no-project --no-cache --with "$wheel_path" python -c \
             "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
