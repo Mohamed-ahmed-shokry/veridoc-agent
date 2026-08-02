@@ -2,6 +2,7 @@
 
 import sqlite3
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
@@ -79,3 +80,20 @@ def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(
 
     with pytest.raises(ReferenceDataUnavailableError):
         repository.list_vendor_invoices("fictional-supplies")
+
+
+def test_repository_maps_storage_initialization_errors_to_a_safe_boundary_error(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = SQLiteInvoiceRepository(tmp_path / "reference-data.sqlite")
+
+    def fail_to_create_directory(
+        self: Path, *, parents: bool = False, exist_ok: bool = False
+    ) -> None:
+        del self, parents, exist_ok
+        raise OSError("storage is unavailable")
+
+    monkeypatch.setattr(Path, "mkdir", fail_to_create_directory)
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()

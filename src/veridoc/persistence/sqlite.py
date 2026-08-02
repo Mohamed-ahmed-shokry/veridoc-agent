@@ -79,7 +79,10 @@ class SQLiteInvoiceRepository:
 
     def initialize(self) -> None:
         """Create the Phase 3 reference-data schema when it is absent."""
-        self._database_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            self._database_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise ReferenceDataUnavailableError from exc
         with self._connection() as connection:
             connection.executescript(_SCHEMA)
 
