@@ -3,13 +3,15 @@
 Veridoc is an invoice and purchase-order intelligence system designed to answer
 a question that OCR alone cannot: **is the extracted document data trustworthy?**
 
-Phase 5 validates one invoice image or PDF, runs a replaceable Tesseract OCR
+Phase 6 validates one invoice image or PDF, runs a replaceable Tesseract OCR
 baseline, and returns either raw page text or typed evidence-linked extraction
 through a replaceable OpenAI Responses adapter. It also supplies local SQLite
 reference persistence, typed deterministic verification, and an internal
 evidence-grounded explanation layer. `POST /process` now returns the complete
 typed result with findings, explanations, and a deterministic review verdict;
-`GET /review` supplies a minimal local display surface for that result.
+`GET /review` supplies a minimal local display surface for that result. The
+final integration pass adds request correlation and end-to-end dependency-graph
+coverage without changing the deliberately local product boundary.
 
 ## Why Veridoc
 
@@ -49,6 +51,7 @@ of record, or autonomous payment approver.
 - a complete typed LangGraph flow from OCR through verdict derivation;
 - `POST /process` with safe orchestration and reference-data errors;
 - a local, stateless `GET /review` upload and result-display page;
+- safe `X-Request-ID` correlation and metadata-only request completion logs;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
 
@@ -173,6 +176,7 @@ deterministic verification, explanation, and verdict derivation in one request:
 
 ```bash
 curl.exe -X POST http://127.0.0.1:8000/process \
+  -H "X-Request-ID: local-process-example-001" \
   -F "file=@fictional-invoice.png;type=image/png"
 ```
 
@@ -184,6 +188,10 @@ uploaded document or the response. Open `http://127.0.0.1:8000/review` for the
 minimal local upload-and-result view. See the [API guide](docs/api.md) for its
 full response and error contract.
 
+Every response also includes `X-Request-ID`. Supply a safe opaque identifier to
+correlate local logs, or use the generated value returned by the service. Never
+use a document number, customer value, or secret as the identifier.
+
 ## Tests and quality checks
 
 Run the complete suite:
@@ -192,7 +200,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 2 through Phase 5 tests:
+Run focused Phase 2 through Phase 6 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -212,6 +220,8 @@ uv run pytest tests/test_explanation_graph.py
 uv run pytest tests/test_processing_graph.py
 uv run pytest tests/test_processing_service.py
 uv run pytest tests/test_processing_api.py
+uv run pytest tests/test_processing_integration.py
+uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
 ```
 
@@ -222,7 +232,7 @@ uv run ruff check .
 uv run ruff format --check .
 ```
 
-No static type checker or coverage threshold is configured in Phase 5. See the
+No static type checker or coverage threshold is configured in Phase 6. See the
 [testing guide](docs/testing.md) for test boundaries and required evidence.
 
 ## Architecture
@@ -239,7 +249,9 @@ multipart upload -> validation -> temporary file -> page decode
 
 `/process` exposes the typed final result, while `/review` renders it locally
 without persistence or workflow actions. Reference-data management remains out
-of scope. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
+of scope. The API also returns an `X-Request-ID` for safe operational
+correlation. See [architecture](docs/architecture.md) for boundaries and
+tradeoffs.
 
 ## Repository structure
 
@@ -275,6 +287,7 @@ of scope. See [architecture](docs/architecture.md) for boundaries and tradeoffs.
 │       └── app.py
 ├── tests/
 │   ├── fixtures/
+│   │   └── README.md
 │   └── test_*.py
 ├── .env.example
 ├── .gitignore
@@ -297,8 +310,9 @@ The current HTTP application reads these process environment variables:
 
 The application does not load `.env`. Never commit real credentials, invoices,
 production documents, personal information, customer data, or confidential
-business data. Tests use deterministic fictional fixtures only. See [data and
-security](docs/data-and-security.md).
+business data. Tests use deterministic fictional fixtures only; see the
+[fixture-generation guide](tests/fixtures/README.md) before adding one. See
+[data and security](docs/data-and-security.md) for the full policy.
 
 ## Phase roadmap
 
@@ -310,9 +324,9 @@ security](docs/data-and-security.md).
 | 3 | SQLite reference repository and deterministic/statistical verification | Complete |
 | 4 | Evidence-grounded explanation layer | Complete |
 | 5 | Complete processing API and minimal review interface | Complete |
-| 6 | Final integration, documentation, and operational pass | Not approved |
+| 6 | Final integration, documentation, and operational pass | Complete |
 
-Work stops after Phase 5 until Phase 6 is explicitly approved.
+Version 1 implementation stops after Phase 6.
 
 ## Documentation
 
@@ -329,8 +343,17 @@ Work stops after Phase 5 until Phase 6 is explicitly approved.
 ## Current limitations
 
 Veridoc does not yet provide authoritative vendor identity resolution,
-reference-data management, authentication, request correlation, malware
-scanning, or a persistent/authenticated review workflow. The deterministic
-`clear` verdict means only that no implemented rule produced a finding; it is
-not an automated approval. The service remains a local development boundary and
-is not production ready.
+reference-data management, authentication, malware scanning, a persistent audit
+log, or a persistent/authenticated review workflow. The deterministic `clear`
+verdict means only that no implemented rule produced a finding; it is not an
+automated approval. The service remains a local development boundary and is not
+production ready.
+
+## Future work
+
+Any further work requires a new approved phase. Likely directions include
+authenticated reference-data administration, persistent review records and
+approval controls, deployment-specific TLS and secret management, background
+processing, observability export, malware scanning, retention controls, and
+evaluation against appropriately licensed real-world-like data. None is
+implemented or implied by the current local service.
