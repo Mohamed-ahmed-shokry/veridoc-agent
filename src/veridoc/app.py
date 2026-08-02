@@ -1,5 +1,6 @@
 """FastAPI application setup for Veridoc."""
 
+import os
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
@@ -7,6 +8,10 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from veridoc import __version__
+from veridoc.explanation.config import OpenAIExplanationSettings
+from veridoc.explanation.openai_responses import OpenAIResponsesExplainer
+from veridoc.explanation.protocol import ExplanationUnavailableError
+from veridoc.explanation.service import ExplanationService
 from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.openai_responses import OpenAIResponsesExtractor
@@ -25,6 +30,10 @@ from veridoc.ocr.models import OCRPage, OCRResponse
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 from veridoc.ocr.service import OCRService
 from veridoc.ocr.tesseract import TesseractEngine
+from veridoc.persistence.protocol import InvoiceRepository
+from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+from veridoc.processing.service import ProcessingService
+from veridoc.verification.service import VerificationService
 
 
 class HealthResponse(BaseModel):
@@ -79,6 +88,51 @@ def get_structured_extractor() -> StructuredExtractor:
     """Build the configured structured extraction adapter for one request."""
     settings = OpenAIExtractionSettings.from_environment()
     return OpenAIResponsesExtractor(settings)
+
+
+def get_invoice_repository() -> InvoiceRepository:
+    """Open and initialize the configured local reference-data repository."""
+    database_path = os.environ.get(
+        "VERIDOC_REFERENCE_DATABASE", "veridoc-reference.sqlite3"
+    ).strip()
+    repository = SQLiteInvoiceRepository(database_path or "veridoc-reference.sqlite3")
+    repository.initialize()
+    return repository
+
+
+def get_verification_service(
+    repository: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
+) -> VerificationService:
+    """Build the deterministic verification service for one processing request."""
+    return VerificationService(repository)
+
+
+def get_explanation_service() -> ExplanationService:
+    """Build optional provider guidance with deterministic fallback when unset."""
+    try:
+        settings = OpenAIExplanationSettings.from_environment()
+    except ExplanationUnavailableError:
+        return ExplanationService()
+    return ExplanationService(OpenAIResponsesExplainer(settings))
+
+
+def get_processing_service(
+    ocr_engine: Annotated[OCREngine, Depends(get_ocr_engine)],
+    extractor: Annotated[StructuredExtractor, Depends(get_structured_extractor)],
+    verification_service: Annotated[
+        VerificationService, Depends(get_verification_service)
+    ],
+    explanation_service: Annotated[
+        ExplanationService, Depends(get_explanation_service)
+    ],
+) -> ProcessingService:
+    """Compose the complete typed processing graph for one API request."""
+    return ProcessingService(
+        ocr_engine,
+        extractor,
+        verification_service,
+        explanation_service,
+    )
 
 
 @app.post("/ocr", response_model=OCRResponse, tags=["ocr"])
