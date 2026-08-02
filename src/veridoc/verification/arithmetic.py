@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
 
@@ -16,12 +18,15 @@ def check_arithmetic(invoice: InvoiceExtraction) -> list[VerificationFinding]:
 
 
 def _check_invoice_total(invoice: InvoiceExtraction) -> list[VerificationFinding]:
-    values = (invoice.subtotal, invoice.tax, invoice.discount, invoice.total)
-    if any(value is None for value in values):
+    subtotal = invoice.subtotal
+    tax = invoice.tax
+    discount = invoice.discount
+    total = invoice.total
+    if subtotal is None or tax is None or discount is None or total is None:
         return []
 
-    expected_total = invoice.subtotal + invoice.tax - invoice.discount
-    if invoice.total == expected_total:
+    expected_total = subtotal + tax - discount
+    if total == expected_total:
         return []
     return [
         VerificationFinding(
@@ -30,7 +35,7 @@ def _check_invoice_total(invoice: InvoiceExtraction) -> list[VerificationFinding
             explanation="The invoice total does not equal subtotal plus tax minus discount.",
             comparison_source="invoice_fields",
             deterministic_rule="subtotal + tax - discount == total",
-            observed_value=str(invoice.total),
+            observed_value=str(total),
             expected_value=str(expected_total),
             details={"currency": invoice.currency},
         )
@@ -42,11 +47,13 @@ def _check_line_item_amounts(
 ) -> list[VerificationFinding]:
     findings: list[VerificationFinding] = []
     for index, line_item in enumerate(invoice.line_items):
-        values = (line_item.quantity, line_item.unit_price, line_item.total_price)
-        if any(value is None for value in values):
+        quantity = line_item.quantity
+        unit_price = line_item.unit_price
+        total_price = line_item.total_price
+        if quantity is None or unit_price is None or total_price is None:
             continue
-        expected_total = line_item.quantity * line_item.unit_price
-        if line_item.total_price != expected_total:
+        expected_total = quantity * unit_price
+        if total_price != expected_total:
             findings.append(
                 VerificationFinding(
                     finding_type="line_item_amount_mismatch",
@@ -54,7 +61,7 @@ def _check_line_item_amounts(
                     explanation="A line-item total does not equal quantity multiplied by unit price.",
                     comparison_source="invoice_line_items",
                     deterministic_rule="quantity * unit_price == total_price",
-                    observed_value=str(line_item.total_price),
+                    observed_value=str(total_price),
                     expected_value=str(expected_total),
                     details={
                         "line_item_index": index,
@@ -70,12 +77,11 @@ def _check_line_items_subtotal(
 ) -> list[VerificationFinding]:
     if invoice.subtotal is None or not invoice.line_items:
         return []
-    if any(line_item.total_price is None for line_item in invoice.line_items):
-        return []
-
-    expected_subtotal = sum(
-        (line_item.total_price for line_item in invoice.line_items), start=0
-    )
+    expected_subtotal = Decimal(0)
+    for line_item in invoice.line_items:
+        if line_item.total_price is None:
+            return []
+        expected_subtotal += line_item.total_price
     if invoice.subtotal == expected_subtotal:
         return []
     return [
