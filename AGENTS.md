@@ -16,7 +16,8 @@ them, and otherwise follow YAGNI.
 ## Current phase and implementation
 
 Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, Phase 5, and Phase 6 are complete.
-No later phase is approved. The implementation is deliberately small:
+Phase 7 is approved for release engineering only. The runtime implementation is
+deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -69,9 +70,10 @@ No later phase is approved. The implementation is deliberately small:
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
 
-Phase 6 completes final integration coverage, documentation, fixture guidance,
-and local operational correlation. Do not add deployment, product, or new
-workflow work without explicit approval for a new phase.
+Phase 6 completes product behavior, integration coverage, documentation,
+fixture guidance, and local operational correlation. Phase 7 may add only
+reproducible quality and release gates; it must not add endpoints, domain
+behavior, deployment targets, or workflow features.
 
 The current and planned workflow is:
 
@@ -240,7 +242,7 @@ the focused health test when the documented development workflow is affected.
 
 ## Documentation expectations
 
-`README.md` is the concise user and contributor entry point. The Phase 6
+`README.md` is the concise user and contributor entry point. The current
 documentation set is:
 
 - `docs/architecture.md` for current boundaries and the explicitly planned flow;
@@ -249,6 +251,7 @@ documentation set is:
 - `docs/data-and-security.md` for data, secret, logging, upload, and retention
   rules;
 - `docs/api.md` for implemented endpoints and limitations; and
+- `docs/roadmap.md` for approved work and later unapproved phase candidates;
 - `docs/decisions/README.md` for ADR conventions and the decision index.
 - `docs/decisions/0001-use-tesseract-for-v1.md` for the OCR baseline decision.
 - `docs/decisions/0002-use-openai-responses-for-phase-2.md` for the extraction
@@ -305,8 +308,13 @@ following documentation commit.
   **Complete.**
 - Phase 5: complete processing API and minimal review interface. **Complete.**
 - Phase 6: final integration, documentation, and operational pass. **Complete.**
+- Phase 7: release engineering and reproducible quality gates. **Approved; in
+  progress.**
+- Phase 8 through Phase 11: candidate reference-data administration, review and
+  audit persistence, deployment security, and readiness evaluation. **Planned;
+  not approved.** See `docs/roadmap.md` for their boundaries.
 
-Version 1 implementation is complete. Before any later phase, inspect the
-repository, run the existing suite, present the implementation and commit plan,
-identify documentation changes, and wait for explicit approval. Do not begin
-new deployment, product, or workflow scope without a new explicit phase.
+Version 1 product behavior is complete through Phase 6. Complete only the
+approved Phase 7 release-engineering scope. Before Phase 8 or any later phase,
+inspect the repository, run the existing suite, present the implementation and
+commit plan, identify documentation changes, and wait for explicit approval.
