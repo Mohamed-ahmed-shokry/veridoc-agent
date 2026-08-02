@@ -9,7 +9,7 @@ from io import BytesIO
 
 import fitz
 from fastapi import UploadFile
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 
 from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
 
@@ -145,7 +145,7 @@ def _validate_image(data: bytes, media_type: DocumentMediaType) -> tuple[int, in
                     status_code=413,
                 )
             image.load()
-    except (Image.DecompressionBombError, Image.UnidentifiedImageError, OSError) as exc:
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError) as exc:
         raise UploadValidationError(
             "malformed_document",
             "The image could not be decoded safely.",
@@ -176,7 +176,7 @@ def _validate_pdf(data: bytes) -> int:
                 "unsupported_pdf",
                 "Encrypted or repaired PDFs are not supported.",
             )
-        page_count = document.page_count
+        page_count = int(document.page_count)
         if page_count < 1:
             raise UploadValidationError("empty_document", "The PDF has no pages.")
         if page_count > MAX_PDF_PAGES:
