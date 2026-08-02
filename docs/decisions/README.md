@@ -21,3 +21,4 @@ Accepted decisions:
 - [0002: Use the OpenAI Responses API for Phase 2 extraction](0002-use-openai-responses-for-phase-2.md)
 - [0003: Use SQLite for Phase 3 reference data](0003-use-sqlite-for-phase-3-reference-data.md)
 - [0004: Use validated LLM proposals for explanations](0004-use-validated-llm-proposals-for-explanations.md)
+- [0005: Use review-required processing verdicts](0005-use-review-required-processing-verdicts.md)
