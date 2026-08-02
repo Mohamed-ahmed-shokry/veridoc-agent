@@ -1,10 +1,9 @@
 # Project Roadmap
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
-Phase 6. Phase 7 release-engineering hardening is also complete. Phase 8
-controlled local reference-data administration is implemented and awaiting its
-final completion gate. Later phases are planning boundaries only and require
-separate approval before implementation.
+Phase 6. Phase 7 release-engineering hardening and Phase 8 controlled local
+reference-data administration are also complete. Later phases are planning
+boundaries only and require separate approval before implementation.
 
 ## Phase status
 
@@ -12,7 +11,7 @@ separate approval before implementation.
 | --- | --- | --- |
 | 0-6 | Version 1 application, processing workflow, integration, and documentation | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
-| 8 | Controlled reference-data administration | Implemented; final gate pending |
+| 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent review and audit workflow | Planned; not approved |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
@@ -98,7 +97,7 @@ Implemented atomic sequence:
 7. Added backup and restore tooling plus its console entry point.
 8. Synchronized configuration, API, architecture, development, testing,
    security, changelog, README, and operating guidance.
-9. The complete Phase 8 gate and evidence snapshot remain the final step.
+9. Ran and recorded the complete Phase 8 gate and evidence snapshot.
 
 Phase 8 excludes persistent reviewer workflow, user accounts, role management,
 remote database services, production deployment, and document storage. Those
@@ -151,7 +150,7 @@ environment.
 
 ## Approval rule
 
-Phase 8 is approved; no later phase is approved. Before Phase 9 or any later
+Phase 8 is complete; no later phase is approved. Before Phase 9 or any later
 phase, inspect the current repository, run the full existing gate, present the
 exact implementation and atomic commit plan, identify data/security decisions,
 and wait for explicit user approval.
