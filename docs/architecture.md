@@ -1,11 +1,13 @@
 # Architecture
 
-Veridoc's implemented Phase 4 boundary accepts one bounded invoice or
+Veridoc's implemented Phase 5 boundary accepts one bounded invoice or
 purchase-order image/PDF, runs OCR, and returns typed extraction data with
 page-level evidence and explicit uncertainty. It also provides local SQLite
 reference persistence, deterministic verification services, and an internal
-evidence-grounded explanation layer. Public processing orchestration and
-verdicts remain later phases.
+evidence-grounded explanation layer. `POST /process` now orchestrates those
+stages into a typed final response and `GET /review` provides a minimal local
+review page. Authentication, review records, and policy decisions remain later
+work.
 
 ## System boundary
 
@@ -17,6 +19,8 @@ system of record, or autonomous payment approver.
 flowchart LR
     Client["HTTP multipart client"] --> App["FastAPI application"]
     App --> Validate["Bounded upload validation"]
+    Validate --> ProcessGraph["Typed complete processing graph at POST /process"]
+    ProcessGraph --> OCR
     Validate --> Temp["Private temporary file"]
     Temp --> Decode["PNG/JPEG decode or PDF rasterization"]
     Decode --> OCR["OCREngine protocol"]
@@ -38,6 +42,10 @@ flowchart LR
     Explain --> Explainer["FindingExplainer protocol"]
     Explainer --> ExplainOpenAI["OpenAI Responses adapter"]
     Explain --> Explanations["ExplanationResult"]
+    Explain --> Verdict["Deterministic verdict node"]
+    Verdict --> Processed["ProcessingResult"]
+    Reviewer["Local reviewer"] --> Review["GET /review"]
+    Review --> ProcessGraph
 ```
 
 Validation finishes before expensive decoding, OCR, or external model work.
@@ -47,7 +55,7 @@ images are normalized in memory and are not retained after the request.
 ## Package boundaries
 
 - `veridoc.app` owns FastAPI routes, dependency injection, and safe HTTP error
-  translation for `/ocr` and `/extract`.
+  translation for `/ocr`, `/extract`, and `/process`.
 - `veridoc.ingestion` bounds uploads, validates signatures and decoded limits,
   sanitizes filenames, and manages private temporary uploads.
 - `veridoc.ocr` decodes validated documents, invokes the replaceable OCR engine,
@@ -76,6 +84,11 @@ images are normalized in memory and are not retained after the request.
 - `veridoc.explanation.openai_responses` implements the optional provider
   boundary. It can propose short guidance only; application code retains the
   canonical finding and renders all numerical context.
+- `veridoc.processing` owns the typed complete graph, its API-neutral service,
+  final result contract, and deterministic review verdict. It orchestrates
+  approved stages but does not implement their domain rules.
+- `veridoc.review` renders the no-build local review page. It submits to the
+  public processing endpoint and never stores a document or review decision.
 
 ## Typed extraction flow
 
@@ -124,6 +137,21 @@ when it covers every finding exactly once and contains no numeric, comparative,
 or negated factual claim. Otherwise, including provider unavailability or
 invalid structured output, it returns the deterministic explanation instead.
 
+## Typed complete processing flow
+
+`ProcessingService` accepts one `ValidatedUpload` and invokes a typed
+`ProcessingState` graph: `START -> ocr -> extract -> verify -> explain ->
+verdict -> END`. The graph reuses the Phase 2, Phase 3, and Phase 4 typed
+graphs rather than reimplementing extraction, verification, or explanation
+logic.
+
+`ProcessingResult` returns the `InvoiceExtraction` (including its page-level
+evidence), ordered canonical findings, ordered explanations, and a
+`ProcessingVerdict`. A verdict is `review_required` whenever at least one
+finding exists; otherwise it is `clear`, meaning only that no deterministic
+finding requires review. It is not an approval, payment decision, or guarantee
+that the document is trustworthy. See [ADR 0005](decisions/0005-use-review-required-processing-verdicts.md).
+
 ## Dependency direction
 
 ```text
@@ -137,12 +165,15 @@ verification service --> repository protocol <-- SQLite adapter
 explanation service --> finding-explainer protocol <-- OpenAI adapter
                        |
                        +--> deterministic renderer
+
+processing service --> processing graph --> extraction, verification, and explanation graphs
+review page --> POST /process
 ```
 
-API code does not implement extraction or verification rules. The extraction
-and explanation services do not import FastAPI or an OpenAI SDK. Verification
-and explanation domain logic must not import FastAPI, LangGraph, SQLite
-connection code, or vendor SDKs.
+API code does not implement extraction or verification rules. The extraction,
+explanation, and processing services do not import FastAPI or an OpenAI SDK.
+Verification and explanation domain logic must not import FastAPI, LangGraph,
+SQLite connection code, or vendor SDKs.
 
 ## External boundaries
 
@@ -169,9 +200,11 @@ credentials, network access, or a Tesseract executable.
 
 `SQLiteInvoiceRepository` explicitly creates local tables for vendor invoices,
 purchase orders, and their line items. Amounts are stored as text and recreated
-as `Decimal`; dates use ISO-8601 text. SQLite files are local reference data,
-not a public API or a production deployment configuration. See
-[ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
+as `Decimal`; dates use ISO-8601 text. `POST /process` opens and initializes the
+path in `VERIDOC_REFERENCE_DATABASE`, defaulting to
+`veridoc-reference.sqlite3`. SQLite failures map to a safe unavailable error.
+The database remains local reference data, not a reference-data management API
+or production deployment configuration. See [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md).
 
 Verification rules are deterministic Python code. Statistical findings use
 Decimal mean, population standard deviation, and z-score calculations; they do
@@ -187,8 +220,8 @@ authoritative finding or numerical calculation. The application validates each
 draft and deterministically falls back when it is unsafe, incomplete, invalid,
 or unavailable. See [ADR 0004](decisions/0004-use-validated-llm-proposals-for-explanations.md).
 
-The internal explanation graph is not an HTTP endpoint. Phase 5 must decide how
-to compose extraction, verification, explanation, and final verdict delivery.
+The explanation graph has no standalone HTTP endpoint; `POST /process` delivers
+its canonical explanations together with the extraction, findings, and verdict.
 
 ## Failure handling and data safety
 
@@ -196,9 +229,10 @@ Upload validation rejects malformed, encrypted/repaired, oversized, unsupported,
 or type-mismatched documents before OCR. OCR unavailability maps to HTTP 503 and
 processing failures map to HTTP 422. Extraction configuration/provider failures
 map to `extraction_unavailable` (503); missing or invalid structured provider
-output maps to `extraction_processing_failed` (422). Public errors never expose
-paths, stack traces, credentials, document bytes, raw OCR text, or provider
-responses.
+output maps to `extraction_processing_failed` (422). Reference-data failures map
+to `reference_data_unavailable` (503), and an incomplete orchestration result
+maps to `processing_failed` (422). Public errors never expose paths, stack
+traces, credentials, document bytes, raw OCR text, or provider responses.
 
 The current implementation does not log document bodies, OCR text, extracted
 fields, rendered pages, credentials, verification findings, or temporary paths.
@@ -211,8 +245,8 @@ it makes.
 
 - OCR text and images are combined to preserve layout context that plain text
   alone loses, at the cost of sending document data to the configured provider.
-- Separate one-node extraction and verification graphs establish typed stage
-  boundaries without adding unapproved end-to-end API orchestration.
+- The complete graph composes existing one-node stage graphs and adds no hidden
+  workflow state or separate background queue.
 - Pydantic structured parsing rejects malformed provider output instead of
   attempting an OCR-only or heuristic fallback.
 - Phase 3 uses extracted vendor names or identifiers as normalized local lookup
@@ -220,6 +254,7 @@ it makes.
 - Explanation-provider prose is deliberately constrained. Any invalid, unsafe,
   or unavailable provider output yields a deterministic result rather than an
   unsupported claim.
-- Phase 4 has no public verification or explanation endpoint, final verdict,
-  authentication, request correlation, malware scanning, retention service, or
-  review UI.
+- Phase 5 has one synchronous processing endpoint and a stateless local review
+  page. It has no public reference-data management, standalone verification or
+  explanation endpoint, approval action, authentication, request correlation,
+  malware scanning, retention service, or review record.
