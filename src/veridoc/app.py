@@ -4,7 +4,7 @@ import os
 from typing import Annotated, Literal
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel
 
 from veridoc import __version__
@@ -37,6 +37,7 @@ from veridoc.persistence.protocol import (
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.processing.models import ProcessingResult
 from veridoc.processing.service import ProcessingError, ProcessingService
+from veridoc.review.page import render_review_page
 from veridoc.verification.service import VerificationService
 
 
@@ -105,6 +106,12 @@ async def handle_processing_error(
 def health_check() -> HealthResponse:
     """Return the service health status without touching external dependencies."""
     return HealthResponse(status="ok")
+
+
+@app.get("/review", response_class=HTMLResponse, include_in_schema=False)
+def review_page() -> HTMLResponse:
+    """Serve the intentionally small local invoice-review interface."""
+    return HTMLResponse(render_review_page())
 
 
 def get_ocr_engine() -> OCREngine:
