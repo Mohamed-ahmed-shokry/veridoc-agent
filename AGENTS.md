@@ -269,8 +269,10 @@ documentation set is:
 - `docs/testing.md` for tests, fixtures, mocks, and required evidence;
 - `docs/data-and-security.md` for data, secret, logging, upload, and retention
   rules;
-- `docs/api.md` for implemented endpoints and limitations; and
+- `docs/api.md` for implemented endpoints and limitations;
 - `docs/roadmap.md` for approved work and later unapproved phase candidates;
+- `docs/release-evidence.md` for local phase-gate results and evidence
+  boundaries;
 - `docs/decisions/README.md` for ADR conventions and the decision index.
 - `docs/decisions/0001-use-tesseract-for-v1.md` for the OCR baseline decision.
 - `docs/decisions/0002-use-openai-responses-for-phase-2.md` for the extraction
