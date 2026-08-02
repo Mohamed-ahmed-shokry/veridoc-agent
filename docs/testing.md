@@ -255,12 +255,14 @@ Run lint and formatting checks with the tests:
 uv run ruff check .
 uv run ruff format --check .
 uv run mypy
+uv run pytest --cov=veridoc
 ```
 
 Mypy strictly checks `src/veridoc`; pytest remains responsible for tests that
-deliberately exercise Pydantic coercion and invalid runtime input. No coverage
-threshold is configured yet. Coverage should focus on meaningful success,
-boundary, and error behavior rather than a percentage alone.
+deliberately exercise Pydantic coercion and invalid runtime input. The full
+coverage command measures statements and branches and fails below 90%; the
+baseline that established the Phase 7 floor was 93.35%. Focused test commands
+do not collect coverage, so they remain suitable for atomic changes.
 
 ## Required evidence by change type
 
@@ -281,7 +283,7 @@ boundary, and error behavior rather than a percentage alone.
 | API behavior or schema | Success and relevant error/contract tests |
 | Dependency or lockfile | `uv lock --check`, full pytest, applicable quality checks |
 | Production type contract | Focused pytest, `uv run mypy`, Ruff lint, Ruff format check |
-| Phase completion | Clean sync, isolated import, full pytest, lint, format, runtime smoke test, clean Git status |
+| Phase completion | Clean sync, isolated import, coverage gate, mypy, lint, format, runtime smoke test, clean Git status |
 
 Run the full suite before completing a phase even when every individual commit
 already had a focused check. See `AGENTS.md` for staging and commit rules and
