@@ -74,6 +74,40 @@ demonstrated that uv could reuse a prior same-version wheel from its cache; the
 CI and documented smoke command now use `--no-cache`, and the cache-free rerun
 verified the current Phase 8 artifact.
 
+## Post-Phase 8 hardening snapshot
+
+The local administration-hardening gate was recorded on 2026-08-04 against
+commit `b959497` before this evidence section was added. Phase 9 was not started.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 138 files already formatted |
+| `uv run --no-sync mypy` | No issues in 58 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 182 passed; 93.46% branch coverage against a 90% floor |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Cache-free isolated-wheel import | Imported the built wheel, both console scripts, FastAPI app, `/health`, and administration routes |
+| Application and CLI smoke | Loaded the admin Bearer schema and `veridoc-reference --help` |
+| Local Markdown links | All links resolved across 19 tracked Markdown files |
+| `git diff --check` and `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. Locked
+synchronization repeated the pre-existing stale `websockets` metadata repair
+warning but completed successfully; every later local gate passed.
+
 ## Evidence boundaries
 
 The repository workflow reproduces these gates on GitHub-hosted Ubuntu runners,
