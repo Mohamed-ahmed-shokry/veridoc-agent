@@ -229,24 +229,26 @@ headers and confirms request logs omit query values.
 `test_review_page.py` verifies that the local review form targets `/process` and
 renders response values through text nodes rather than injected HTML.
 
-`test_administration_models.py` exercises strict provenance, retention, and
-batch-size bounds before persistence. `test_administration_auth.py` covers
-configuration errors, constant-time credential comparison behavior, generic
-authentication failures, and the Bearer challenge without recording a real
-secret.
+`test_administration_models.py` exercises canonical vendor keys plus strict
+provenance, retention, and batch-size bounds before persistence.
+`test_administration_auth.py` covers configuration errors, fixed-length digest
+comparison behavior, generic authentication failures, and the Bearer challenge
+without recording a real secret.
 
 `test_sqlite_migrations.py` builds temporary legacy and current databases to
 prove migrations run once, in order, and reject unsupported future versions.
 The administration persistence tests use temporary SQLite files to cover CRUD,
 immutable provenance, purchase-order natural-key conflicts, and transactional
 `reject`, `skip`, and `replace` imports. API tests retain FastAPI dependency
-composition while replacing the repository protocol; they require neither a
-network listener nor a developer database.
+composition while replacing the repository protocol and prove list filters use
+the same vendor-key normalization as records; they require neither a network
+listener nor a developer database.
 
 `test_reference_data_maintenance.py` uses temporary databases to prove online
-backup integrity, stopped-service restore validation, atomic replacement, and
-active WAL/SHM refusal. `test_administration_cli.py` exercises help, confirmation,
-and safe failure behavior without touching configured developer data.
+backup integrity, required-schema validation, stopped-service restore
+validation, atomic replacement, destination preservation, and active WAL/SHM
+refusal. `test_administration_cli.py` exercises help, confirmation, and safe
+failure behavior without touching configured developer data.
 
 ## Fixtures
 
