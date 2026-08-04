@@ -81,9 +81,10 @@ paths out of committed files, and use unmistakably fake placeholders in
 Send the administration token only in the `Authorization: Bearer` header. Never
 put it in a URL, query value, request body, source file, shell history, or log.
 Missing configuration returns a safe `503`; missing or invalid request
-credentials return the same generic `401` challenge. Comparison is constant
-time, but the shared token provides neither individual identity nor role-based
-authorization.
+credentials return the same generic `401` challenge. The application hashes the
+configured and presented tokens to fixed-length SHA-256 digests before a
+constant-time comparison, but the shared token provides neither individual
+identity nor role-based authorization.
 
 Before committing, inspect staged changes for accidental credentials and verify
 that any local `.env` remains ignored.

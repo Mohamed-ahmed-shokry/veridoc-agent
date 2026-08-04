@@ -15,10 +15,11 @@ model. Adding a full identity system would exceed the approved local phase.
 
 Protect every `/admin/reference-data` route with one dedicated bearer token from
 the `VERIDOC_ADMIN_TOKEN` process environment variable. The configured token
-must contain at least 32 characters. Compare presented credentials with
-`secrets.compare_digest` and return the same generic `401` response for missing,
-malformed, or incorrect credentials. Return a safe `503` response when the
-server has no valid administrative token configured.
+must contain at least 32 characters. Hash the configured and presented tokens to
+fixed-length SHA-256 digests, compare those digests with
+`secrets.compare_digest`, and return the same generic `401` response for
+missing, malformed, or incorrect credentials. Return a safe `503` response when
+the server has no valid administrative token configured.
 
 The token must never appear in URLs, logs, exception messages, committed files,
 or response bodies. Rotation replaces the environment value and restarts the
