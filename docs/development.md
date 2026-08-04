@@ -325,8 +325,8 @@ uv run veridoc-reference `
 ```
 
 The command initializes supported migrations, uses SQLite's online backup API,
-validates integrity and migration history, and atomically replaces the requested
-backup destination.
+validates integrity, the complete migration history, and every required table
+and column, then atomically replaces the requested backup destination.
 
 Restore requires a stopped service and explicit confirmation:
 
@@ -337,11 +337,11 @@ uv run veridoc-reference `
 ```
 
 Restore validates the source, copies it to a temporary sibling database,
-applies supported migrations, validates integrity again, and then atomically
-replaces the configured database. It refuses active `-wal` or `-shm` sidecars;
-stop the process cleanly before retrying. A failed restore leaves the existing
-database unchanged. Keep backups outside the repository and protect them as
-reference data.
+applies supported migrations, validates integrity and the required schema
+structure again, and then atomically replaces the configured database. It
+refuses active `-wal` or `-shm` sidecars; stop the process cleanly before
+retrying. A failed restore leaves the existing database unchanged. Keep backups
+outside the repository and protect them as reference data.
 
 ## Operational guidance
 

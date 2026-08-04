@@ -22,10 +22,11 @@ that reports a migration newer than this application understands.
 
 Migrations are forward-only. Before an application upgrade, create a SQLite
 online backup. Backup writes to a temporary sibling file, validates database
-integrity, and atomically replaces the requested destination. Restore copies a
-validated source backup into a temporary sibling database, applies supported
-migrations there, validates integrity again, and then atomically replaces the
-configured database. The local service must be stopped for restore.
+integrity, the complete migration ledger, and all required tables and columns,
+then atomically replaces the requested destination. Restore copies a validated
+source backup into a temporary sibling database, applies supported migrations
+there, repeats the integrity and schema-structure checks, and then atomically
+replaces the configured database. The local service must be stopped for restore.
 
 ## Alternatives considered
 
