@@ -40,15 +40,15 @@ runtime implementation remains deliberately small:
   Responses API through the typed boundary.
 - `src/veridoc/persistence/protocol.py` defines the SQLite-independent invoice
   and purchase-order reference-data repository boundary.
-- `src/veridoc/administration/` owns strict administration schemas, the
-  repository protocol, local Bearer authentication, FastAPI routes, and the
-  maintenance CLI.
+- `src/veridoc/administration/` owns strict administration schemas with
+  canonical vendor keys, the repository protocol, local Bearer authentication,
+  FastAPI routes, and the maintenance CLI.
 - `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
   migrations and rejects unsupported future schema versions.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite.
-- `src/veridoc/persistence/maintenance.py` provides integrity-checked online
-  backup and stopped-service atomic restore.
+- `src/veridoc/persistence/maintenance.py` provides integrity-, migration-, and
+  schema-checked online backup and stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
   rules, an API-neutral service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
@@ -77,9 +77,10 @@ runtime implementation remains deliberately small:
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
 - `tests/test_administration_*.py`, `tests/test_sqlite_migrations.py`, and
-  `tests/test_reference_data_maintenance.py` cover bounded schemas, credentials,
-  OpenAPI security, auth-before-storage ordering, CRUD, atomic imports,
-  migrations, backup/restore, and CLI failures with temporary databases.
+  `tests/test_reference_data_maintenance.py` cover canonical vendor keys,
+  bounded schemas, fixed-length credential comparison, OpenAPI security,
+  auth-before-storage ordering, CRUD, atomic imports, migrations, structural
+  backup/restore validation, and CLI failures with temporary databases.
 - `scripts/check_distribution.py` validates wheel and source-distribution
   metadata, required contents, safe paths, and sensitive-file exclusions.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
@@ -283,7 +284,8 @@ state its exact intended purpose.
   temporary SQLite paths and must not touch a configured developer database.
 - Test authentication failures before storage resolution, bounded import
   rejection before parsing/writing, transactional conflict behavior, migration
-  compatibility, and restore integrity/atomicity at those boundaries.
+  compatibility, incomplete maintenance schemas, and restore integrity/atomicity
+  at those boundaries.
 - Use only deterministic synthetic or appropriately licensed fixtures. Never
   copy real invoice or customer data into tests.
 - Run the full suite after dependency, cross-cutting, or graph integration
@@ -354,15 +356,17 @@ following documentation commit.
   and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw
   document content.
-- Require `VERIDOC_ADMIN_TOKEN` only at the administration boundary, compare it
-  in constant time, never accept it in URLs or bodies, and resolve storage only
-  after authentication succeeds.
+- Require `VERIDOC_ADMIN_TOKEN` only at the administration boundary, hash both
+  credential values to fixed-length SHA-256 digests before constant-time
+  comparison, never accept it in URLs or bodies, and resolve storage only after
+  authentication succeeds.
 - Bound administration imports to 1 MiB, 500 total records, and 200 line items
   per record before writes. Preserve immutable provenance and apply bulk writes
   in one transaction.
 - Treat local SQLite files and backups as sensitive reference data. Restore only
   while the service is stopped, reject live WAL/SHM sidecars, and replace the
-  database only after integrity and migration checks pass.
+  database only after integrity, migration-history, and required-schema checks
+  pass.
 
 ## Phase boundaries
 
