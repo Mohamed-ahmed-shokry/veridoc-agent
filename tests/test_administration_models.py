@@ -53,6 +53,20 @@ def test_administration_models_strip_metadata_and_convert_domain_facts() -> None
     assert record.invoice.to_domain().vendor_key == "fictional-supplies"
 
 
+def test_administration_models_canonicalize_vendor_keys() -> None:
+    invoice = InvoiceReferenceInput(vendor_key=" SUPPLIER / 001 ")
+    purchase_order = PurchaseOrderReferenceInput(
+        vendor_key="SUPPLIER___001",
+        purchase_order_number="PO-001",
+    )
+
+    assert invoice.vendor_key == "supplier-001"
+    assert purchase_order.vendor_key == "supplier-001"
+
+    with pytest.raises(ValidationError):
+        InvoiceReferenceInput(vendor_key="___")
+
+
 def test_administration_models_reject_non_finite_amounts_and_extra_fields() -> None:
     with pytest.raises(ValidationError):
         InvoiceReferenceInput(vendor_key="fictional", total=Decimal("NaN"))

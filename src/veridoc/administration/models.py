@@ -6,12 +6,20 @@ from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal, Self
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    AfterValidator,
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    model_validator,
+)
 
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
 )
+from veridoc.verification.vendors import normalize_vendor_key
 
 MAX_ADMIN_IMPORT_BYTES = 1024 * 1024
 MAX_IMPORT_RECORDS = 500
@@ -19,6 +27,20 @@ MAX_REFERENCE_LINE_ITEMS = 200
 
 BoundedAmount = Annotated[Decimal, Field(max_digits=24, decimal_places=6)]
 ConflictPolicy = Literal["reject", "skip", "replace"]
+
+
+def _canonical_vendor_key(value: str) -> str:
+    normalized = normalize_vendor_key(value)
+    if normalized is None or len(normalized) > 128:
+        raise ValueError("vendor_key must produce a canonical key of 1-128 characters")
+    return normalized
+
+
+VendorKey = Annotated[
+    str,
+    Field(min_length=1, max_length=128),
+    AfterValidator(_canonical_vendor_key),
+]
 
 
 class AdministrationModel(BaseModel):
@@ -44,7 +66,7 @@ class ReferenceLineItemInput(AdministrationModel):
 class InvoiceReferenceInput(AdministrationModel):
     """Validated invoice facts that may enter reference history."""
 
-    vendor_key: str = Field(min_length=1, max_length=128)
+    vendor_key: VendorKey
     invoice_number: str | None = Field(default=None, max_length=128)
     purchase_order_number: str | None = Field(default=None, max_length=128)
     invoice_date: date | None = None
@@ -68,7 +90,7 @@ class InvoiceReferenceInput(AdministrationModel):
 class PurchaseOrderReferenceInput(AdministrationModel):
     """Validated purchase-order facts available for reconciliation."""
 
-    vendor_key: str = Field(min_length=1, max_length=128)
+    vendor_key: VendorKey
     purchase_order_number: str = Field(min_length=1, max_length=128)
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
     total: BoundedAmount | None = None
