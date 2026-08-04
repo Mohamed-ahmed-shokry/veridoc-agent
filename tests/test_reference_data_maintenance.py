@@ -105,6 +105,35 @@ def test_failed_restore_preserves_the_existing_database(tmp_path) -> None:
     assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
 
 
+def test_backup_rejects_an_incomplete_current_schema(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    backup_path = tmp_path / "reference-data.backup.sqlite"
+    _repository(database_path)
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("DROP TABLE purchase_order_line_items")
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert not backup_path.exists()
+
+
+def test_restore_rejects_an_incomplete_current_schema(tmp_path) -> None:
+    backup_path = tmp_path / "incomplete-backup.sqlite"
+    _repository(backup_path)
+    with sqlite3.connect(backup_path) as connection:
+        connection.execute("DROP TABLE purchase_order_line_items")
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = _repository(database_path)
+    _add_invoice(repository, "INV-KEEP")
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        restore_database(backup_path, database_path)
+
+    preserved = _repository(database_path)
+    assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
+
+
 def test_maintenance_rejects_missing_same_path_and_live_sidecars(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     _repository(database_path)

@@ -16,6 +16,71 @@ from veridoc.persistence.migrations import (
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 
+_REQUIRED_SCHEMA_COLUMNS = {
+    "schema_migrations": frozenset({"version", "applied_at"}),
+    "vendor_invoices": frozenset(
+        {
+            "id",
+            "vendor_key",
+            "invoice_number",
+            "purchase_order_number",
+            "invoice_date",
+            "due_date",
+            "currency",
+            "subtotal",
+            "tax",
+            "discount",
+            "total",
+            "payment_terms",
+            "record_id",
+            "source",
+            "external_id",
+            "created_at",
+            "updated_at",
+            "retention_until",
+        }
+    ),
+    "invoice_line_items": frozenset(
+        {
+            "id",
+            "invoice_id",
+            "position",
+            "description",
+            "product_identifier",
+            "quantity",
+            "unit_price",
+            "total_price",
+        }
+    ),
+    "purchase_orders": frozenset(
+        {
+            "id",
+            "vendor_key",
+            "purchase_order_number",
+            "currency",
+            "total",
+            "record_id",
+            "source",
+            "external_id",
+            "created_at",
+            "updated_at",
+            "retention_until",
+        }
+    ),
+    "purchase_order_line_items": frozenset(
+        {
+            "id",
+            "purchase_order_id",
+            "position",
+            "description",
+            "product_identifier",
+            "quantity",
+            "unit_price",
+            "total_price",
+        }
+    ),
+}
+
 
 class ReferenceDataMaintenanceError(RuntimeError):
     """Raised when backup or restore cannot complete without data risk."""
@@ -126,3 +191,13 @@ def _validate_current_schema(connection: sqlite3.Connection) -> None:
     ]
     if versions != list(range(1, LATEST_SCHEMA_VERSION + 1)):
         raise ReferenceDataMaintenanceError
+    for table_name, required_columns in _REQUIRED_SCHEMA_COLUMNS.items():
+        actual_columns = {
+            str(row[0])
+            for row in connection.execute(
+                "SELECT name FROM pragma_table_info(?)",
+                (table_name,),
+            )
+        }
+        if not required_columns.issubset(actual_columns):
+            raise ReferenceDataMaintenanceError
