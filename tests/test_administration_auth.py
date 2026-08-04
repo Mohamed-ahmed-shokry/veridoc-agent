@@ -70,9 +70,9 @@ def test_authorize_admin_returns_one_generic_error_for_invalid_credentials(
 def test_authorize_admin_compares_even_malformed_credentials_in_constant_time(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    compared: list[tuple[str, str]] = []
+    compared: list[tuple[bytes, bytes]] = []
 
-    def compare(left: str, right: str) -> bool:
+    def compare(left: bytes, right: bytes) -> bool:
         compared.append((left, right))
         return False
 
@@ -81,4 +81,5 @@ def test_authorize_admin_compares_even_malformed_credentials_in_constant_time(
     with pytest.raises(InvalidAdminCredentialsError):
         authorize_admin("Basic malformed", AdminSettings(token=_TOKEN))
 
-    assert compared == [("malformed", _TOKEN)]
+    assert len(compared) == 1
+    assert len(compared[0][0]) == len(compared[0][1]) == 32

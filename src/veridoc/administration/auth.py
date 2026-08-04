@@ -7,6 +7,7 @@ import re
 import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from hashlib import sha256
 
 _TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9._~+/=-]{32,256}$")
 
@@ -53,6 +54,13 @@ def authorize_admin(authorization: str | None, settings: AdminSettings) -> None:
     """Require one constant-time matched bearer credential."""
     scheme, separator, candidate = (authorization or "").partition(" ")
     well_formed = separator == " " and scheme.lower() == "bearer"
-    matches = secrets.compare_digest(candidate, settings.token)
+    matches = secrets.compare_digest(
+        _token_digest(candidate),
+        _token_digest(settings.token),
+    )
     if not well_formed or not matches:
         raise InvalidAdminCredentialsError
+
+
+def _token_digest(token: str) -> bytes:
+    return sha256(token.encode("utf-8")).digest()
