@@ -352,6 +352,12 @@ records, and decimal values allow at most 24 digits with 6 decimal places.
 `retention_until` is metadata for operator policy; Phase 8 does not delete a
 record automatically when the date passes.
 
+Every invoice and purchase-order `vendor_key` is case-folded, runs of separator
+characters or underscores become one hyphen, and surrounding hyphens are
+removed. The canonical result must contain 1-128 characters. The optional
+`vendor_key` list filters apply the same normalization, so a query such as
+`Fictional Supplies` matches the stored key `fictional-supplies`.
+
 ### CRUD routes
 
 | Method and path | Result |
