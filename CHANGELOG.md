@@ -29,16 +29,19 @@ semantic versions for tagged releases.
 - Package metadata now uses `README.md` as its Markdown long description.
 - Reference persistence initializes through the migration ledger and closes all
   SQLite connections explicitly.
+- Administration canonicalizes vendor keys consistently across stored records
+  and invoice or purchase-order list filters.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
 
 ### Security
 
-- Administration validates a 32-256 character local token and compares Bearer
-  credentials in constant time before resolving the reference database.
+- Administration validates a 32-256 character local token and compares
+  fixed-length credential digests in constant time before resolving the
+  reference database.
 - Raw imports are limited to 1 MiB, 500 records, and 200 line items per record.
-- Restore refuses live WAL/SHM sidecars and replaces the database only after
-  integrity and migration checks succeed.
+- Backup and restore reject incomplete current schemas; restore also refuses
+  live WAL/SHM sidecars and replaces the database only after all checks succeed.
 
 ## [0.1.0] - 2026-08-02
 
