@@ -53,12 +53,14 @@ of record, or autonomous payment approver.
 - a complete typed LangGraph flow from OCR through verdict derivation;
 - `POST /process` with safe orchestration and reference-data errors;
 - a local, stateless `GET /review` upload and result-display page;
-- Bearer-authenticated invoice and purchase-order reference-data CRUD;
+- Bearer-authenticated invoice and purchase-order reference-data CRUD with
+  canonical vendor keys and matching list filters;
 - bounded atomic JSON imports with explicit reject, skip, replace, and dry-run
   behavior;
 - numbered forward-only SQLite migrations with provenance and optional retention
   metadata;
-- online reference-data backup and stopped-service atomic restore tooling;
+- integrity-, migration-, and schema-validated online backup plus
+  stopped-service atomic restore tooling;
 - safe `X-Request-ID` correlation and metadata-only request completion logs;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.
