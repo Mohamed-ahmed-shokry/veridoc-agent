@@ -142,8 +142,9 @@ async def test_invoice_admin_supports_the_complete_record_lifecycle(
         )
         record_id = created.json()["metadata"]["record_id"]
         listed = await client.get(
-            "/admin/reference-data/invoices?vendor_key=fictional-supplies",
+            "/admin/reference-data/invoices",
             headers=_AUTHORIZATION,
+            params={"vendor_key": "Fictional Supplies"},
         )
         fetched = await client.get(
             f"/admin/reference-data/invoices/{record_id}",

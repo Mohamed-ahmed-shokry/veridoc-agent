@@ -39,6 +39,7 @@ from veridoc.administration.models import (
     PurchaseOrderRecordPage,
     PurchaseOrderRecordUpdate,
     ReferenceDataImport,
+    VendorKey,
 )
 from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
@@ -139,7 +140,7 @@ def list_invoices(
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
-    vendor_key: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    vendor_key: Annotated[VendorKey | None, Query()] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> InvoiceRecordPage:
@@ -225,7 +226,7 @@ def list_purchase_orders(
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
-    vendor_key: Annotated[str | None, Query(min_length=1, max_length=128)] = None,
+    vendor_key: Annotated[VendorKey | None, Query()] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> PurchaseOrderRecordPage:

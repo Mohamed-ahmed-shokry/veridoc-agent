@@ -67,8 +67,9 @@ async def test_purchase_order_admin_supports_the_complete_record_lifecycle(
         )
         record_id = created.json()["metadata"]["record_id"]
         listed = await client.get(
-            "/admin/reference-data/purchase-orders?vendor_key=fictional-supplies",
+            "/admin/reference-data/purchase-orders",
             headers=_AUTHORIZATION,
+            params={"vendor_key": "Fictional Supplies"},
         )
         fetched = await client.get(
             f"/admin/reference-data/purchase-orders/{record_id}",
