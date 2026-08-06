@@ -1,0 +1,4 @@
+# Normalize line endings for all text files regardless of local Git
+# configuration, so Windows and Linux contributors and CI produce
+# byte-identical checkouts.
+* text=auto eol=lf
