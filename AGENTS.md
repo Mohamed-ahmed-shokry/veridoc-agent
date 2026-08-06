@@ -145,13 +145,21 @@ uv run pytest
 
 # Run the focused health test.
 uv run pytest tests/test_health.py
+uv run pytest tests/test_app.py
 
 # Run focused Phase 1 through Phase 8 boundary tests.
 uv run pytest tests/test_ingestion_validation.py
+uv run pytest tests/test_ingestion_storage.py
+uv run pytest tests/test_fixtures.py
+uv run pytest tests/test_ocr_models.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
+uv run pytest tests/test_tesseract.py
 uv run pytest tests/test_extraction_models.py
+uv run pytest tests/test_extraction_config.py
+uv run pytest tests/test_extraction_protocol.py
 uv run pytest tests/test_extraction_graph.py
+uv run pytest tests/test_extraction_service.py
 uv run pytest tests/test_openai_responses.py
 uv run pytest tests/test_extraction_api.py
 uv run pytest tests/test_sqlite_repository.py
