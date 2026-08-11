@@ -173,6 +173,56 @@ def test_repository_maps_invalid_persisted_metadata_to_a_safe_error(tmp_path) ->
     assert isinstance(persisted_error.__cause__, ValidationError)
 
 
+def test_repository_rejects_noncanonical_persisted_purchase_order_keys(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_purchase_order(
+        PurchaseOrder(
+            vendor_key="fictional-supplies",
+            purchase_order_number="PO-CORRUPT",
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE purchase_orders SET vendor_key = 'Fictional Supplies' "
+            "WHERE purchase_order_number = 'PO-CORRUPT'"
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError) as error:
+        repository.get_purchase_order("Fictional Supplies", "PO-CORRUPT")
+
+    assert isinstance(error.value.__cause__, InvalidPersistedReferenceDataError)
+
+
+def test_repository_maps_invalid_purchase_order_metadata_to_a_safe_error(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_purchase_order(
+        PurchaseOrder(
+            vendor_key="fictional-supplies",
+            purchase_order_number="PO-METADATA",
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE purchase_orders SET created_at = 'not-a-timestamp' "
+            "WHERE purchase_order_number = 'PO-METADATA'"
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError) as error:
+        repository.list_purchase_orders(vendor_key=None, offset=0, limit=100)
+
+    persisted_error = error.value.__cause__
+    assert isinstance(persisted_error, InvalidPersistedReferenceDataError)
+    assert isinstance(persisted_error.__cause__, ValidationError)
+
+
 def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

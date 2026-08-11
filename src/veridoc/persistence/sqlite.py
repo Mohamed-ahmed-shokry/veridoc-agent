@@ -767,37 +767,49 @@ def _admin_invoice_from_row(
 def _purchase_order_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> PurchaseOrder:
-    return PurchaseOrder(
-        vendor_key=row["vendor_key"],
-        purchase_order_number=row["purchase_order_number"],
-        currency=row["currency"],
-        total=_text_to_decimal(row["total"]),
-        line_items=_line_items_from_rows(
-            connection,
-            "purchase_order_line_items",
-            "purchase_order_id",
-            row["id"],
-        ),
-    )
+    try:
+        purchase_order = PurchaseOrder(
+            vendor_key=row["vendor_key"],
+            purchase_order_number=row["purchase_order_number"],
+            currency=row["currency"],
+            total=_text_to_decimal(row["total"]),
+            line_items=_line_items_from_rows(
+                connection,
+                "purchase_order_line_items",
+                "purchase_order_id",
+                row["id"],
+            ),
+        )
+        validated = PurchaseOrderReferenceInput.model_validate(
+            purchase_order.model_dump()
+        ).to_domain()
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
+    if validated != purchase_order:
+        raise InvalidPersistedReferenceDataError
+    return purchase_order
 
 
 def _admin_purchase_order_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> PurchaseOrderRecord:
     purchase_order = _purchase_order_from_row(connection, row)
-    return PurchaseOrderRecord(
-        metadata=ReferenceRecordMetadata(
-            record_id=row["record_id"],
-            source=row["source"],
-            external_id=row["external_id"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            retention_until=_text_to_date(row["retention_until"]),
-        ),
-        purchase_order=PurchaseOrderReferenceInput.model_validate(
-            purchase_order.model_dump()
-        ),
-    )
+    try:
+        return PurchaseOrderRecord(
+            metadata=ReferenceRecordMetadata(
+                record_id=row["record_id"],
+                source=row["source"],
+                external_id=row["external_id"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                retention_until=_text_to_date(row["retention_until"]),
+            ),
+            purchase_order=PurchaseOrderReferenceInput.model_validate(
+                purchase_order.model_dump()
+            ),
+        )
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
 
 
 def _line_items_from_rows(
