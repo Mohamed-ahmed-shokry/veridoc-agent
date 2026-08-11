@@ -245,10 +245,11 @@ phase-level work.
 ## Continuous integration
 
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. Its
-Ubuntu job synchronizes the committed lockfile, validates the lock, runs Ruff,
-mypy, the full coverage gate, builds both distributions, and imports the wheel
-in an isolated environment. The suite uses deterministic fakes, so CI requires
-no OpenAI credential or installed Tesseract executable.
+Ubuntu job checks the complete tracked snapshot for whitespace errors and
+conflict markers, synchronizes the committed lockfile, validates the lock, runs
+Ruff, mypy, the full coverage gate, builds both distributions, and imports the
+wheel in an isolated environment. The suite uses deterministic fakes, so CI
+requires no OpenAI credential or installed Tesseract executable.
 
 CI is remote evidence only after GitHub reports the job result. Run the same
 documented commands locally before committing; a local pass does not imply that
