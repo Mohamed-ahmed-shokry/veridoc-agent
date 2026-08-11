@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 
 from veridoc.ingestion.validation import (
+    MAX_DOCUMENT_PIXELS,
     MAX_IMAGE_PIXELS,
     MAX_PDF_PAGES,
     MAX_UPLOAD_BYTES,
@@ -118,6 +119,21 @@ def test_pdf_page_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert error.value.code == "too_many_pages"
     assert MAX_PDF_PAGES > 1
+
+
+def test_pdf_document_pixel_limit_is_enforced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("veridoc.ingestion.validation.MAX_DOCUMENT_PIXELS", 30_000)
+
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            _pdf_bytes(2), filename="invoice.pdf", declared_content_type=None
+        )
+
+    assert error.value.code == "document_too_large"
+    assert error.value.status_code == 413
+    assert MAX_DOCUMENT_PIXELS > 30_000
 
 
 class _ChunkedUpload:

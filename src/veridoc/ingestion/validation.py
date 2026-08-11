@@ -16,6 +16,7 @@ from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 20
 MAX_IMAGE_PIXELS = 20_000_000
+MAX_DOCUMENT_PIXELS = 50_000_000
 PDF_RENDER_DPI = 150
 READ_CHUNK_SIZE = 64 * 1024
 MAX_FILENAME_LENGTH = 128
@@ -185,14 +186,23 @@ def _validate_pdf(data: bytes) -> int:
                 f"PDF uploads must not exceed {MAX_PDF_PAGES} pages.",
                 status_code=413,
             )
+        document_pixels = 0
         for page_number in range(page_count):
             rectangle = document.load_page(page_number).rect
             width = math.ceil(rectangle.width * PDF_RENDER_DPI / 72)
             height = math.ceil(rectangle.height * PDF_RENDER_DPI / 72)
-            if width <= 0 or height <= 0 or width * height > MAX_IMAGE_PIXELS:
+            page_pixels = width * height
+            if width <= 0 or height <= 0 or page_pixels > MAX_IMAGE_PIXELS:
                 raise UploadValidationError(
                     "page_too_large",
                     f"Rendered PDF pages must not exceed {MAX_IMAGE_PIXELS} pixels.",
+                    status_code=413,
+                )
+            document_pixels += page_pixels
+            if document_pixels > MAX_DOCUMENT_PIXELS:
+                raise UploadValidationError(
+                    "document_too_large",
+                    "The rendered PDF exceeds the total pixel limit.",
                     status_code=413,
                 )
     finally:
