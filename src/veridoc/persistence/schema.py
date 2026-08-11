@@ -154,6 +154,15 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
         ):
             raise InvalidReferenceSchemaError
 
+    triggered_tables = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT tbl_name FROM sqlite_schema WHERE type = 'trigger'"
+        )
+    }
+    if triggered_tables.intersection(_REQUIRED_SCHEMA_COLUMNS):
+        raise InvalidReferenceSchemaError
+
     for table_name, required_foreign_keys in _REQUIRED_FOREIGN_KEYS.items():
         actual_foreign_keys = {
             (str(row[3]), str(row[2]), str(row[4]), str(row[6]).upper())

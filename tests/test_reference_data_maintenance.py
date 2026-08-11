@@ -241,6 +241,63 @@ def test_restore_rejects_a_missing_foreign_key_and_preserves_target(tmp_path) ->
     assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
 
 
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+def test_maintenance_rejects_managed_table_triggers_without_replacement(
+    operation,
+    tmp_path,
+) -> None:
+    source_path = tmp_path / "triggered-legacy.sqlite"
+    with sqlite3.connect(source_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE vendor_invoices (
+                id INTEGER PRIMARY KEY,
+                vendor_key TEXT NOT NULL,
+                invoice_number TEXT,
+                purchase_order_number TEXT,
+                invoice_date TEXT,
+                due_date TEXT,
+                currency TEXT,
+                subtotal TEXT,
+                tax TEXT,
+                discount TEXT,
+                total TEXT,
+                payment_terms TEXT
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO vendor_invoices (vendor_key, invoice_number)
+            VALUES ('fictional-supplies', 'INV-TRIGGERED')
+            """
+        )
+        connection.execute(
+            """
+            CREATE TRIGGER delete_invoice_after_update
+            AFTER UPDATE ON vendor_invoices
+            BEGIN
+                DELETE FROM vendor_invoices WHERE id = NEW.id;
+            END
+            """
+        )
+
+    destination_path = tmp_path / "reference-data.sqlite"
+    destination = _repository(destination_path)
+    _add_invoice(destination, "INV-KEEP")
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        operation(source_path, destination_path)
+
+    preserved = _repository(destination_path)
+    assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
+    with sqlite3.connect(source_path) as connection:
+        source_invoice = connection.execute(
+            "SELECT invoice_number FROM vendor_invoices"
+        ).fetchone()
+    assert source_invoice == ("INV-TRIGGERED",)
+
+
 def test_backup_rejects_foreign_key_corruption(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     backup_path = tmp_path / "reference-data.backup.sqlite"
