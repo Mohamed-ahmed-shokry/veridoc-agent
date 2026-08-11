@@ -167,6 +167,10 @@ explicit `reject`, `skip`, or `replace` conflict policy inside one transaction.
 Invalid input or a rejected conflict rolls back the entire write, and dry runs
 always roll back.
 
+The SQLite adapter applies the same canonical vendor-key and bounded record
+schema to verification-facing repository writes, so internal callers cannot
+bypass the persisted-data contract used by administration.
+
 Purchase-order natural-key conflicts are scoped to vendor key plus purchase
 order number. Parameterized repository queries protect SQL boundaries; this
 does not make unreviewed input trustworthy. Public errors identify the safe

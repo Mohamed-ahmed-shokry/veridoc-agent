@@ -37,6 +37,8 @@ semantic versions for tagged releases.
   SQLite connections explicitly.
 - Administration canonicalizes vendor keys consistently across stored records
   and invoice or purchase-order list filters.
+- Every repository write path applies the same canonical vendor-key and bounded
+  record schema before persisting reference facts.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
 - Upload decoding/inspection, OCR, and reference-data import work run outside

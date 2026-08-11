@@ -264,6 +264,9 @@ Already-current schemas take a read-only validation path; pending migrations
 acquire a write reservation and re-read their ledger under that lock.
 Compound reads hold one SQLite snapshot so pagination counts, parent records,
 and child line items remain coherent during concurrent administration writes.
+Both the verification-facing and administration write paths canonicalize vendor
+keys and enforce the same bounded invoice, purchase-order, and line-item schema
+before persistence.
 
 The separate `ReferenceDataAdminRepository` protocol exposes bounded pages,
 provenance-preserving CRUD, and one-transaction imports. Provenance identity is
