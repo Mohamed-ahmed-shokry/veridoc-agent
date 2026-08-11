@@ -15,17 +15,6 @@ coverage without changing the deliberately local product boundary. Phase 8 adds
 authenticated local administration, forward-only SQLite migrations, bounded
 atomic imports, and safe backup/restore tooling for approved reference facts.
 
-## Why Veridoc
-
-A value can be extracted perfectly and still be suspicious. For example, an
-invoice total may match the printed document while being far outside the
-vendor's historical range. Veridoc is scoped to reconcile invoices and purchase
-orders while keeping deterministic calculations separate from constrained,
-optional provider guidance.
-
-It is not a generic upload-and-extract platform, KYC system, accounting system
-of record, or autonomous payment approver.
-
 ## Implemented capabilities
 
 - installable Python 3.12 package managed and locked with uv;
