@@ -87,7 +87,7 @@ runtime implementation remains deliberately small:
   auth-before-storage ordering, CRUD, atomic imports, migrations, structural
   backup/restore validation, and CLI failures with temporary databases.
 - `scripts/check_distribution.py` validates wheel and source-distribution
-  metadata, required contents, regular member types, safe paths, and
+  metadata, required contents, regular member types, unique safe paths, and
   sensitive-file exclusions.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
 

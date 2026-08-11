@@ -270,9 +270,9 @@ uv run python scripts/check_distribution.py
 
 The content validator requires both console entry points, the Phase 8
 administration/maintenance modules, and package metadata. It rejects unsafe
-archive paths, links and special archive members, plus environment, database,
-and private-key artifacts. On PowerShell, smoke-test the built wheel outside
-the project environment with:
+or colliding archive paths, links and special archive members, plus environment,
+database, and private-key artifacts. On PowerShell, smoke-test the built wheel
+outside the project environment with:
 
 ```powershell
 $wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1

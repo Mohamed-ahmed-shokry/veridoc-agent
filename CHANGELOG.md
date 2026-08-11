@@ -61,7 +61,7 @@ semantic versions for tagged releases.
   spans must be grounded in the current request before verification.
 - Unexpected server failures retain safe request correlation, provider keys are
   redacted from settings representations, and artifact checks reject Windows
-  drive/backslash paths plus links and special archive members.
+  drive/backslash paths, colliding names, links, and special archive members.
 - Backup and restore validate foreign-key integrity and schema constraints;
   both operations reject WAL, SHM, and rollback-journal destination sidecars.
 
