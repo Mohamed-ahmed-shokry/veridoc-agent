@@ -405,6 +405,25 @@ def test_restore_rejects_foreign_key_corruption_and_preserves_target(tmp_path) -
     assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
 
 
+def test_restore_rejects_semantic_corruption_without_replacement(tmp_path) -> None:
+    backup_path = tmp_path / "reference-data.backup.sqlite"
+    backup_repository = _repository(backup_path)
+    _corrupt_invoice_line_item(backup_path, backup_repository)
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = _repository(database_path)
+    _add_invoice(repository, "INV-KEEP")
+    original_source = backup_path.read_bytes()
+    original_destination = database_path.read_bytes()
+
+    with pytest.raises(ReferenceDataMaintenanceError) as error:
+        restore_database(backup_path, database_path)
+
+    assert isinstance(error.value.__cause__, InvalidPersistedReferenceDataError)
+    assert backup_path.read_bytes() == original_source
+    assert database_path.read_bytes() == original_destination
+    assert list(tmp_path.glob(f".{database_path.name}.*.tmp")) == []
+
+
 def test_maintenance_rejects_missing_and_same_paths(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     _repository(database_path)

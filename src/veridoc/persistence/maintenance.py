@@ -101,12 +101,16 @@ def restore_database(
             _validate_integrity(source_connection)
             with closing(sqlite3.connect(temporary)) as restore_connection:
                 source_connection.backup(restore_connection)
-                migrate(restore_connection, validate=validate_current_schema)
+                migrate(
+                    restore_connection,
+                    validate=_validate_migrated_reference_data,
+                )
                 _validate_integrity(restore_connection)
         os.replace(temporary, destination)
     except (
         OSError,
         sqlite3.Error,
+        InvalidPersistedReferenceDataError,
         InvalidReferenceSchemaError,
         UnsupportedSchemaVersionError,
     ) as exc:
