@@ -42,6 +42,18 @@ def test_line_item_occurrence_accepts_common_items_and_normalizes_keys() -> None
     )
 
 
+def test_line_item_history_ignores_items_without_a_comparison_key() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        line_items=[InvoiceLineItem(quantity="2", unit_price="10.00")],
+    )
+
+    assert line_item_key(None, None) is None
+    assert check_line_item_occurrence(invoice, _history("CONSULTING")) == []
+    assert check_line_item_statistics(invoice, _history("CONSULTING")) == []
+
+
 def test_line_item_occurrence_reports_new_and_rare_items() -> None:
     history = _history(
         "CONSULTING", "CONSULTING", "CONSULTING", "CONSULTING", "SUPPORT"
