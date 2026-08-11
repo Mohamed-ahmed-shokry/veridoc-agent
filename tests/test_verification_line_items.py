@@ -1,5 +1,7 @@
 """Vendor-history line-item occurrence tests with synthetic data."""
 
+from decimal import Decimal
+
 from veridoc.extraction.models import InvoiceExtraction, InvoiceLineItem
 from veridoc.verification.line_items import (
     check_line_item_occurrence,
@@ -143,3 +145,76 @@ def test_line_item_statistics_reports_price_and_quantity_outliers() -> None:
     assert all(
         finding.z_score is not None and finding.z_score > 3 for finding in findings
     )
+
+
+def test_line_item_statistics_handles_uniform_history_deterministically() -> None:
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number=f"INV-{index}",
+            currency="USD",
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="CONSULTING",
+                    quantity="2",
+                    unit_price="3000.00",
+                )
+            ],
+        )
+        for index in range(1, 4)
+    ]
+    established = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="2",
+                unit_price="3000.00",
+            )
+        ],
+    )
+    changed = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="3",
+                unit_price="3100.00",
+            )
+        ],
+    )
+
+    assert check_line_item_statistics(established, history) == []
+
+    findings = check_line_item_statistics(changed, history)
+
+    assert [finding.finding_type for finding in findings] == [
+        "historical_line_item_price_outlier",
+        "historical_line_item_quantity_outlier",
+    ]
+    assert [finding.expected_value for finding in findings] == ["3000.00", "2"]
+    assert [finding.details["metric"] for finding in findings] == [
+        "line_item_unit_price",
+        "line_item_quantity",
+    ]
+    assert all(finding.severity == "high" for finding in findings)
+    assert all(finding.historical_sample_size == 3 for finding in findings)
+    assert [finding.historical_mean for finding in findings] == [
+        Decimal("3000.00"),
+        Decimal(2),
+    ]
+    assert all(
+        finding.historical_standard_deviation == Decimal(0) for finding in findings
+    )
+    assert all(finding.z_score is None for finding in findings)
+    assert all(
+        finding.deterministic_rule
+        == "standard_deviation == 0 and observed_value != mean"
+        for finding in findings
+    )
+    assert all(
+        finding.details["line_item_key"] == "product:consulting" for finding in findings
+    )
+    assert all(finding.details["line_item_index"] == 0 for finding in findings)
