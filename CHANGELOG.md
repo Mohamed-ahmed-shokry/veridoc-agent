@@ -21,6 +21,11 @@ semantic versions for tagged releases.
 - Numbered forward-only SQLite migrations with legacy metadata backfill.
 - Online SQLite backup and stopped-service validated atomic restore commands.
 - A `veridoc-reference` maintenance entry point and Phase 8 focused tests.
+- A configurable, validated per-page Tesseract timeout.
+- Central SQLite schema-invariant validation shared by repository startup,
+  backup, and restore.
+- Focused coverage for request-body limits, upload/dependency ordering,
+  concurrent migrations, artifact safety, and uniform-history comparisons.
 
 ### Changed
 
@@ -33,6 +38,13 @@ semantic versions for tagged releases.
   and invoice or purchase-order list filters.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
+- OCR and reference-data import work run outside async request loops, and upload
+  validation completes before external service construction.
+- First-time migrations and record updates acquire SQLite write locks before
+  reading state that governs their writes.
+- Ruff targets Python 3.12 explicitly; pytest rejects unknown configuration and
+  markers; CI scans tracked whitespace and verifies critical installed routes,
+  entry points, and version parity.
 
 ### Security
 
@@ -40,8 +52,18 @@ semantic versions for tagged releases.
   fixed-length credential digests in constant time before resolving the
   reference database.
 - Raw imports are limited to 1 MiB, 500 records, and 200 line items per record.
-- Backup and restore reject incomplete current schemas; restore also refuses
-  live WAL/SHM sidecars and replaces the database only after all checks succeed.
+- Backup and restore reject incomplete current schemas and replace destinations
+  only after all checks succeed.
+- Document/import multipart bodies are bounded before parsing; PDFs have a
+  cumulative raster-pixel limit; normalized vision inputs have an aggregate
+  byte limit; and Tesseract execution is time-bounded.
+- Extracted decimals are bounded before arithmetic, while evidence pages and OCR
+  spans must be grounded in the current request before verification.
+- Unexpected server failures retain safe request correlation, provider keys are
+  redacted from settings representations, and artifact checks reject Windows
+  drive/backslash paths.
+- Backup and restore validate foreign-key integrity and schema constraints;
+  both operations reject WAL, SHM, and rollback-journal destination sidecars.
 
 ## [0.1.0] - 2026-08-02
 
