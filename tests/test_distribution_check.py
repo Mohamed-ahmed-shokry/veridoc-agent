@@ -47,6 +47,7 @@ def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:
     assert "veridoc/administration/cli.py" in required
     assert "veridoc/persistence/migrations.py" in required
     assert "veridoc/persistence/maintenance.py" in required
+    assert "veridoc/persistence/schema.py" in required
 
 
 def test_distribution_check_requires_both_console_scripts() -> None:

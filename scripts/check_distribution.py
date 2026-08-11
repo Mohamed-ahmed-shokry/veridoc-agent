@@ -19,6 +19,7 @@ _REQUIRED_RUNTIME_FILES = {
     "app.py",
     "persistence/maintenance.py",
     "persistence/migrations.py",
+    "persistence/schema.py",
     "review/page.py",
 }
 
