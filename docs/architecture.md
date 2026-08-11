@@ -59,9 +59,12 @@ flowchart LR
     Migrations["Forward-only migration ledger"] --> SQLite
 ```
 
-Validation finishes before expensive decoding, OCR, or external model work.
-Validated bytes use a private temporary directory only during processing; page
-images are normalized in memory and are not retained after the request.
+The outer ASGI boundary limits complete document/import request bodies before
+multipart parsing, even without `Content-Length`. Document validation and upload
+closure finish before OCR, provider, processing, or repository dependency
+construction. Rasterization and OCR run in worker threads. Validated bytes use a
+private temporary directory only during processing; page images are normalized
+in memory, bounded as a document bundle, and not retained after the request.
 
 ## Package boundaries
 

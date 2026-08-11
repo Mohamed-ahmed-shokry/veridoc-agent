@@ -33,6 +33,10 @@ hyphens; otherwise the service generates a 32-character hexadecimal value.
 Record this header when reporting a request failure. It identifies operational
 metadata only and is not a document, user, or review identifier.
 
+Unexpected application failures return status `500` with the safe code
+`internal_server_error` and the same correlation header; internal exception
+messages are never returned.
+
 ## `GET /health`
 
 Reports that the API process can serve requests. It does not probe Tesseract,
@@ -60,12 +64,18 @@ is named `file`.
 
 - PDF, PNG, and JPEG signatures are supported.
 - The upload is read in bounded chunks and must not exceed 10 MiB.
+- The complete multipart request is rejected before parsing when it exceeds the
+  file limit plus a 64 KiB framing allowance, including streams without a
+  `Content-Length` header.
 - PDFs must contain 1 to 20 unencrypted, non-repaired pages.
-- Images and rendered PDF pages must not exceed 20,000,000 pixels.
+- Images and individual rendered PDF pages must not exceed 20,000,000 pixels;
+  all rendered pages in one PDF must not exceed 50,000,000 pixels in aggregate.
 - The declared `Content-Type` must match the validated signature when supplied.
 - Client filenames are sanitized for display and never become processing paths.
 - Empty, malformed, unsupported, truncated, and limit-exceeding documents are
   rejected before OCR.
+- Validation and upload closure finish before OCR, provider, processing-service,
+  or repository dependencies are constructed.
 
 The service keeps the validated bytes in a private temporary directory only for
 the processing lifetime and removes the directory on success or failure.
@@ -125,7 +135,7 @@ document bytes, or OCR engine output:
 | Status | Codes | Meaning |
 | --- | --- | --- |
 | `400` | `empty_upload`, `malformed_document`, `empty_document`, `unsupported_pdf` | The document cannot be accepted safely. |
-| `413` | `upload_too_large`, `image_too_large`, `page_too_large`, `too_many_pages` | A byte, page, or decoded-pixel bound was exceeded. |
+| `413` | `upload_too_large`, `image_too_large`, `page_too_large`, `document_too_large`, `too_many_pages` | A body, file, page, or decoded-pixel bound was exceeded. |
 | `415` | `unsupported_document`, `unsupported_content_type`, `content_type_mismatch`, `signature_mismatch` | The media type or signature is unsupported or inconsistent. |
 | `422` | `ocr_processing_failed` | A validated document could not be rendered or processed. |
 | `503` | `ocr_unavailable` | Tesseract or its configured language data is unavailable. |
@@ -137,6 +147,10 @@ baseline, sends normalized OCR text and in-memory PNG page images to the
 configured OpenAI Responses adapter, and returns typed extraction data. The
 upload limits, accepted types, and temporary-file lifetime are identical to
 `POST /ocr`.
+
+OCR text and normalized page images are created off the async request loop. The
+aggregate normalized PNG bundle is limited to 32 MiB before provider input; an
+excess is returned as the safe `ocr_processing_failed` response.
 
 ### Required configuration
 
@@ -440,6 +454,9 @@ counts. It does not return the imported records.
 | `422` | `invalid_reference_data_import` | Import JSON or its typed records are invalid. |
 | `503` | `admin_authentication_unavailable` | No valid server administration token is configured. |
 | `503` | `reference_data_unavailable` | The configured SQLite data cannot be opened or migrated safely. |
+
+The complete multipart import request is also bounded before parsing to the
+1 MiB file limit plus a 64 KiB framing allowance.
 
 ## `GET /review`
 

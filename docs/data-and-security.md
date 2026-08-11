@@ -109,16 +109,22 @@ facts, verification findings, explanation narratives, or numerical context.
 `/ocr`, `/extract`, and `/process` implement the following controls before
 decoding, OCR, or external-provider input:
 
-1. read in bounded chunks and reject uploads over 10 MiB;
+1. reject a complete multipart body over the 10 MiB file limit plus 64 KiB of
+   framing before parsing, then read the file in bounded chunks;
 2. allow only PDF, PNG, and JPEG signatures;
 3. compare a supplied `Content-Type` with the detected signature;
 4. sanitize client filenames for display and never use them as paths;
 5. reject malformed, empty, encrypted, or repaired PDFs;
-6. bound PDFs to 20 pages and rendered/image data to 20,000,000 pixels; and
-7. return safe structured errors without internal paths or stack traces.
+6. bound PDFs to 20 pages, each decoded/rendered page to 20,000,000 pixels, and
+   all rendered PDF pages to 50,000,000 pixels in aggregate;
+7. bound normalized PNG page images to 32 MiB in aggregate before provider
+   input; and
+8. return safe structured errors without internal paths or stack traces.
 
-Filename extensions and `Content-Type` alone are not trusted. Expensive PDF
-rasterization, OCR, and provider calls occur only after these checks.
+Filename extensions and `Content-Type` alone are not trusted. Validation and
+upload closure complete before OCR, provider, processing, or repository
+dependency construction. Rasterization and OCR run outside the async request
+loop and each Tesseract page retains its configured timeout.
 
 ## Temporary files and retention
 

@@ -164,9 +164,11 @@ confidence, and one page object per decoded page:
 }
 ```
 
-Uploads are limited to 10 MiB, 20 PDF pages, and 20,000,000 decoded/rendered
-pixels. The declared content type must match the validated signature. See the
-[API guide](docs/api.md) for the complete error contract.
+Uploads are limited to 10 MiB with 64 KiB reserved for multipart framing, 20 PDF
+pages, 20,000,000 pixels per decoded/rendered page, and 50,000,000 rendered
+pixels across a PDF. Invalid documents are rejected before OCR, provider, or
+repository construction. The declared content type must match the validated
+signature. See the [API guide](docs/api.md) for the complete error contract.
 
 ## Structured extraction request
 
@@ -180,8 +182,9 @@ curl.exe -X POST http://127.0.0.1:8000/extract \
 
 The typed response preserves absent fields as `null`, reports OCR and extraction
 confidence separately, and returns page/source evidence plus uncertainty rather
-than fabricating missing data. See the [API guide](docs/api.md) for the complete
-schema, limits, and error responses.
+than fabricating missing data. Normalized page images are limited to 32 MiB in
+aggregate before provider input. See the [API guide](docs/api.md) for the
+complete schema, limits, and error responses.
 
 ## Complete processing and review
 

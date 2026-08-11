@@ -20,9 +20,10 @@ runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
-- `src/veridoc/app.py` creates the FastAPI application, safe request correlation,
-  `GET /health`, `POST /ocr`, `POST /extract`, `POST /process`, and `GET
-  /review`, and includes the authenticated reference-data administration router.
+- `src/veridoc/app.py` creates the FastAPI application, pre-parser body limits,
+  validation-first dependencies, safe request correlation, `GET /health`,
+  `POST /ocr`, `POST /extract`, `POST /process`, and `GET /review`, and includes
+  the authenticated reference-data administration router.
 - `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
   uploads before decoding.
 - `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
@@ -360,8 +361,10 @@ following documentation commit.
   the configured external boundary is invoked.
 - Do not log document bodies, secrets, credentials, or sensitive extracted
   fields. Use correlation identifiers and stage names for operational context.
-- Validate content type, signature, size, page/pixel bounds, and filenames before
-  expensive parsing at the implemented upload boundary.
+- Validate total request and file sizes, content type, signature, per-page and
+  cumulative pixel bounds, normalized-image bundle size, and filenames before
+  expensive parsing or external dependency construction at the implemented
+  upload boundary.
 - Bound streaming reads, isolate temporary files, clean them up deterministically,
   and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw
