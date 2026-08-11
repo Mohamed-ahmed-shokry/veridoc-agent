@@ -237,9 +237,11 @@ temporary-file lifetime are identical to `/ocr` and `/extract`.
 ### Required configuration
 
 `/process` requires the same non-empty extraction-provider settings as
-`/extract`. It uses an optional explanation provider when those settings are
-available; absent explanation settings result in deterministic explanations,
-not an error. It also opens and initializes a local SQLite reference-data file:
+`/extract`. The current extraction and explanation adapters share those
+settings, so missing configuration fails the required extraction stage. After
+valid extraction configuration exists, explanation-provider unavailability or
+rejected guidance falls back to deterministic explanations. `/process` also
+opens and initializes a local SQLite reference-data file:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

@@ -114,9 +114,9 @@ configuration when that route is invoked and returns a safe 503 error if it is
 missing or unavailable.
 
 `/process` uses the same extraction settings, initializes the configured local
-SQLite reference-data path, and produces deterministic explanation fallback when
-optional explanation guidance cannot be configured. Submit the same bounded
-upload with:
+SQLite reference-data path, and requires those settings for extraction. Once
+they are valid, an unavailable explanation call or rejected explanation draft
+falls back to deterministic guidance. Submit the same bounded upload with:
 
 ```powershell
 curl.exe -X POST http://127.0.0.1:8000/process `
