@@ -88,8 +88,9 @@ images are normalized in memory and are not retained after the request.
   authentication policy, the administration repository protocol, FastAPI router,
   and local maintenance CLI. It never accepts or returns document content.
 - `veridoc.persistence.migrations` owns the ordered SQLite schema ledger;
-  `veridoc.persistence.maintenance` owns integrity-checked online backup and
-  validated atomic restore.
+  `veridoc.persistence.schema` validates required tables, columns, keys,
+  constraints, and provenance indexes; `veridoc.persistence.maintenance` owns
+  integrity-checked online backup and validated atomic restore.
 - `veridoc.verification` owns strict findings, pure arithmetic/history/PO
   comparison rules, an API-neutral service, and a typed single-node verification
   graph. Verification imports the repository protocol, not SQLite connection
@@ -243,6 +244,9 @@ stored as text and recreated as `Decimal`; dates and timestamps use ISO-8601
 text. `POST /process` and the administration adapter open the path in
 `VERIDOC_REFERENCE_DATABASE`, defaulting to `veridoc-reference.sqlite3`.
 SQLite and unsupported-schema failures map to a safe unavailable error.
+Initialization also validates the current primary keys, required `NOT NULL`
+columns, child foreign keys, purchase-order natural uniqueness, and managed
+record/provenance indexes after migration.
 
 The separate `ReferenceDataAdminRepository` protocol exposes bounded pages,
 provenance-preserving CRUD, and one-transaction imports. Provenance identity is
@@ -251,9 +255,10 @@ creation/update timestamps are application managed. Optional retention dates
 are metadata only; no background deletion service exists.
 
 `veridoc-reference` performs online backup and stopped-service restore without
-an HTTP database export. Restore validates the source, migrates a temporary
-sibling database, refuses live WAL/SHM sidecars, validates integrity again, and
-atomically replaces the destination. See
+an HTTP database export. Both destination replacements refuse live WAL, SHM,
+or rollback-journal sidecars. Restore validates the source, migrates a temporary
+sibling database, validates database and foreign-key integrity plus structural
+invariants again, and atomically replaces the destination. See
 [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md) and
 [ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).
 

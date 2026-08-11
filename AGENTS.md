@@ -45,6 +45,8 @@ runtime implementation remains deliberately small:
   FastAPI routes, and the maintenance CLI.
 - `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
   migrations and rejects unsupported future schema versions.
+- `src/veridoc/persistence/schema.py` validates the current tables, columns,
+  keys, constraints, foreign keys, and required provenance indexes.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite.
 - `src/veridoc/persistence/maintenance.py` provides integrity-, migration-, and
@@ -372,9 +374,9 @@ following documentation commit.
   per record before writes. Preserve immutable provenance and apply bulk writes
   in one transaction.
 - Treat local SQLite files and backups as sensitive reference data. Restore only
-  while the service is stopped, reject live WAL/SHM sidecars, and replace the
-  database only after integrity, migration-history, and required-schema checks
-  pass.
+  while the service is stopped, reject live WAL/SHM/rollback-journal sidecars,
+  and replace a database or backup only after database and foreign-key
+  integrity, migration-history, and required-schema checks pass.
 
 ## Phase boundaries
 

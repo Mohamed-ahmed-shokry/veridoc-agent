@@ -301,8 +301,10 @@ safe and non-secret. Never log or commit either credential.
 
 `/process` and the Phase 8 administration adapter open
 `SQLiteInvoiceRepository` at `VERIDOC_REFERENCE_DATABASE`. Initialization
-applies numbered forward-only migrations before use. Local integration code can
-initialize the current schema explicitly:
+applies numbered forward-only migrations before use, then validates required
+table identity, columns, primary and foreign keys, `NOT NULL` constraints, and
+unique natural/provenance indexes. Local integration code can initialize the
+current schema explicitly:
 
 ```python
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
@@ -330,8 +332,10 @@ uv run veridoc-reference `
 ```
 
 The command initializes supported migrations, uses SQLite's online backup API,
-validates integrity, the complete migration history, and every required table
-and column, then atomically replaces the requested backup destination.
+validates database and foreign-key integrity, the complete migration history,
+and required table, column, key, constraint, and index invariants, then
+atomically replaces the requested backup destination. It refuses a destination
+with an existing `-wal`, `-shm`, or `-journal` sidecar.
 
 Restore requires a stopped service and explicit confirmation:
 
@@ -342,11 +346,12 @@ uv run veridoc-reference `
 ```
 
 Restore validates the source, copies it to a temporary sibling database,
-applies supported migrations, validates integrity and the required schema
-structure again, and then atomically replaces the configured database. It
-refuses active `-wal` or `-shm` sidecars; stop the process cleanly before
-retrying. A failed restore leaves the existing database unchanged. Keep backups
-outside the repository and protect them as reference data.
+applies supported migrations, validates database and foreign-key integrity plus
+the required schema structure again, and then atomically replaces the configured
+database. It refuses active `-wal`, `-shm`, or `-journal` sidecars; stop the
+process cleanly before retrying. A failed restore leaves the existing database
+unchanged. Keep backups outside the repository and protect them as reference
+data.
 
 ## Operational guidance
 

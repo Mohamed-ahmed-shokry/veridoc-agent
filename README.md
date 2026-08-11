@@ -59,8 +59,8 @@ of record, or autonomous payment approver.
   behavior;
 - numbered forward-only SQLite migrations with provenance and optional retention
   metadata;
-- integrity-, migration-, and schema-validated online backup plus
-  stopped-service atomic restore tooling;
+- integrity-, foreign-key-, migration-, and constraint-validated online backup
+  plus stopped-service atomic restore tooling;
 - safe `X-Request-ID` correlation and metadata-only request completion logs;
 - deterministic fictional invoice fixtures and focused error-path tests; and
 - Ruff lint and format checks.

@@ -244,11 +244,13 @@ composition while replacing the repository protocol and prove list filters use
 the same vendor-key normalization as records; they require neither a network
 listener nor a developer database.
 
-`test_reference_data_maintenance.py` uses temporary databases to prove online
-backup integrity, required-schema validation, stopped-service restore
-validation, atomic replacement, destination preservation, and active WAL/SHM
-refusal. `test_administration_cli.py` exercises help, confirmation, and safe
-failure behavior without touching configured developer data.
+`test_sqlite_migrations.py` also races concurrent initialization against one
+fresh temporary database. `test_reference_data_maintenance.py` uses temporary
+databases to prove database and foreign-key integrity, key/constraint/index
+validation, stopped-service restore validation, atomic replacement, destination
+preservation, and active WAL/SHM/rollback-journal refusal.
+`test_administration_cli.py` exercises help, confirmation, and safe failure
+behavior without touching configured developer data.
 
 ## Fixtures
 

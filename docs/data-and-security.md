@@ -177,15 +177,17 @@ policy date but does not automatically delete or archive data. Operators remain
 responsible for authorized lifecycle decisions.
 
 The `veridoc-reference backup` command uses SQLite's online backup API and
-atomically replaces the requested backup only after integrity, complete
-migration-history, and required table/column checks. Restore requires a stopped
-service, explicit `--confirm-replace`, a valid source backup, and no live WAL or
-SHM sidecar. It validates the same database structure on a temporary sibling
-copy before atomically replacing the configured database, so a failed restore
-leaves the existing database unchanged. Store backups outside the repository
-with the same confidentiality, access, retention, encryption, and disposal
-controls as the database. The command supplies a mechanism, not a backup policy
-or recovery guarantee.
+atomically replaces the requested backup only after database and foreign-key
+integrity, complete migration-history, and required table, column, key,
+constraint, and index checks. Backup and restore destinations must have no live
+WAL, SHM, or rollback-journal sidecar. Restore additionally requires a stopped
+service, explicit `--confirm-replace`, and a valid source backup. It validates
+the same database structure on a temporary sibling copy before atomically
+replacing the configured database, so a failed restore leaves the existing
+database unchanged. Store backups outside the repository with the same
+confidentiality, access, retention, encryption, and disposal controls as the
+database. The command supplies a mechanism, not a backup policy or recovery
+guarantee.
 
 ## Current security limitations
 
