@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from typing import NotRequired, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -30,10 +31,7 @@ def build_extraction_graph(
     async def extract(state: ExtractionState) -> dict[str, InvoiceExtraction]:
         request = state["request"]
         extraction = await extractor.extract(request)
-        if not _evidence_pages_are_valid(
-            extraction,
-            page_count=len(request.document.pages),
-        ):
+        if not _evidence_is_grounded(extraction, request):
             raise ExtractionProcessingError
         return {"extraction": extraction}
 
@@ -44,8 +42,8 @@ def build_extraction_graph(
     return graph.compile()
 
 
-def _evidence_pages_are_valid(
-    extraction: InvoiceExtraction, *, page_count: int
+def _evidence_is_grounded(
+    extraction: InvoiceExtraction, request: ExtractionRequest
 ) -> bool:
     references: list[EvidenceReference] = [
         reference
@@ -57,4 +55,20 @@ def _evidence_pages_are_valid(
         for line_item in extraction.line_items
         for reference in line_item.evidence
     )
-    return all(reference.page_number <= page_count for reference in references)
+    for reference in references:
+        if reference.page_number > len(request.document.pages):
+            return False
+        if reference.source != "ocr_text" or reference.text_span is None:
+            continue
+        span = _normalize_evidence_text(reference.text_span)
+        page_text = _normalize_evidence_text(
+            request.document.pages[reference.page_number - 1].text
+        )
+        if not span or span not in page_text:
+            return False
+    return True
+
+
+def _normalize_evidence_text(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value).casefold()
+    return " ".join(normalized.split())

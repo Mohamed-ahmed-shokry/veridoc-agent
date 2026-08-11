@@ -71,3 +71,59 @@ async def test_graph_rejects_evidence_for_a_page_outside_the_document(
 
     with pytest.raises(ExtractionProcessingError):
         await graph.ainvoke({"request": request})
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("span", ["Invoice INV-999", "   "])
+async def test_graph_rejects_an_ocr_span_absent_from_its_page(span: str) -> None:
+    extraction = InvoiceExtraction(
+        document_type="invoice",
+        evidence={
+            "invoice_number": [
+                EvidenceReference(
+                    page_number=1,
+                    source="ocr_text",
+                    text_span=span,
+                )
+            ]
+        },
+    )
+    graph = build_extraction_graph(_FakeExtractor(extraction))
+    request = ExtractionRequest(
+        document=OCRDocumentResult(
+            media_type="image/png",
+            pages=(OCRPageResult(text="Invoice INV-001", confidence=92.0),),
+        ),
+        page_images=(RenderedPage(page_number=1, image_bytes=b"image"),),
+    )
+
+    with pytest.raises(ExtractionProcessingError):
+        await graph.ainvoke({"request": request})
+
+
+@pytest.mark.anyio
+async def test_graph_accepts_a_normalized_ocr_span_from_its_page() -> None:
+    extraction = InvoiceExtraction(
+        document_type="invoice",
+        evidence={
+            "invoice_number": [
+                EvidenceReference(
+                    page_number=1,
+                    source="ocr_text",
+                    text_span="invoice   inv-001",
+                )
+            ]
+        },
+    )
+    graph = build_extraction_graph(_FakeExtractor(extraction))
+    request = ExtractionRequest(
+        document=OCRDocumentResult(
+            media_type="image/png",
+            pages=(OCRPageResult(text="Invoice\nINV-001", confidence=92.0),),
+        ),
+        page_images=(RenderedPage(page_number=1, image_bytes=b"image"),),
+    )
+
+    result = await graph.ainvoke({"request": request})
+
+    assert result["extraction"] == extraction
