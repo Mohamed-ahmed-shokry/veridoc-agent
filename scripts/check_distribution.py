@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tarfile
 import tomllib
+import unicodedata
 import zipfile
 from configparser import ConfigParser
 from email import policy
@@ -55,6 +56,7 @@ def _check_wheel(path: Path, *, name: str, version: str) -> None:
         member_info = archive.infolist()
         members = [member.filename for member in member_info]
         _check_member_paths(members)
+        _check_unique_member_paths(members)
         _check_wheel_member_types(member_info, path)
         required = _required_package_members(name)
         _require_members(members, required, path)
@@ -98,6 +100,7 @@ def _check_source_distribution(path: Path, *, name: str, version: str) -> None:
         members = [member.name for member in member_info]
     _check_source_member_types(member_info, path)
     _check_member_paths(members)
+    _check_unique_member_paths(members)
     if any(PurePosixPath(member).parts[0] != root for member in members):
         raise RuntimeError(f"{path} contains a member outside the {root!r} root.")
     _require_members(
@@ -145,6 +148,22 @@ def _check_member_paths(members: list[str]) -> None:
             raise RuntimeError(f"Archive contains an environment file: {member!r}.")
         if path.suffix.casefold() in _SENSITIVE_SUFFIXES:
             raise RuntimeError(f"Archive contains a sensitive file type: {member!r}.")
+
+
+def _check_unique_member_paths(members: list[str]) -> None:
+    seen: dict[str, str] = {}
+    for member in members:
+        canonical = (
+            unicodedata.normalize("NFC", str(PurePosixPath(member)))
+            .rstrip("/")
+            .casefold()
+        )
+        previous = seen.get(canonical)
+        if previous is not None:
+            raise RuntimeError(
+                f"Archive contains colliding member paths: {previous!r} and {member!r}."
+            )
+        seen[canonical] = member
 
 
 def _check_wheel_member_types(members: list[zipfile.ZipInfo], archive: Path) -> None:

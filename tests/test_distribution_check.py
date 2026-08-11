@@ -11,6 +11,7 @@ from scripts.check_distribution import (
     _check_console_scripts,
     _check_member_paths,
     _check_source_member_types,
+    _check_unique_member_paths,
     _check_wheel_member_types,
     _require_members,
     _required_package_members,
@@ -43,6 +44,25 @@ def test_distribution_check_reports_missing_required_members() -> None:
             {"veridoc/__init__.py", "veridoc/app.py"},
             Path("dist/veridoc.whl"),
         )
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [
+        ("veridoc/app.py", "veridoc/app.py"),
+        ("veridoc/app.py", "VERIDOC/APP.PY"),
+        ("veridoc/app.py", "veridoc/./app.py"),
+        (
+            "veridoc/caf\N{LATIN SMALL LETTER E WITH ACUTE}.py",
+            "veridoc/cafe\N{COMBINING ACUTE ACCENT}.py",
+        ),
+    ],
+)
+def test_distribution_check_rejects_colliding_member_paths(
+    first: str, second: str
+) -> None:
+    with pytest.raises(RuntimeError, match="colliding member paths"):
+        _check_unique_member_paths([first, second])
 
 
 def test_distribution_check_rejects_wheel_symlinks() -> None:
