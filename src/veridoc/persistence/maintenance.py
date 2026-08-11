@@ -9,77 +9,15 @@ from contextlib import closing
 from pathlib import Path
 
 from veridoc.persistence.migrations import (
-    LATEST_SCHEMA_VERSION,
     UnsupportedSchemaVersionError,
     migrate,
 )
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
+from veridoc.persistence.schema import (
+    InvalidReferenceSchemaError,
+    validate_current_schema,
+)
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
-
-_REQUIRED_SCHEMA_COLUMNS = {
-    "schema_migrations": frozenset({"version", "applied_at"}),
-    "vendor_invoices": frozenset(
-        {
-            "id",
-            "vendor_key",
-            "invoice_number",
-            "purchase_order_number",
-            "invoice_date",
-            "due_date",
-            "currency",
-            "subtotal",
-            "tax",
-            "discount",
-            "total",
-            "payment_terms",
-            "record_id",
-            "source",
-            "external_id",
-            "created_at",
-            "updated_at",
-            "retention_until",
-        }
-    ),
-    "invoice_line_items": frozenset(
-        {
-            "id",
-            "invoice_id",
-            "position",
-            "description",
-            "product_identifier",
-            "quantity",
-            "unit_price",
-            "total_price",
-        }
-    ),
-    "purchase_orders": frozenset(
-        {
-            "id",
-            "vendor_key",
-            "purchase_order_number",
-            "currency",
-            "total",
-            "record_id",
-            "source",
-            "external_id",
-            "created_at",
-            "updated_at",
-            "retention_until",
-        }
-    ),
-    "purchase_order_line_items": frozenset(
-        {
-            "id",
-            "purchase_order_id",
-            "position",
-            "description",
-            "product_identifier",
-            "quantity",
-            "unit_price",
-            "total_price",
-        }
-    ),
-}
 
 
 class ReferenceDataMaintenanceError(RuntimeError):
@@ -112,12 +50,13 @@ def backup_database(
         ):
             source_connection.backup(backup_connection)
             _validate_integrity(backup_connection)
-            _validate_current_schema(backup_connection)
+            validate_current_schema(backup_connection)
         os.replace(temporary, destination)
     except (
         OSError,
         sqlite3.Error,
         ReferenceDataUnavailableError,
+        InvalidReferenceSchemaError,
         UnsupportedSchemaVersionError,
     ) as exc:
         raise ReferenceDataMaintenanceError from exc
@@ -146,9 +85,14 @@ def restore_database(
                 source_connection.backup(restore_connection)
                 migrate(restore_connection)
                 _validate_integrity(restore_connection)
-                _validate_current_schema(restore_connection)
+                validate_current_schema(restore_connection)
         os.replace(temporary, destination)
-    except (OSError, sqlite3.Error, UnsupportedSchemaVersionError) as exc:
+    except (
+        OSError,
+        sqlite3.Error,
+        InvalidReferenceSchemaError,
+        UnsupportedSchemaVersionError,
+    ) as exc:
         raise ReferenceDataMaintenanceError from exc
     finally:
         if temporary is not None:
@@ -182,24 +126,3 @@ def _validate_integrity(connection: sqlite3.Connection) -> None:
     foreign_key_violation = connection.execute("PRAGMA foreign_key_check").fetchone()
     if result != ("ok",) or foreign_key_violation is not None:
         raise ReferenceDataMaintenanceError
-
-
-def _validate_current_schema(connection: sqlite3.Connection) -> None:
-    versions = [
-        int(row[0])
-        for row in connection.execute(
-            "SELECT version FROM schema_migrations ORDER BY version"
-        )
-    ]
-    if versions != list(range(1, LATEST_SCHEMA_VERSION + 1)):
-        raise ReferenceDataMaintenanceError
-    for table_name, required_columns in _REQUIRED_SCHEMA_COLUMNS.items():
-        actual_columns = {
-            str(row[0])
-            for row in connection.execute(
-                "SELECT name FROM pragma_table_info(?)",
-                (table_name,),
-            )
-        }
-        if not required_columns.issubset(actual_columns):
-            raise ReferenceDataMaintenanceError
