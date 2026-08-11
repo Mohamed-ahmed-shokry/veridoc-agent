@@ -71,8 +71,8 @@ semantic versions for tagged releases.
   redacted from settings representations, and artifact checks reject Windows
   drive/backslash paths, colliding names, links, and special archive members.
 - Backup and restore validate foreign-key integrity and schema constraints,
-  reject triggers on managed tables, and refuse WAL, SHM, or rollback-journal
-  destination sidecars.
+  including declared column types, reject triggers on managed tables, and refuse
+  WAL, SHM, or rollback-journal destination sidecars.
 
 ## [0.1.0] - 2026-08-02
 

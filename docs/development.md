@@ -306,11 +306,11 @@ safe and non-secret. Never log or commit either credential.
 `/process` and the Phase 8 administration adapter open
 `SQLiteInvoiceRepository` at `VERIDOC_REFERENCE_DATABASE`. Initialization
 applies numbered forward-only migrations and validates required table identity,
-columns, primary and foreign keys, `NOT NULL` constraints, and unique
-natural/provenance indexes, while rejecting triggers on managed tables, before
-committing the same transaction. A rejected schema leaves its prior structure,
-ledger, and records unchanged. Local integration code can initialize the current
-schema explicitly:
+columns and declared types, primary and foreign keys, `NOT NULL` constraints,
+and unique natural/provenance indexes, while rejecting triggers on managed
+tables, before committing the same transaction. A rejected schema leaves its
+prior structure, ledger, and records unchanged. Local integration code can
+initialize the current schema explicitly:
 
 ```python
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository

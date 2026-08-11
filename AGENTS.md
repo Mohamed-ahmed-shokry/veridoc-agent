@@ -48,8 +48,8 @@ runtime implementation remains deliberately small:
   migrations, validates before commit, and rejects unsupported future schema
   versions.
 - `src/veridoc/persistence/schema.py` validates the current tables, columns,
-  keys, constraints, foreign keys, required provenance indexes, and absence of
-  triggers on managed tables.
+  declared types, keys, constraints, foreign keys, required provenance indexes,
+  and absence of triggers on managed tables.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite.
 - `src/veridoc/persistence/maintenance.py` provides non-mutating, integrity-,

@@ -252,11 +252,12 @@ stored as text and recreated as `Decimal`; dates and timestamps use ISO-8601
 text. `POST /process` and the administration adapter open the path in
 `VERIDOC_REFERENCE_DATABASE`, defaulting to `veridoc-reference.sqlite3`.
 SQLite and unsupported-schema failures map to a safe unavailable error.
-Initialization also validates the current primary keys, required `NOT NULL`
-columns, child foreign keys, purchase-order natural uniqueness, and managed
-record/provenance indexes, and rejects triggers on managed tables before
-committing the migration transaction. Rejected initialization therefore leaves
-the prior schema, migration ledger, and rows unchanged.
+Initialization also validates declared column types, current primary keys,
+required `NOT NULL` columns, child foreign keys, purchase-order natural
+uniqueness, and managed record/provenance indexes, and rejects triggers on
+managed tables before committing the migration transaction. Rejected
+initialization therefore leaves the prior schema, migration ledger, and rows
+unchanged.
 Compound reads hold one SQLite snapshot so pagination counts, parent records,
 and child line items remain coherent during concurrent administration writes.
 
