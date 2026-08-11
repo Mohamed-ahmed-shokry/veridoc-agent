@@ -96,7 +96,7 @@ def _parse_data(data: dict[str, list[Any]]) -> OCRPageResult:
         )
         lines[key].append(text)
         confidence = _float_at(data.get("conf"), index)
-        if confidence is not None and confidence >= 0:
+        if confidence is not None and isfinite(confidence) and 0 <= confidence <= 100:
             confidences.append(confidence)
 
     return OCRPageResult(

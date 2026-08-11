@@ -51,6 +51,18 @@ def test_tesseract_missing_executable_is_safe(monkeypatch: pytest.MonkeyPatch) -
         tesseract.TesseractEngine().recognize(Image.new("RGB", (2, 2)))
 
 
+def test_tesseract_ignores_invalid_confidence_values() -> None:
+    result = tesseract._parse_data(
+        {
+            "text": ["Valid", "NaN", "Infinite", "TooHigh"],
+            "conf": ["75", "nan", "inf", "101"],
+        }
+    )
+
+    assert result.text == "Valid NaN Infinite TooHigh"
+    assert result.confidence == 75.0
+
+
 def test_tesseract_timeout_is_reported_safely(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
