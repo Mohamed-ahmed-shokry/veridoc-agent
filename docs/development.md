@@ -55,6 +55,10 @@ configure:
 $env:TESSERACT_LANG = "eng+ara"
 ```
 
+Each page has a 30-second OCR timeout. Set `TESSERACT_TIMEOUT_SECONDS` to a
+finite value greater than 0 and no greater than 300 when local hardware needs a
+different bound.
+
 The verified Windows winget installation command is:
 
 ```powershell
@@ -283,6 +287,7 @@ The application has these process environment variables:
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable found on `PATH` | Explicit Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or language combination |
+| `TESSERACT_TIMEOUT_SECONDS` | `30` | Per-page OCR timeout from greater than 0 through 300 seconds |
 | `OPENAI_API_KEY` | none | Required OpenAI credential for `/extract` and `/process`, plus optional explanation guidance |
 | `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and `/process`, plus optional explanation guidance |
 | `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path used by processing and reference-data administration |

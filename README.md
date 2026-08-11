@@ -109,6 +109,7 @@ For Windows, set an explicit executable path when Tesseract is not on `PATH`:
 ```powershell
 $env:TESSERACT_CMD = "C:\Program Files\Tesseract-OCR\tesseract.exe"
 $env:TESSERACT_LANG = "eng+ara"
+$env:TESSERACT_TIMEOUT_SECONDS = "30"
 ```
 
 The installed console entry point is also available when reload is unnecessary:
@@ -377,6 +378,7 @@ The current HTTP application reads these process environment variables:
 | --- | --- | --- |
 | `TESSERACT_CMD` | executable on `PATH` | Tesseract executable path |
 | `TESSERACT_LANG` | `eng` | Tesseract language or combination |
+| `TESSERACT_TIMEOUT_SECONDS` | `30` | Per-page OCR timeout from greater than 0 through 300 seconds |
 | `OPENAI_API_KEY` | none | Required credential for `/extract` and `/process`; optional explanation guidance also uses it |
 | `VERIDOC_LLM_MODEL` | none | Required Responses model for `/extract` and `/process`; optional explanation guidance also uses it |
 | `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path for processing and reference-data administration |

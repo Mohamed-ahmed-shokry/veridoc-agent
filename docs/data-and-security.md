@@ -69,14 +69,15 @@ determinism and expected behavior so accidental drift is visible.
 The repository tracks `.env.example` with safe comments only. `.gitignore`
 excludes `.env` and `.env.*` while explicitly allowing `.env.example`.
 
-The application reads optional `TESSERACT_CMD` and `TESSERACT_LANG`, plus the
-`OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` used by `/extract` and `/process`, and
-the optional `VERIDOC_REFERENCE_DATABASE` path used by processing and
-administration, from the process environment. `VERIDOC_ADMIN_TOKEN` is required
-for administration and must be a randomly generated 32-256 character value.
-The application does not load `.env` files. Keep credentials and deployment
-paths out of committed files, and use unmistakably fake placeholders in
-`.env.example` when examples are needed.
+The application reads optional `TESSERACT_CMD`, `TESSERACT_LANG`, and the
+bounded `TESSERACT_TIMEOUT_SECONDS`, plus the `OPENAI_API_KEY` and
+`VERIDOC_LLM_MODEL` used by `/extract` and `/process`, and the optional
+`VERIDOC_REFERENCE_DATABASE` path used by processing and administration, from
+the process environment. `VERIDOC_ADMIN_TOKEN` is required for administration
+and must be a randomly generated 32-256 character value. The application does
+not load `.env` files. Keep credentials and deployment paths out of committed
+files, and use unmistakably fake placeholders in `.env.example` when examples
+are needed.
 
 Send the administration token only in the `Authorization: Bearer` header. Never
 put it in a URL, query value, request body, source file, shell history, or log.
