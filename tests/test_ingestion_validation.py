@@ -88,6 +88,39 @@ def test_malformed_signature_is_rejected() -> None:
     assert error.value.status_code == 415
 
 
+@pytest.mark.parametrize(
+    ("payload", "content_type", "message"),
+    [
+        (
+            b"\x89PNG\r\n\x1a\ntruncated",
+            "image/png",
+            "The image could not be decoded safely.",
+        ),
+        (
+            b"%PDF-1.7\ntruncated",
+            "application/pdf",
+            "The PDF could not be decoded safely.",
+        ),
+    ],
+)
+def test_supported_signatures_with_undecodable_payloads_are_rejected_safely(
+    payload: bytes,
+    content_type: str,
+    message: str,
+) -> None:
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            payload,
+            filename="fictional-invoice",
+            declared_content_type=content_type,
+        )
+
+    assert error.value.code == "malformed_document"
+    assert error.value.status_code == 400
+    assert error.value.message == message
+    assert str(error.value) == message
+
+
 def test_image_pixel_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     payload = _png_bytes((3, 2))
     monkeypatch.setattr("veridoc.ingestion.validation.MAX_IMAGE_PIXELS", 4)
