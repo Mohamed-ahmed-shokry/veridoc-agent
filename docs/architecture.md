@@ -278,9 +278,10 @@ are metadata only; no background deletion service exists.
 an HTTP database export. Both destination replacements refuse live WAL, SHM,
 or rollback-journal sidecars. Backup preserves the live source and published
 snapshot at their original schema version while migrations and structural checks
-run on a disposable validation copy. Restore validates the source, migrates a
-temporary sibling database, validates database and foreign-key integrity plus
-structural invariants again, and atomically replaces the destination. See
+run on a disposable validation copy and commit together only after final schema
+validation succeeds. Restore validates the source, migrates a temporary sibling
+database under the same transactional schema check, validates database and
+foreign-key integrity again, and atomically replaces the destination. See
 [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md) and
 [ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).
 

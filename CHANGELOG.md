@@ -54,6 +54,8 @@ semantic versions for tagged releases.
   during concurrent administration writes.
 - Online backup preserves the live source and the published snapshot at their
   original schema version while validating a disposable migrated copy.
+- Backup and restore validation copies commit migrations only after the final
+  structural schema validator succeeds in the same transaction.
 - Ruff targets Python 3.12 explicitly; pytest rejects unknown configuration and
   markers; CI scans tracked whitespace and verifies critical installed routes,
   entry points, and version parity.
