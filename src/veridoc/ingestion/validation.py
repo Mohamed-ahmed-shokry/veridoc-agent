@@ -7,7 +7,7 @@ import re
 import unicodedata
 from io import BytesIO
 
-import fitz
+import pymupdf
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 
@@ -164,8 +164,8 @@ def _validate_image(data: bytes, media_type: DocumentMediaType) -> tuple[int, in
 
 def _validate_pdf(data: bytes) -> int:
     try:
-        document = fitz.open(stream=data, filetype="pdf")
-    except (fitz.FileDataError, RuntimeError, ValueError) as exc:
+        document = pymupdf.open(stream=data, filetype="pdf")
+    except (pymupdf.FileDataError, RuntimeError, ValueError) as exc:
         raise UploadValidationError(
             "malformed_document",
             "The PDF could not be decoded safely.",

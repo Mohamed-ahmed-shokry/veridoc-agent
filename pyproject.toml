@@ -48,8 +48,12 @@ strict = true
 warn_unused_configs = true
 
 [[tool.mypy.overrides]]
-module = ["fitz", "pytesseract", "pytesseract.*"]
+module = ["pytesseract", "pytesseract.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["pymupdf"]
+follow_imports = "skip"
 
 [tool.coverage.run]
 branch = true

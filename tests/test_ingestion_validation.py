@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-import fitz
+import pymupdf
 import pytest
 from PIL import Image
 
@@ -27,7 +27,7 @@ def _png_bytes(size: tuple[int, int] = (8, 4)) -> bytes:
 
 
 def _pdf_bytes(page_count: int = 1) -> bytes:
-    document = fitz.open()
+    document = pymupdf.open()
     for index in range(page_count):
         page = document.new_page(width=72, height=72)
         page.insert_text((8, 24), f"Fictional Vendor Invoice INV-{index + 1:03d}")

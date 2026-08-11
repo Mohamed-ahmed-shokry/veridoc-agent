@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from io import BytesIO
 
-import fitz
+import pymupdf
 from PIL import Image, ImageDraw
 
 
@@ -29,7 +29,7 @@ def fictional_invoice_pdf(page_count: int = 1) -> bytes:
     """Return deterministic PDF pages containing fictional invoice text."""
     if page_count < 1:
         raise ValueError("page_count must be positive")
-    document = fitz.open()
+    document = pymupdf.open()
     for index in range(page_count):
         page = document.new_page(width=300, height=180)
         page.insert_text((20, 40), "Fictional Northwind Supplies")

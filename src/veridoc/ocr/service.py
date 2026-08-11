@@ -6,7 +6,7 @@ from collections.abc import Iterator
 from io import BytesIO
 from pathlib import Path
 
-import fitz
+import pymupdf
 from PIL import Image, UnidentifiedImageError
 
 from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
@@ -67,7 +67,7 @@ class OCRService:
                         image.close()
         except OCRUnavailableError:
             raise
-        except (OSError, RuntimeError, fitz.FileDataError) as exc:
+        except (OSError, RuntimeError, pymupdf.FileDataError) as exc:
             raise OCRProcessingError from exc
 
         if not pages:
@@ -100,8 +100,8 @@ def _iter_raster_page(path: Path) -> Iterator[Image.Image]:
 
 def _iter_pdf_pages(path: Path) -> Iterator[Image.Image]:
     try:
-        document = fitz.open(path)
-    except (fitz.FileDataError, RuntimeError, ValueError) as exc:
+        document = pymupdf.open(path)
+    except (pymupdf.FileDataError, RuntimeError, ValueError) as exc:
         raise OCRProcessingError from exc
 
     try:
