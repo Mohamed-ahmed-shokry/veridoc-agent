@@ -326,7 +326,7 @@ plus:
 | Status | Code | Meaning |
 | --- | --- | --- |
 | `422` | `processing_failed` | The complete workflow did not produce a typed result. |
-| `503` | `reference_data_unavailable` | The configured local reference data could not be opened safely. |
+| `503` | `reference_data_unavailable` | The configured local reference data could not be opened or decoded under the persisted-data contract safely. |
 
 ## Reference-data administration
 
@@ -462,7 +462,7 @@ counts. It does not return the imported records.
 | `415` | `unsupported_import_media_type` | The import is not declared as `application/json`. |
 | `422` | `invalid_reference_data_import` | Import JSON or its typed records are invalid. |
 | `503` | `admin_authentication_unavailable` | No valid server administration token is configured. |
-| `503` | `reference_data_unavailable` | The configured SQLite data cannot be opened or migrated safely. |
+| `503` | `reference_data_unavailable` | The configured SQLite data cannot be opened, migrated, or decoded under the persisted-data contract safely. |
 
 The complete multipart import request is also bounded before parsing to the
 1 MiB file limit plus a 64 KiB framing allowance.

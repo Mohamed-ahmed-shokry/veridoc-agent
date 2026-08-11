@@ -52,7 +52,7 @@ runtime implementation remains deliberately small:
   and absence of triggers on managed tables.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite and applies the same canonical,
-  bounded record contract to every write path.
+  bounded record contract to every write and hydrated-row read path.
 - `src/veridoc/persistence/maintenance.py` provides non-mutating, integrity-,
   migration-, and schema-checked online backup plus stopped-service atomic
   restore.

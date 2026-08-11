@@ -335,9 +335,11 @@ that lock before applying any change.
 The repository stores invoice history and purchase orders for deterministic
 comparison. Direct repository writes and administration routes share canonical
 vendor-key and bounded record validation; administration additionally provides
-provenance-preserving CRUD and atomic imports. See the [API guide](api.md). Use
-only fictional or otherwise approved reference data. SQLite files are ignored
-by Git; see
+provenance-preserving CRUD and atomic imports. Repository reads revalidate stored
+facts and metadata and report malformed or noncanonical rows through the safe
+reference-data unavailable boundary. See the [API guide](api.md). Use only
+fictional or otherwise approved reference data. SQLite files are ignored by
+Git; see
 [data and security](data-and-security.md),
 [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md), and
 [ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).

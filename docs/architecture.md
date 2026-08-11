@@ -266,7 +266,9 @@ Compound reads hold one SQLite snapshot so pagination counts, parent records,
 and child line items remain coherent during concurrent administration writes.
 Both the verification-facing and administration write paths canonicalize vendor
 keys and enforce the same bounded invoice, purchase-order, and line-item schema
-before persistence.
+before persistence. Reads reconstruct and revalidate that same contract,
+including administrative metadata, and translate invalid stored rows to the
+repository's safe unavailable error.
 
 The separate `ReferenceDataAdminRepository` protocol exposes bounded pages,
 provenance-preserving CRUD, and one-transaction imports. Provenance identity is

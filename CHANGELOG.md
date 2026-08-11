@@ -39,6 +39,8 @@ semantic versions for tagged releases.
   and invoice or purchase-order list filters.
 - Every repository write path applies the same canonical vendor-key and bounded
   record schema before persisting reference facts.
+- Repository reads revalidate stored facts and metadata, mapping malformed or
+  noncanonical rows to the safe reference-data availability boundary.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
 - Upload decoding/inspection, OCR, and reference-data import work run outside

@@ -169,7 +169,10 @@ always roll back.
 
 The SQLite adapter applies the same canonical vendor-key and bounded record
 schema to verification-facing repository writes, so internal callers cannot
-bypass the persisted-data contract used by administration.
+bypass the persisted-data contract used by administration. It also treats rows
+read from SQLite as untrusted: facts and metadata are revalidated, silent
+normalization is rejected, and malformed stored values map to the safe
+reference-data availability error.
 
 Purchase-order natural-key conflicts are scoped to vendor key plus purchase
 order number. Parameterized repository queries protect SQL boundaries; this
