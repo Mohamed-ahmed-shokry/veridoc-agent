@@ -67,5 +67,31 @@ jobs:
         run: |
           wheel_path="$(find dist -maxdepth 1 -name '*.whl' -print -quit)"
           test -n "$wheel_path"
-          uv run --isolated --no-project --no-cache --with "$wheel_path" python -c \
-            "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
+          uv run --isolated --no-project --no-cache --with "$wheel_path" python - <<'PY'
+          from importlib.metadata import distribution
+
+          import veridoc
+          from veridoc.app import app
+
+          installed = distribution("veridoc")
+          scripts = {
+              entry_point.name: entry_point.value
+              for entry_point in installed.entry_points
+              if entry_point.group == "console_scripts"
+          }
+          paths = {getattr(route, "path", None) for route in app.routes}
+
+          assert installed.version == veridoc.__version__ == app.version
+          assert scripts == {
+              "veridoc": "veridoc.__main__:main",
+              "veridoc-reference": "veridoc.administration.cli:main",
+          }
+          assert {
+              "/health",
+              "/ocr",
+              "/extract",
+              "/process",
+              "/review",
+              "/admin/reference-data/import",
+          } <= paths
+          PY
