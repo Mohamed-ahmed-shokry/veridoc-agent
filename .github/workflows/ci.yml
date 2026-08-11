@@ -72,3 +72,11 @@ jobs:
           test -n "$wheel_path"
           uv run --isolated --no-project --no-cache --with "$wheel_path" \
             python scripts/smoke_distribution.py
+
+      - name: Smoke-test the isolated source distribution
+        shell: bash
+        run: |
+          sdist_path="$(find dist -maxdepth 1 -name '*.tar.gz' -print -quit)"
+          test -n "$sdist_path"
+          uv run --isolated --no-project --no-cache --with "$sdist_path" \
+            python scripts/smoke_distribution.py
