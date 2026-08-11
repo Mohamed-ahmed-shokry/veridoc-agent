@@ -102,7 +102,7 @@ class SQLiteInvoiceRepository:
         """Return managed invoices in stable insertion order."""
         where_clause = " WHERE vendor_key = ?" if vendor_key is not None else ""
         parameters: tuple[object, ...] = (vendor_key,) if vendor_key is not None else ()
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             total = int(
                 connection.execute(
                     f"SELECT COUNT(*) FROM vendor_invoices{where_clause}",
@@ -126,7 +126,7 @@ class SQLiteInvoiceRepository:
 
     def get_admin_invoice(self, record_id: str) -> InvoiceRecord | None:
         """Return one managed invoice by its server identifier."""
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM vendor_invoices WHERE record_id = ?", (record_id,)
             ).fetchone()
@@ -211,7 +211,7 @@ class SQLiteInvoiceRepository:
         """Return managed purchase orders in stable insertion order."""
         where_clause = " WHERE vendor_key = ?" if vendor_key is not None else ""
         parameters: tuple[object, ...] = (vendor_key,) if vendor_key is not None else ()
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             total = int(
                 connection.execute(
                     f"SELECT COUNT(*) FROM purchase_orders{where_clause}",
@@ -237,7 +237,7 @@ class SQLiteInvoiceRepository:
 
     def get_admin_purchase_order(self, record_id: str) -> PurchaseOrderRecord | None:
         """Return one managed purchase order by its server identifier."""
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             row = connection.execute(
                 "SELECT * FROM purchase_orders WHERE record_id = ?", (record_id,)
             ).fetchone()
@@ -319,7 +319,7 @@ class SQLiteInvoiceRepository:
 
     def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
         """Return one vendor's invoices in insertion order."""
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             rows = connection.execute(
                 "SELECT * FROM vendor_invoices WHERE vendor_key = ? ORDER BY id",
                 (vendor_key,),
@@ -330,7 +330,7 @@ class SQLiteInvoiceRepository:
         self, vendor_key: str, invoice_number: str
     ) -> HistoricalInvoice | None:
         """Return the earliest stored invoice with this vendor-local number."""
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             row = connection.execute(
                 """
                 SELECT * FROM vendor_invoices
@@ -346,7 +346,7 @@ class SQLiteInvoiceRepository:
         self, vendor_key: str, purchase_order_number: str
     ) -> PurchaseOrder | None:
         """Return a stored purchase order by vendor and PO number."""
-        with self._connection() as connection:
+        with self._read_connection() as connection:
             row = connection.execute(
                 """
                 SELECT * FROM purchase_orders
@@ -376,6 +376,13 @@ class SQLiteInvoiceRepository:
             UnsupportedSchemaVersionError,
         ) as exc:
             raise ReferenceDataUnavailableError from exc
+
+    @contextmanager
+    def _read_connection(self) -> Iterator[sqlite3.Connection]:
+        """Hold one consistent snapshot across a compound repository read."""
+        with self._connection() as connection:
+            connection.execute("BEGIN")
+            yield connection
 
 
 def _insert_line_items(
