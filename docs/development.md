@@ -57,7 +57,9 @@ $env:TESSERACT_LANG = "eng+ara"
 
 Each page has a 30-second OCR timeout. Set `TESSERACT_TIMEOUT_SECONDS` to a
 finite value greater than 0 and no greater than 300 when local hardware needs a
-different bound.
+different bound. A blank language or invalid timeout is treated as unavailable
+OCR configuration and returns the safe `ocr_unavailable` 503 response from
+`/ocr`, `/extract`, and `/process`.
 
 The verified Windows winget installation command is:
 
@@ -68,8 +70,9 @@ winget install --id UB-Mannheim.TesseractOCR --exact --accept-source-agreements 
 The default language is `eng`. On Debian or Ubuntu, install `tesseract-ocr`,
 `tesseract-ocr-eng`, and `tesseract-ocr-ara` with the system package manager.
 The API returns `ocr_unavailable` rather than fabricating text when the
-executable or requested language data is absent. See [ADR 0001](decisions/0001-use-tesseract-for-v1.md)
-for the decision and limitations.
+executable or requested language data is absent. See
+[ADR 0001](decisions/0001-use-tesseract-for-v1.md) for the decision and
+limitations.
 
 ## Run the service
 

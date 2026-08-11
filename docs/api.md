@@ -138,7 +138,7 @@ document bytes, or OCR engine output:
 | `413` | `upload_too_large`, `image_too_large`, `page_too_large`, `document_too_large`, `too_many_pages` | A body, file, page, or decoded-pixel bound was exceeded. |
 | `415` | `unsupported_document`, `unsupported_content_type`, `content_type_mismatch`, `signature_mismatch` | The media type or signature is unsupported or inconsistent. |
 | `422` | `ocr_processing_failed` | A validated document could not be rendered or processed. |
-| `503` | `ocr_unavailable` | Tesseract or its configured language data is unavailable. |
+| `503` | `ocr_unavailable` | Tesseract, its configured language data, or its language/timeout configuration is unavailable or invalid. |
 
 ## `POST /extract`
 

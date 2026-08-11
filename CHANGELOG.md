@@ -44,6 +44,8 @@ semantic versions for tagged releases.
 - Upload decoding/inspection, OCR, and reference-data import work run outside
   async request loops, and validation completes before external service
   construction.
+- Invalid Tesseract language or timeout settings map to the typed, correlated
+  `ocr_unavailable` response on every document endpoint.
 - First-time migrations and record updates acquire SQLite write locks before
   reading state that governs their writes.
 - Already-current repository initialization validates read-only, avoiding a

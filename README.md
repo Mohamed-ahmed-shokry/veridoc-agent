@@ -101,6 +101,10 @@ $env:TESSERACT_LANG = "eng+ara"
 $env:TESSERACT_TIMEOUT_SECONDS = "30"
 ```
 
+Blank language settings and nonnumeric, nonfinite, nonpositive, or greater-than-
+300-second timeouts return the same safe `ocr_unavailable` 503 as an unavailable
+Tesseract executable.
+
 The installed console entry point is also available when reload is unnecessary:
 
 ```bash
