@@ -372,6 +372,7 @@ API also returns an `X-Request-ID` for safe operational correlation. See
 │   │   └── README.md
 │   └── test_*.py
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── .python-version
 ├── pyproject.toml
