@@ -311,7 +311,8 @@ async def get_validated_upload(
     """Read, validate, and close one upload before external dependencies resolve."""
     try:
         data = await read_bounded_upload(file)
-        return validate_upload(
+        return await to_thread(
+            validate_upload,
             data,
             filename=file.filename,
             declared_content_type=file.content_type,
