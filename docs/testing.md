@@ -168,8 +168,9 @@ after the context exits.
 `test_ocr_models.py` tests typed internal and public response values.
 
 `test_tesseract.py` mocks pytesseract's data call so line reconstruction,
-confidence aggregation, command restoration, and unavailable-engine mapping are
-deterministic and do not require a local Tesseract executable.
+bounded finite confidence aggregation, command restoration, and
+unavailable-engine mapping are deterministic and do not require a local
+Tesseract executable.
 
 `test_ocr_service.py` uses synthetic Pillow and PyMuPDF pages with a fake engine
 to test sequential image/PDF decoding, page composition, the aggregate PNG
