@@ -4,6 +4,7 @@ import httpx
 import pytest
 from fastapi import FastAPI
 
+from veridoc.__main__ import main
 from veridoc.app import app
 
 
@@ -18,6 +19,26 @@ def test_application_object_imports_with_expected_metadata() -> None:
     assert isinstance(app, FastAPI)
     assert app.title == "Veridoc"
     assert app.version == "0.1.0"
+
+
+def test_console_launcher_starts_the_documented_local_server(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    observed: dict[str, object] = {}
+
+    def fake_run(app_target: str, **kwargs: object) -> None:
+        observed["app_target"] = app_target
+        observed.update(kwargs)
+
+    monkeypatch.setattr("veridoc.__main__.uvicorn.run", fake_run)
+
+    main()
+
+    assert observed == {
+        "app_target": "veridoc.app:app",
+        "host": "127.0.0.1",
+        "port": 8000,
+    }
 
 
 @pytest.mark.anyio
