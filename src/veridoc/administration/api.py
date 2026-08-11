@@ -19,6 +19,7 @@ from fastapi import (
 from fastapi.responses import Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import ValidationError
+from starlette.concurrency import run_in_threadpool
 
 from veridoc.administration.auth import (
     AdminAuthenticationUnavailableError,
@@ -333,7 +334,8 @@ async def import_reference_data(
                 },
             ) from exc
         try:
-            return repository.import_reference_data(
+            return await run_in_threadpool(
+                repository.import_reference_data,
                 batch,
                 conflict=conflict,
                 dry_run=dry_run,

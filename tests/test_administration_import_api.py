@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from contextlib import asynccontextmanager
+from threading import get_ident
 
 import httpx
 import pytest
@@ -111,6 +112,30 @@ async def test_import_api_supports_dry_run_then_atomic_commit(
     assert (
         repository.list_purchase_orders(vendor_key=None, offset=0, limit=100).total == 1
     )
+
+
+@pytest.mark.anyio
+async def test_import_api_runs_storage_work_outside_the_event_loop(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path)
+    original_import = repository.import_reference_data
+    event_loop_thread = get_ident()
+    storage_thread: int | None = None
+
+    def observed_import(*args, **kwargs):
+        nonlocal storage_thread
+        storage_thread = get_ident()
+        return original_import(*args, **kwargs)
+
+    monkeypatch.setattr(repository, "import_reference_data", observed_import)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    async with _client(repository) as client:
+        response = await _import(client, json.dumps(_payload()).encode())
+
+    assert response.status_code == 200
+    assert storage_thread is not None
+    assert storage_thread != event_loop_thread
 
 
 @pytest.mark.anyio
