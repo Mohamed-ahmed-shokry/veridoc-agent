@@ -42,6 +42,18 @@ def _pdf_bytes(page_count: int = 1) -> bytes:
     return data
 
 
+def _encrypted_pdf_bytes() -> bytes:
+    document = pymupdf.open()
+    document.new_page(width=72, height=72)
+    data = document.tobytes(
+        encryption=pymupdf.PDF_ENCRYPT_AES_256,
+        owner_pw="fictional-owner",
+        user_pw="fictional-user",
+    )
+    document.close()
+    return data
+
+
 def test_png_is_validated_by_signature_and_dimensions() -> None:
     validated = validate_upload(
         _png_bytes(),
@@ -171,6 +183,19 @@ def test_pdf_page_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert error.value.code == "too_many_pages"
     assert MAX_PDF_PAGES > 1
+
+
+def test_encrypted_pdf_is_rejected_safely() -> None:
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            _encrypted_pdf_bytes(),
+            filename="fictional-invoice.pdf",
+            declared_content_type="application/pdf",
+        )
+
+    assert error.value.code == "unsupported_pdf"
+    assert error.value.status_code == 400
+    assert error.value.message == "Encrypted or repaired PDFs are not supported."
 
 
 def test_pdf_page_pixel_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
