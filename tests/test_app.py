@@ -1,9 +1,12 @@
 """FastAPI application construction tests."""
 
+from importlib.metadata import version
+
 import httpx
 import pytest
 from fastapi import FastAPI
 
+from veridoc import __version__
 from veridoc.__main__ import main
 from veridoc.app import app
 
@@ -18,7 +21,8 @@ def test_application_object_imports_with_expected_metadata() -> None:
     """The installed package exposes a configured FastAPI application."""
     assert isinstance(app, FastAPI)
     assert app.title == "Veridoc"
-    assert app.version == "0.1.0"
+    assert app.version == __version__
+    assert version("veridoc") == __version__
 
 
 def test_console_launcher_starts_the_documented_local_server(
