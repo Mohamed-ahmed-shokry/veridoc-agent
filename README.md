@@ -249,7 +249,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run focused Phase 2 through Phase 8 tests:
+Run representative focused Phase 1 through Phase 8 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
