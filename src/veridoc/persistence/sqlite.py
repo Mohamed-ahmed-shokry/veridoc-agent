@@ -54,8 +54,7 @@ class SQLiteInvoiceRepository:
         except OSError as exc:
             raise ReferenceDataUnavailableError from exc
         with self._connection() as connection:
-            migrate(connection)
-            validate_current_schema(connection)
+            migrate(connection, validate=validate_current_schema)
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""

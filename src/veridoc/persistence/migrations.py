@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -181,8 +182,12 @@ MIGRATIONS = (
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 
-def migrate(connection: sqlite3.Connection) -> None:
-    """Advance one SQLite connection to the latest supported schema."""
+def migrate(
+    connection: sqlite3.Connection,
+    *,
+    validate: Callable[[sqlite3.Connection], None] | None = None,
+) -> None:
+    """Advance and optionally validate one SQLite schema transactionally."""
     try:
         connection.execute("BEGIN IMMEDIATE")
         connection.execute(
@@ -210,6 +215,8 @@ def migrate(connection: sqlite3.Connection) -> None:
                 "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
                 (migration.version, _timestamp()),
             )
+        if validate is not None:
+            validate(connection)
     except Exception:
         connection.rollback()
         raise

@@ -137,6 +137,66 @@ def test_repository_rejects_a_missing_provenance_uniqueness_constraint(
         repository.initialize()
 
 
+def test_rejected_initialization_leaves_a_legacy_schema_unchanged(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE vendor_invoices (
+                id INTEGER PRIMARY KEY,
+                vendor_key TEXT,
+                invoice_number TEXT,
+                purchase_order_number TEXT,
+                invoice_date TEXT,
+                due_date TEXT,
+                currency TEXT,
+                subtotal TEXT,
+                tax TEXT,
+                discount TEXT,
+                total TEXT,
+                payment_terms TEXT
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO vendor_invoices (vendor_key, invoice_number, total)
+            VALUES ('fictional-supplies', 'INV-LEGACY', '42.00')
+            """
+        )
+        connection.commit()
+        original_schema = connection.execute(
+            """
+            SELECT type, name, tbl_name, sql
+            FROM sqlite_schema
+            ORDER BY type, name
+            """
+        ).fetchall()
+        original_rows = connection.execute(
+            "SELECT * FROM vendor_invoices ORDER BY id"
+        ).fetchall()
+
+    repository = SQLiteInvoiceRepository(database_path)
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+    with sqlite3.connect(database_path) as connection:
+        final_schema = connection.execute(
+            """
+            SELECT type, name, tbl_name, sql
+            FROM sqlite_schema
+            ORDER BY type, name
+            """
+        ).fetchall()
+        final_rows = connection.execute(
+            "SELECT * FROM vendor_invoices ORDER BY id"
+        ).fetchall()
+
+    assert final_schema == original_schema
+    assert final_rows == original_rows
+
+
 def test_repository_closes_connections_after_each_operation(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
