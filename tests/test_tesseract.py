@@ -20,8 +20,11 @@ def test_tesseract_parses_lines_and_averages_word_confidence(
         "line_num": [1, 1, 1, 1, 1],
     }
 
+    observed_kwargs: dict[str, Any] = {}
+
     def fake_image_to_data(*args: Any, **kwargs: Any) -> dict[str, list[Any]]:
-        del args, kwargs
+        del args
+        observed_kwargs.update(kwargs)
         return output
 
     monkeypatch.setattr(tesseract.pytesseract, "image_to_data", fake_image_to_data)
@@ -33,6 +36,7 @@ def test_tesseract_parses_lines_and_averages_word_confidence(
 
     assert result.text == "Fictional Vendor\nTotal 120.00"
     assert result.confidence == 80.0
+    assert observed_kwargs["timeout"] == 30.0
     assert tesseract.pytesseract.pytesseract.tesseract_cmd == previous_command
 
 
@@ -45,3 +49,29 @@ def test_tesseract_missing_executable_is_safe(monkeypatch: pytest.MonkeyPatch) -
 
     with pytest.raises(OCRUnavailableError, match="not available"):
         tesseract.TesseractEngine().recognize(Image.new("RGB", (2, 2)))
+
+
+def test_tesseract_timeout_is_reported_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def stalled_process(*args: Any, **kwargs: Any) -> dict[str, list[Any]]:
+        del args, kwargs
+        raise RuntimeError("Tesseract process timeout")
+
+    monkeypatch.setattr(tesseract.pytesseract, "image_to_data", stalled_process)
+
+    with pytest.raises(OCRUnavailableError, match="not available"):
+        tesseract.TesseractEngine(timeout_seconds=0.25).recognize(
+            Image.new("RGB", (2, 2))
+        )
+
+
+@pytest.mark.parametrize("configured", ["0", "301", "nan", "not-a-number"])
+def test_tesseract_rejects_unbounded_timeouts(
+    configured: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TESSERACT_TIMEOUT_SECONDS", configured)
+
+    with pytest.raises(ValueError, match="TESSERACT_TIMEOUT_SECONDS"):
+        tesseract.TesseractEngine()
