@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
 DocumentType = Literal["invoice", "purchase_order", "unknown"]
 EvidenceSource = Literal["ocr_text", "page_image"]
+BoundedAmount = Annotated[Decimal, Field(max_digits=24, decimal_places=6)]
 
 
 class EvidenceReference(BaseModel):
@@ -38,9 +39,9 @@ class InvoiceLineItem(BaseModel):
 
     description: str | None = None
     product_identifier: str | None = None
-    quantity: Decimal | None = None
-    unit_price: Decimal | None = None
-    total_price: Decimal | None = None
+    quantity: BoundedAmount | None = None
+    unit_price: BoundedAmount | None = None
+    total_price: BoundedAmount | None = None
     evidence: list[EvidenceReference] = Field(default_factory=list)
 
 
@@ -57,10 +58,10 @@ class InvoiceExtraction(BaseModel):
     invoice_date: date | None = None
     due_date: date | None = None
     currency: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
-    subtotal: Decimal | None = None
-    tax: Decimal | None = None
-    discount: Decimal | None = None
-    total: Decimal | None = None
+    subtotal: BoundedAmount | None = None
+    tax: BoundedAmount | None = None
+    discount: BoundedAmount | None = None
+    total: BoundedAmount | None = None
     payment_terms: str | None = None
     line_items: list[InvoiceLineItem] = Field(default_factory=list)
     ocr_confidence: float | None = Field(default=None, ge=0, le=100)

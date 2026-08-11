@@ -66,3 +66,15 @@ def test_invoice_extraction_rejects_invalid_confidence_evidence_and_extra_fields
         EvidenceReference(page_number=0, source="page_image")
     with pytest.raises(ValidationError):
         InvoiceExtraction(document_type="invoice", unexpected="value")
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"total": "1e999999"},
+        {"line_items": [{"quantity": "1e999999"}]},
+    ],
+)
+def test_invoice_extraction_rejects_unbounded_amounts(values: dict) -> None:
+    with pytest.raises(ValidationError):
+        InvoiceExtraction(document_type="invoice", **values)

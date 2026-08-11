@@ -50,3 +50,23 @@ def test_arithmetic_checks_report_each_inconsistent_fact() -> None:
     ]
     assert findings[1].details["line_item_index"] == 0
     assert findings[2].expected_value == "150.00"
+
+
+def test_arithmetic_handles_the_largest_supported_operands() -> None:
+    maximum = "999999999999999999.999999"
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        line_items=[
+            InvoiceLineItem(
+                quantity=maximum,
+                unit_price=maximum,
+                total_price="0",
+            )
+        ],
+    )
+
+    findings = check_arithmetic(invoice)
+
+    assert [finding.finding_type for finding in findings] == [
+        "line_item_amount_mismatch"
+    ]
