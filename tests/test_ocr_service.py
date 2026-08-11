@@ -92,7 +92,10 @@ def test_service_bounds_the_normalized_page_image_bundle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("veridoc.ocr.service.MAX_PAGE_IMAGE_BUNDLE_BYTES", 10)
-    monkeypatch.setattr("veridoc.ocr.service._encode_png", lambda image: b"x" * 6)
+    monkeypatch.setattr(
+        "veridoc.ocr.service._encode_png",
+        lambda image, *, max_bytes: b"x" * 6,
+    )
     engine = _FakeEngine()
     upload = validate_upload(
         _pdf_bytes(2),
@@ -104,3 +107,43 @@ def test_service_bounds_the_normalized_page_image_bundle(
         OCRService(engine).process_with_page_images(upload)
 
     assert engine.calls == 1
+
+
+def test_service_stops_png_encoding_at_the_remaining_byte_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+    output: BytesIO | None = None
+
+    class ChunkWritingImage:
+        closed = False
+
+        def save(self, destination: BytesIO, *, format: str) -> None:
+            nonlocal output
+            assert format == "PNG"
+            output = destination
+            destination.write(b"a" * 6)
+            destination.write(b"b" * 6)
+
+        def close(self) -> None:
+            self.closed = True
+
+    image = ChunkWritingImage()
+    monkeypatch.setattr("veridoc.ocr.service.MAX_PAGE_IMAGE_BUNDLE_BYTES", 10)
+    monkeypatch.setattr(
+        "veridoc.ocr.service._iter_page_images",
+        lambda path, media_type: iter((image,)),
+    )
+    engine = _FakeEngine()
+
+    with pytest.raises(OCRProcessingError):
+        OCRService(engine).process_with_page_images(upload)
+
+    assert engine.calls == 0
+    assert image.closed is True
+    assert output is not None
+    assert output.getvalue() == b"a" * 6

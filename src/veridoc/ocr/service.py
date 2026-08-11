@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Buffer, Iterator
 from io import BytesIO
 from pathlib import Path
 
@@ -51,7 +51,12 @@ class OCRService:
                     try:
                         encoded_image: bytes | None = None
                         if include_page_images:
-                            encoded_image = _encode_png(image)
+                            encoded_image = _encode_png(
+                                image,
+                                max_bytes=(
+                                    MAX_PAGE_IMAGE_BUNDLE_BYTES - page_image_bytes
+                                ),
+                            )
                             page_image_bytes += len(encoded_image)
                             if page_image_bytes > MAX_PAGE_IMAGE_BUNDLE_BYTES:
                                 raise OCRProcessingError
@@ -114,8 +119,19 @@ def _iter_pdf_pages(path: Path) -> Iterator[Image.Image]:
         document.close()
 
 
-def _encode_png(image: Image.Image) -> bytes:
+class _BoundedBytesIO(BytesIO):
+    def __init__(self, max_bytes: int) -> None:
+        super().__init__()
+        self._max_bytes = max_bytes
+
+    def write(self, data: Buffer, /) -> int:
+        if self.tell() + memoryview(data).nbytes > self._max_bytes:
+            raise OCRProcessingError
+        return super().write(data)
+
+
+def _encode_png(image: Image.Image, *, max_bytes: int) -> bytes:
     """Encode one normalized page as PNG without retaining a temporary file."""
-    output = BytesIO()
+    output = _BoundedBytesIO(max_bytes)
     image.save(output, format="PNG")
     return output.getvalue()
