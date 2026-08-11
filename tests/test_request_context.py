@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import logging
 import re
+from io import BytesIO
 
 import httpx
 import pytest
+from PIL import Image
 
 from veridoc.app import app, get_ocr_engine
 
@@ -15,6 +17,12 @@ from veridoc.app import app, get_ocr_engine
 def anyio_backend() -> str:
     """Run asynchronous endpoint tests on the standard event loop."""
     return "asyncio"
+
+
+def _png_bytes() -> bytes:
+    output = BytesIO()
+    Image.new("RGB", (12, 8), color="white").save(output, format="PNG")
+    return output.getvalue()
 
 
 @pytest.mark.anyio
@@ -61,7 +69,7 @@ async def test_unexpected_errors_return_a_safe_correlated_response() -> None:
         ) as client:
             response = await client.post(
                 "/ocr",
-                files={"file": ("invoice.png", b"synthetic", "image/png")},
+                files={"file": ("invoice.png", _png_bytes(), "image/png")},
                 headers={"X-Request-ID": "failed-request"},
             )
     finally:
