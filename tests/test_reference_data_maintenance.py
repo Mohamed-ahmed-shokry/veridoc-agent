@@ -27,6 +27,16 @@ def _add_invoice(repository: SQLiteInvoiceRepository, number: str) -> None:
     )
 
 
+def _add_orphaned_line_item(path: Path) -> None:
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """
+            INSERT INTO invoice_line_items (invoice_id, position)
+            VALUES (999, 0)
+            """
+        )
+
+
 def test_backup_creates_an_integrity_checked_independent_database(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     backup_path = tmp_path / "backups" / "reference-data.backup.sqlite"
@@ -123,6 +133,33 @@ def test_restore_rejects_an_incomplete_current_schema(tmp_path) -> None:
     _repository(backup_path)
     with sqlite3.connect(backup_path) as connection:
         connection.execute("DROP TABLE purchase_order_line_items")
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = _repository(database_path)
+    _add_invoice(repository, "INV-KEEP")
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        restore_database(backup_path, database_path)
+
+    preserved = _repository(database_path)
+    assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
+
+
+def test_backup_rejects_foreign_key_corruption(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    backup_path = tmp_path / "reference-data.backup.sqlite"
+    _repository(database_path)
+    _add_orphaned_line_item(database_path)
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert not backup_path.exists()
+
+
+def test_restore_rejects_foreign_key_corruption_and_preserves_target(tmp_path) -> None:
+    backup_path = tmp_path / "corrupt-backup.sqlite"
+    _repository(backup_path)
+    _add_orphaned_line_item(backup_path)
     database_path = tmp_path / "reference-data.sqlite"
     repository = _repository(database_path)
     _add_invoice(repository, "INV-KEEP")

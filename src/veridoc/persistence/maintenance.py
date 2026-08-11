@@ -178,7 +178,8 @@ def _temporary_sibling(destination: Path) -> Path:
 
 def _validate_integrity(connection: sqlite3.Connection) -> None:
     result = connection.execute("PRAGMA integrity_check").fetchone()
-    if result != ("ok",):
+    foreign_key_violation = connection.execute("PRAGMA foreign_key_check").fetchone()
+    if result != ("ok",) or foreign_key_violation is not None:
         raise ReferenceDataMaintenanceError
 
 
