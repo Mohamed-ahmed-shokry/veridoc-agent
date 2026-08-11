@@ -136,6 +136,37 @@ def test_pdf_document_pixel_limit_is_enforced(
     assert MAX_DOCUMENT_PIXELS > 30_000
 
 
+def test_pdf_page_decode_failure_is_rejected_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class BrokenDocument:
+        is_encrypted = False
+        is_repaired = False
+        page_count = 1
+        closed = False
+
+        def load_page(self, page_number: int) -> None:
+            del page_number
+            raise RuntimeError("synthetic decoder detail")
+
+        def close(self) -> None:
+            self.closed = True
+
+    document = BrokenDocument()
+    monkeypatch.setattr(pymupdf, "open", lambda **kwargs: document)
+
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            b"%PDF-1.7\n",
+            filename="invoice.pdf",
+            declared_content_type="application/pdf",
+        )
+
+    assert error.value.code == "malformed_document"
+    assert error.value.message == "The PDF could not be decoded safely."
+    assert document.closed is True
+
+
 class _ChunkedUpload:
     def __init__(self, chunks: list[bytes]) -> None:
         self._chunks = iter(chunks)

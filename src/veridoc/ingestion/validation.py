@@ -205,6 +205,13 @@ def _validate_pdf(data: bytes) -> int:
                     "The rendered PDF exceeds the total pixel limit.",
                     status_code=413,
                 )
+    except UploadValidationError:
+        raise
+    except (pymupdf.FileDataError, RuntimeError, ValueError, OverflowError) as exc:
+        raise UploadValidationError(
+            "malformed_document",
+            "The PDF could not be decoded safely.",
+        ) from exc
     finally:
         document.close()
     return page_count
