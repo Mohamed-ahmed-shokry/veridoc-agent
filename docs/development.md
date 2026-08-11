@@ -319,6 +319,11 @@ repository = SQLiteInvoiceRepository("local-reference-data.sqlite")
 repository.initialize()
 ```
 
+An already-current schema is validated through read-only queries, so routine
+initialization does not wait for an unrelated writer reservation. A database
+that needs migration acquires a write reservation and re-reads the ledger under
+that lock before applying any change.
+
 The repository stores invoice history and purchase orders for deterministic
 comparison. Administration routes provide provenance-preserving CRUD and bounded
 atomic imports; see the [API guide](api.md). Use only fictional or otherwise

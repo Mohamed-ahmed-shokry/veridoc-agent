@@ -42,6 +42,8 @@ semantic versions for tagged releases.
   validation completes before external service construction.
 - First-time migrations and record updates acquire SQLite write locks before
   reading state that governs their writes.
+- Already-current repository initialization validates read-only, avoiding a
+  needless write reservation during normal requests.
 - Repository initialization validates the final schema before committing its
   migration transaction, so rejected upgrades leave the database unchanged.
 - Compound SQLite reads use one snapshot for coherent pagination and line items

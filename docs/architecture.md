@@ -258,6 +258,8 @@ uniqueness, and managed record/provenance indexes, and rejects triggers on
 managed tables before committing the migration transaction. Rejected
 initialization therefore leaves the prior schema, migration ledger, and rows
 unchanged.
+Already-current schemas take a read-only validation path; pending migrations
+acquire a write reservation and re-read their ledger under that lock.
 Compound reads hold one SQLite snapshot so pagination counts, parent records,
 and child line items remain coherent during concurrent administration writes.
 
