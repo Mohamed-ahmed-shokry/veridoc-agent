@@ -33,6 +33,7 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.12"
+          version: "0.9.13"
 
       - name: Synchronize locked environment
         run: uv sync --all-groups --locked
