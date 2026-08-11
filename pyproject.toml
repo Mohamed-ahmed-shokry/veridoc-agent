@@ -35,6 +35,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
+addopts = "--strict-config --strict-markers"
 testpaths = ["tests"]
 
 [tool.ruff]
