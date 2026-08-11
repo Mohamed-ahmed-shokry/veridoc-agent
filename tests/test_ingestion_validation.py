@@ -258,6 +258,32 @@ def test_pdf_page_decode_failure_is_rejected_safely(
     assert document.closed is True
 
 
+def test_empty_pdf_is_rejected_and_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    class EmptyDocument:
+        is_encrypted = False
+        is_repaired = False
+        page_count = 0
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    document = EmptyDocument()
+    monkeypatch.setattr(pymupdf, "open", lambda **kwargs: document)
+
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            b"%PDF-1.7\n",
+            filename="fictional-invoice.pdf",
+            declared_content_type="application/pdf",
+        )
+
+    assert error.value.code == "empty_document"
+    assert error.value.status_code == 400
+    assert error.value.message == "The PDF has no pages."
+    assert document.closed is True
+
+
 class _ChunkedUpload:
     def __init__(self, chunks: list[bytes]) -> None:
         self._chunks = iter(chunks)
