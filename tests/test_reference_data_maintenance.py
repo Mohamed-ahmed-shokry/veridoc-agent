@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from veridoc.persistence import maintenance
 from veridoc.persistence.maintenance import (
     ReferenceDataMaintenanceError,
     backup_database,
@@ -153,6 +154,51 @@ def test_restore_atomically_replaces_target_and_migrates_the_backup(tmp_path) ->
             "SELECT MAX(version) FROM schema_migrations"
         ).fetchone()[0]
     assert latest == LATEST_SCHEMA_VERSION
+
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+def test_maintenance_validates_migrations_before_commit(
+    operation,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "legacy-reference-data.sqlite"
+    destination_path = tmp_path / "validated-reference-data.sqlite"
+    with sqlite3.connect(source_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE vendor_invoices (
+                id INTEGER PRIMARY KEY,
+                vendor_key TEXT NOT NULL,
+                invoice_number TEXT,
+                purchase_order_number TEXT,
+                invoice_date TEXT,
+                due_date TEXT,
+                currency TEXT,
+                subtotal TEXT,
+                tax TEXT,
+                discount TEXT,
+                total TEXT,
+                payment_terms TEXT
+            )
+            """
+        )
+    original_validator = maintenance.validate_current_schema
+    transaction_states: list[bool] = []
+
+    def validate_in_transaction(connection: sqlite3.Connection) -> None:
+        transaction_states.append(connection.in_transaction)
+        original_validator(connection)
+
+    monkeypatch.setattr(
+        maintenance,
+        "validate_current_schema",
+        validate_in_transaction,
+    )
+
+    operation(source_path, destination_path)
+
+    assert transaction_states == [True]
 
 
 def test_failed_restore_preserves_the_existing_database(tmp_path) -> None:

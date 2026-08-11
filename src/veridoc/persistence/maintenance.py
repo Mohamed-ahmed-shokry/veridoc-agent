@@ -53,9 +53,8 @@ def backup_database(
                 sqlite3.connect(validation_temporary)
             ) as validation_connection:
                 backup_connection.backup(validation_connection)
-                migrate(validation_connection)
+                migrate(validation_connection, validate=validate_current_schema)
                 _validate_integrity(validation_connection)
-                validate_current_schema(validation_connection)
         os.replace(temporary, destination)
     except (
         OSError,
@@ -89,9 +88,8 @@ def restore_database(
             _validate_integrity(source_connection)
             with closing(sqlite3.connect(temporary)) as restore_connection:
                 source_connection.backup(restore_connection)
-                migrate(restore_connection)
+                migrate(restore_connection, validate=validate_current_schema)
                 _validate_integrity(restore_connection)
-                validate_current_schema(restore_connection)
         os.replace(temporary, destination)
     except (
         OSError,
