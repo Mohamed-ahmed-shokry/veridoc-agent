@@ -27,7 +27,7 @@ Completed deliverables:
   validates runtime-negative model tests;
 - measure branch-aware test coverage and set an evidence-based minimum gate;
 - add CI for locked dependency sync, lint, format, types, tests, lock validation,
-  package build, and installed-wheel smoke testing;
+  package build, and separate installed wheel/source-distribution smoke testing;
 - add dependency vulnerability auditing with documented handling for findings;
 - validate source and wheel package contents and metadata;
 - create a concise changelog for the completed Version 1 phases;
@@ -45,7 +45,7 @@ Expected atomic commit sequence:
 4. Set the minimum coverage gate and document its rationale.
 5. Add one CI workflow containing the verified local quality commands.
 6. Add dependency-audit tooling and its documented command.
-7. Add package-content and isolated-wheel verification.
+7. Add package-content plus isolated wheel and source-distribution verification.
 8. Add the Version 1 changelog.
 9. Synchronize project and operating documentation.
 10. Run and record the complete Phase 7 completion gate.

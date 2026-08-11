@@ -147,13 +147,13 @@ successfully and every later local gate passed.
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
-coverage, build, distribution, isolated-wheel, and full-tree whitespace gates
-on GitHub-hosted Ubuntu runners. Markdown-link validation, the maintenance CLI
-smoke, and the final clean-worktree check remain local evidence. No hosted CI
-result was observed during this local completion run. This snapshot therefore
-does not claim a remote CI pass, deployment readiness, live provider execution,
-or accuracy on a representative invoice corpus. Tests use deterministic fakes
-for external OCR and model boundaries.
+coverage, build, distribution, isolated wheel and source-distribution, and
+full-tree whitespace gates on GitHub-hosted Ubuntu runners. Markdown-link
+validation, the maintenance CLI smoke, and the final clean-worktree check remain
+local evidence. No hosted CI result was observed during this local completion
+run. This snapshot therefore does not claim a remote CI pass, deployment
+readiness, live provider execution, or accuracy on a representative invoice
+corpus. Tests use deterministic fakes for external OCR and model boundaries.
 
 See the [development guide](development.md) for the reproducible commands and
 the [testing guide](testing.md) for the evidence required by change type.

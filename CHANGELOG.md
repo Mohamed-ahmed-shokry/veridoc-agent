@@ -12,7 +12,8 @@ semantic versions for tagged releases.
 - Strict mypy checks for the production package.
 - A 90% branch-aware coverage floor, established from a 93.35% baseline.
 - GitHub Actions checks for locked sync, audit, lint, format, types, coverage,
-  builds, package validation, and isolated-wheel imports.
+  builds, package validation, and separate isolated wheel/source-distribution
+  smokes.
 - Locked dependency-vulnerability and distribution-metadata tooling.
 - Safe wheel and source-distribution content validation.
 - Bearer-authenticated invoice and purchase-order reference-data administration.
@@ -54,6 +55,8 @@ semantic versions for tagged releases.
 - Ruff targets Python 3.12 explicitly; pytest rejects unknown configuration and
   markers; CI scans tracked whitespace and verifies critical installed routes,
   entry points, and version parity.
+- CI pins the checkout action by full release SHA, disables persisted checkout
+  credentials, and pins the validated uv CLI version.
 
 ### Security
 
