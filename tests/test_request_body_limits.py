@@ -6,7 +6,9 @@ from collections.abc import AsyncIterator
 
 import httpx
 import pytest
+from fastapi import FastAPI
 
+from veridoc.administration.api import require_admin
 from veridoc.app import app, get_ocr_engine
 
 
@@ -88,4 +90,83 @@ async def test_streamed_oversized_body_is_rejected_without_content_length(
     assert response.status_code == 413
     assert response.json()["detail"]["code"] == "upload_too_large"
     assert response.headers["X-Request-ID"] == "streamed-limit"
+    assert dependency_resolved is False
+
+
+@pytest.mark.anyio
+async def test_mounted_document_limit_uses_the_route_relative_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dependency_resolved = False
+
+    def unexpected_ocr_engine() -> None:
+        nonlocal dependency_resolved
+        dependency_resolved = True
+
+    monkeypatch.setattr("veridoc.app.MAX_DOCUMENT_REQUEST_BYTES", 10)
+    app.dependency_overrides[get_ocr_engine] = unexpected_ocr_engine
+    mounted_app = FastAPI()
+    mounted_app.mount("/api", app)
+    transport = httpx.ASGITransport(app=mounted_app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/ocr",
+                content=b"",
+                headers={
+                    "Content-Length": "11",
+                    "Content-Type": "multipart/form-data; boundary=fixture",
+                    "X-Request-ID": "mounted-document-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "upload_too_large"
+    assert response.headers["X-Request-ID"] == "mounted-document-limit"
+    assert dependency_resolved is False
+
+
+@pytest.mark.anyio
+async def test_mounted_import_limit_counts_streamed_body_bytes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dependency_resolved = False
+
+    def unexpected_authentication() -> None:
+        nonlocal dependency_resolved
+        dependency_resolved = True
+
+    async def chunks() -> AsyncIterator[bytes]:
+        yield b"a" * 6
+        yield b"b" * 5
+
+    monkeypatch.setattr("veridoc.app.MAX_ADMIN_IMPORT_REQUEST_BYTES", 10)
+    app.dependency_overrides[require_admin] = unexpected_authentication
+    mounted_app = FastAPI()
+    mounted_app.mount("/api", app)
+    transport = httpx.ASGITransport(app=mounted_app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/api/admin/reference-data/import",
+                content=chunks(),
+                headers={
+                    "Content-Type": "multipart/form-data; boundary=fixture",
+                    "X-Request-ID": "mounted-import-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "reference_data_import_too_large"
+    assert response.headers["X-Request-ID"] == "mounted-import-limit"
     assert dependency_resolved is False

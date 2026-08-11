@@ -80,7 +80,7 @@ class RequestBodyLimitMiddleware:
             await self._app(scope, receive, send)
             return
 
-        limit = _request_body_limit(str(scope.get("path", "")))
+        limit = _request_body_limit(_route_relative_path(scope))
         if limit is None:
             await self._app(scope, receive, send)
             return
@@ -134,6 +134,14 @@ def _request_body_limit(path: str) -> tuple[int, str, str] | None:
             "The reference-data import exceeds the size limit.",
         )
     return None
+
+
+def _route_relative_path(scope: Scope) -> str:
+    path = str(scope.get("path", ""))
+    root_path = str(scope.get("root_path", "")).rstrip("/")
+    if root_path and path.startswith(f"{root_path}/"):
+        return path[len(root_path) :]
+    return path
 
 
 def _content_length(scope: Scope) -> int | None:
