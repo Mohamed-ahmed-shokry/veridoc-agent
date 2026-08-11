@@ -183,40 +183,38 @@ LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 def migrate(connection: sqlite3.Connection) -> None:
     """Advance one SQLite connection to the latest supported schema."""
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS schema_migrations (
-            version INTEGER PRIMARY KEY,
-            applied_at TEXT NOT NULL
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS schema_migrations (
+                version INTEGER PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
-    connection.commit()
+        applied = {
+            int(row[0])
+            for row in connection.execute(
+                "SELECT version FROM schema_migrations ORDER BY version"
+            )
+        }
+        _validate_applied_versions(applied)
 
-    applied = {
-        int(row[0])
-        for row in connection.execute(
-            "SELECT version FROM schema_migrations ORDER BY version"
-        )
-    }
-    _validate_applied_versions(applied)
-
-    for migration in MIGRATIONS:
-        if migration.version in applied:
-            continue
-        try:
-            connection.execute("BEGIN IMMEDIATE")
+        for migration in MIGRATIONS:
+            if migration.version in applied:
+                continue
             for statement in migration.statements:
                 connection.execute(statement)
             connection.execute(
                 "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
                 (migration.version, _timestamp()),
             )
-        except Exception:
-            connection.rollback()
-            raise
-        else:
-            connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    else:
+        connection.commit()
 
 
 def _validate_applied_versions(applied: set[int]) -> None:

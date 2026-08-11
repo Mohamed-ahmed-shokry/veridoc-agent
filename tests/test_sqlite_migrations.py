@@ -1,6 +1,8 @@
 """Tests for forward-only SQLite reference-data migrations."""
 
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 
 import pytest
 
@@ -33,6 +35,29 @@ def test_migrations_create_the_latest_schema_and_are_idempotent(tmp_path) -> Non
         "updated_at",
         "retention_until",
     } <= invoice_columns
+
+
+def test_concurrent_initial_migrations_are_serialized(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    ready = Barrier(5)
+
+    def initialize() -> None:
+        with sqlite3.connect(database_path, timeout=10) as connection:
+            ready.wait()
+            migrate(connection)
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(initialize) for _ in range(4)]
+        ready.wait()
+        for future in futures:
+            future.result()
+
+    with sqlite3.connect(database_path) as connection:
+        versions = connection.execute(
+            "SELECT version FROM schema_migrations ORDER BY version"
+        ).fetchall()
+
+    assert versions == [(version,) for version in range(1, LATEST_SCHEMA_VERSION + 1)]
 
 
 def test_migrations_adopt_existing_phase_3_data(tmp_path) -> None:
