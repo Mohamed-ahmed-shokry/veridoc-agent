@@ -193,9 +193,10 @@ The `veridoc-reference backup` command uses SQLite's online backup API without
 modifying the source. It checks database and foreign-key integrity, then applies
 supported migrations and validates the complete migration history plus required
 table, column, key, constraint, and index invariants on a disposable copy. It
-atomically publishes the original snapshot only after those checks, preserving
-the source schema version. Backup and restore destinations must have no live WAL,
-SHM, or rollback-journal sidecar. Restore additionally requires a stopped
+also rejects triggers on managed tables. The command atomically publishes the
+original snapshot only after those checks, preserving the source schema version.
+Backup and restore destinations must have no live WAL, SHM, or rollback-journal
+sidecar. Restore additionally requires a stopped
 service, explicit `--confirm-replace`, and a valid source backup. It validates
 the same database structure on a temporary sibling copy before atomically
 replacing the configured database, so a failed restore leaves the existing

@@ -70,8 +70,9 @@ semantic versions for tagged releases.
 - Unexpected server failures retain safe request correlation, provider keys are
   redacted from settings representations, and artifact checks reject Windows
   drive/backslash paths, colliding names, links, and special archive members.
-- Backup and restore validate foreign-key integrity and schema constraints;
-  both operations reject WAL, SHM, and rollback-journal destination sidecars.
+- Backup and restore validate foreign-key integrity and schema constraints,
+  reject triggers on managed tables, and refuse WAL, SHM, or rollback-journal
+  destination sidecars.
 
 ## [0.1.0] - 2026-08-02
 
