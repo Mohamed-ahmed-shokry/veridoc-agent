@@ -115,7 +115,8 @@ decoding, OCR, or external-provider input:
 2. allow only PDF, PNG, and JPEG signatures;
 3. compare a supplied `Content-Type` with the detected signature;
 4. sanitize client filenames for display and never use them as paths;
-5. reject malformed, empty, encrypted, or repaired PDFs;
+5. reject malformed PDFs at open or page inspection, plus empty, encrypted, or
+   repaired PDFs;
 6. bound PDFs to 20 pages, each decoded/rendered page to 20,000,000 pixels, and
    all rendered PDF pages to 50,000,000 pixels in aggregate;
 7. bound normalized PNG page images to 32 MiB in aggregate before provider

@@ -68,6 +68,8 @@ semantic versions for tagged releases.
   ASGI mounts or root paths; PDFs have a cumulative raster-pixel limit;
   normalized vision inputs have an aggregate byte limit; Tesseract execution is
   time-bounded; and invalid OCR confidence values are excluded from aggregates.
+- PDF open, page-decoding, and geometry failures use the safe malformed-document
+  response and still close the decoder document.
 - Extracted decimals are bounded before arithmetic, while evidence pages and OCR
   spans must be grounded in the current request before verification.
 - Unexpected server failures retain safe request correlation, provider keys are

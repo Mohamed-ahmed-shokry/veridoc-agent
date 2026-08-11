@@ -73,7 +73,7 @@ is named `file`.
 - The declared `Content-Type` must match the validated signature when supplied.
 - Client filenames are sanitized for display and never become processing paths.
 - Empty, malformed, unsupported, truncated, and limit-exceeding documents are
-  rejected before OCR.
+  rejected before OCR, including PDFs that fail during page inspection.
 - Validation and upload closure finish before OCR, provider, processing-service,
   or repository dependencies are constructed.
 
