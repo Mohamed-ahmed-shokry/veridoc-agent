@@ -12,8 +12,11 @@ from veridoc.persistence.maintenance import (
     restore_database,
 )
 from veridoc.persistence.migrations import LATEST_SCHEMA_VERSION
-from veridoc.persistence.sqlite import SQLiteInvoiceRepository
-from veridoc.verification.references import HistoricalInvoice
+from veridoc.persistence.sqlite import (
+    InvalidPersistedReferenceDataError,
+    SQLiteInvoiceRepository,
+)
+from veridoc.verification.references import HistoricalInvoice, ReferenceLineItem
 
 
 def _repository(path) -> SQLiteInvoiceRepository:
@@ -36,6 +39,18 @@ def _add_orphaned_line_item(path: Path) -> None:
             VALUES (999, 0)
             """
         )
+
+
+def _corrupt_invoice_line_item(path: Path, repository: SQLiteInvoiceRepository) -> None:
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-CORRUPT-CHILD",
+            line_items=[ReferenceLineItem(quantity="2")],
+        )
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute("UPDATE invoice_line_items SET quantity = 'not-a-decimal'")
 
 
 def test_backup_creates_an_integrity_checked_independent_database(tmp_path) -> None:
@@ -354,6 +369,25 @@ def test_backup_rejects_foreign_key_corruption(tmp_path) -> None:
         backup_database(database_path, backup_path)
 
     assert not backup_path.exists()
+
+
+def test_backup_rejects_semantic_corruption_without_replacement(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = _repository(database_path)
+    _corrupt_invoice_line_item(database_path, repository)
+    backup_path = tmp_path / "reference-data.backup.sqlite"
+    backup_repository = _repository(backup_path)
+    _add_invoice(backup_repository, "INV-KEEP")
+    original_source = database_path.read_bytes()
+    original_destination = backup_path.read_bytes()
+
+    with pytest.raises(ReferenceDataMaintenanceError) as error:
+        backup_database(database_path, backup_path)
+
+    assert isinstance(error.value.__cause__, InvalidPersistedReferenceDataError)
+    assert database_path.read_bytes() == original_source
+    assert backup_path.read_bytes() == original_destination
+    assert list(tmp_path.glob(f".{backup_path.name}.*.tmp")) == []
 
 
 def test_restore_rejects_foreign_key_corruption_and_preserves_target(tmp_path) -> None:

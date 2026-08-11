@@ -16,6 +16,10 @@ from veridoc.persistence.schema import (
     InvalidReferenceSchemaError,
     validate_current_schema,
 )
+from veridoc.persistence.sqlite import (
+    InvalidPersistedReferenceDataError,
+    validate_persisted_reference_data,
+)
 
 
 class ReferenceDataMaintenanceError(RuntimeError):
@@ -53,12 +57,16 @@ def backup_database(
                 sqlite3.connect(validation_temporary)
             ) as validation_connection:
                 backup_connection.backup(validation_connection)
-                migrate(validation_connection, validate=validate_current_schema)
+                migrate(
+                    validation_connection,
+                    validate=_validate_migrated_reference_data,
+                )
                 _validate_integrity(validation_connection)
         os.replace(temporary, destination)
     except (
         OSError,
         sqlite3.Error,
+        InvalidPersistedReferenceDataError,
         InvalidReferenceSchemaError,
         UnsupportedSchemaVersionError,
     ) as exc:
@@ -69,6 +77,11 @@ def backup_database(
         if validation_temporary is not None:
             validation_temporary.unlink(missing_ok=True)
     return destination
+
+
+def _validate_migrated_reference_data(connection: sqlite3.Connection) -> None:
+    validate_current_schema(connection)
+    validate_persisted_reference_data(connection)
 
 
 def restore_database(
