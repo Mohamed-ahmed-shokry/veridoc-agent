@@ -119,8 +119,8 @@ decoding, OCR, or external-provider input:
    repaired PDFs;
 6. bound PDFs to 20 pages, each decoded/rendered page to 20,000,000 pixels, and
    all rendered PDF pages to 50,000,000 pixels in aggregate;
-7. bound normalized PNG page images to 32 MiB in aggregate before provider
-   input; and
+7. bound normalized PNG page images to 32 MiB in aggregate during encoding,
+   before an oversized result is retained or sent to a provider; and
 8. return safe structured errors without internal paths or stack traces.
 
 Filename extensions and `Content-Type` alone are not trusted. Validation and

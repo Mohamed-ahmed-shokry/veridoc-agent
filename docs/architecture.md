@@ -66,8 +66,9 @@ configured root paths. Document decoding and inspection run in a worker thread,
 then validation and upload closure finish before OCR, provider, processing, or
 repository dependency construction. Rasterization and OCR also run in worker
 threads. Validated bytes use a private temporary directory only during
-processing; page images are normalized in memory, bounded as a document bundle,
-and not retained after the request.
+processing; page images are normalized in memory, with the remaining document
+bundle budget enforced during each PNG write, and are not retained after the
+request.
 
 ## Package boundaries
 

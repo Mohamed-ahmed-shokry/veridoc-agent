@@ -371,9 +371,10 @@ following documentation commit.
 - Do not log document bodies, secrets, credentials, or sensitive extracted
   fields. Use correlation identifiers and stage names for operational context.
 - Validate total request and file sizes, content type, signature, per-page and
-  cumulative pixel bounds, normalized-image bundle size, and filenames before
-  expensive parsing or external dependency construction at the implemented
-  upload boundary.
+  cumulative pixel bounds, and filenames before expensive parsing or external
+  dependency construction at the implemented upload boundary. Enforce the
+  normalized-image bundle size while encoding, before retaining an oversized
+  result.
 - Treat extracted provider values as untrusted: bound decimals before arithmetic,
   require evidence pages to exist, and ground supplied OCR spans in normalized
   page text before verification.
