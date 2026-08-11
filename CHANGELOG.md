@@ -56,10 +56,10 @@ semantic versions for tagged releases.
 - Raw imports are limited to 1 MiB, 500 records, and 200 line items per record.
 - Backup and restore reject incomplete current schemas and replace destinations
   only after all checks succeed.
-- Document/import multipart bodies are bounded before parsing; PDFs have a
-  cumulative raster-pixel limit; normalized vision inputs have an aggregate
-  byte limit; Tesseract execution is time-bounded; and invalid OCR confidence
-  values are excluded from aggregates.
+- Document/import multipart bodies are bounded before parsing, including under
+  ASGI mounts or root paths; PDFs have a cumulative raster-pixel limit;
+  normalized vision inputs have an aggregate byte limit; Tesseract execution is
+  time-bounded; and invalid OCR confidence values are excluded from aggregates.
 - Extracted decimals are bounded before arithmetic, while evidence pages and OCR
   spans must be grounded in the current request before verification.
 - Unexpected server failures retain safe request correlation, provider keys are

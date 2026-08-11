@@ -110,7 +110,8 @@ facts, verification findings, explanation narratives, or numerical context.
 decoding, OCR, or external-provider input:
 
 1. reject a complete multipart body over the 10 MiB file limit plus 64 KiB of
-   framing before parsing, then read the file in bounded chunks;
+   framing before parsing, including under ASGI mounts or root paths, then read
+   the file in bounded chunks;
 2. allow only PDF, PNG, and JPEG signatures;
 3. compare a supplied `Content-Type` with the detected signature;
 4. sanitize client filenames for display and never use them as paths;
