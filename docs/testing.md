@@ -53,6 +53,8 @@ tests/
 ├── test_administration_cli.py      maintenance CLI contracts
 ├── test_verification_models.py     typed finding evidence contract
 ├── test_verification_references.py reference invoice and PO facts
+├── test_verification_vendors.py    canonical vendor-key resolution
+├── test_verification_repository_checks.py  duplicate repository lookups
 ├── test_verification_arithmetic.py deterministic arithmetic and date rules
 ├── test_verification_history.py    total statistics and insufficient history
 ├── test_verification_line_items.py occurrence, price, and quantity comparison
