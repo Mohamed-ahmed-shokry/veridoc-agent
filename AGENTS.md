@@ -54,8 +54,8 @@ runtime implementation remains deliberately small:
   repository boundaries with local SQLite and applies the same canonical,
   bounded record contract to every write and hydrated-row read path.
 - `src/veridoc/persistence/maintenance.py` provides non-mutating, integrity-,
-  migration-, and schema-checked online backup plus stopped-service atomic
-  restore.
+  migration-, schema-, and row-semantics-checked online backup plus
+  stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
   rules, an API-neutral service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
@@ -397,7 +397,8 @@ following documentation commit.
   while the service is stopped, reject live WAL/SHM/rollback-journal sidecars,
   keep online backup sources and published snapshots at their original schema
   version, and replace a database or backup only after database and foreign-key
-  integrity, migration-history, and required-schema checks pass.
+  integrity, migration-history, required-schema, and persisted-row semantic
+  checks pass.
 
 ## Phase boundaries
 

@@ -261,8 +261,9 @@ listener nor a developer database.
 `test_sqlite_migrations.py` also races concurrent initialization against one
 fresh temporary database. `test_reference_data_maintenance.py` uses temporary
 databases to prove database and foreign-key integrity, key/constraint/index
-validation, stopped-service restore validation, atomic replacement, destination
-preservation, and active WAL/SHM/rollback-journal refusal.
+validation, full parent/child row semantics, stopped-service restore validation,
+atomic replacement, destination preservation, temporary-file cleanup, and active
+WAL/SHM/rollback-journal refusal.
 `test_administration_cli.py` exercises help, confirmation, and safe failure
 behavior without touching configured developer data.
 
@@ -345,7 +346,7 @@ do not collect coverage, so they remain suitable for atomic changes.
 | Administration schema or authentication | Bound/error tests, credential-response tests, Ruff lint, Ruff format check |
 | Administration repository CRUD or import | Temporary SQLite success/conflict/rollback tests, Ruff lint, Ruff format check |
 | Administration API | Authenticated ASGI success plus 401/409/413/422/503 paths that apply |
-| Reference-data backup, restore, or CLI | Temporary SQLite integrity/atomicity tests and CLI safe-failure tests |
+| Reference-data backup, restore, or CLI | Temporary SQLite integrity/schema/row-semantic atomicity tests and CLI safe-failure tests |
 | Verification rule, service, or graph | Normal/anomalous synthetic tests, Ruff lint, Ruff format check |
 | Explanation schema, service, or graph | Canonical-evidence and fallback tests, Ruff lint, Ruff format check |
 | Explanation provider adapter | Mocked request, unavailable, and invalid-output tests |

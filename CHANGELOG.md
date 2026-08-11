@@ -74,7 +74,7 @@ semantic versions for tagged releases.
 - Administration create/update JSON bodies and raw imports are limited to 1 MiB
   before parsing; imports allow 500 records and 200 line items per record.
 - Backup and restore reject incomplete current schemas and replace destinations
-  only after all checks succeed.
+  only after structural and persisted-row semantic checks succeed.
 - Document/import multipart bodies are bounded before parsing, including under
   ASGI mounts or root paths; PDFs have a cumulative raster-pixel limit;
   normalized vision inputs enforce an aggregate byte limit during PNG encoding;
@@ -88,8 +88,9 @@ semantic versions for tagged releases.
   redacted from settings representations, and artifact checks reject Windows
   drive/backslash paths, colliding names, links, and special archive members.
 - Backup and restore validate foreign-key integrity and schema constraints,
-  including declared column types, reject triggers on managed tables, and refuse
-  WAL, SHM, or rollback-journal destination sidecars.
+  including declared column types, reject triggers and semantically invalid
+  facts or metadata, and refuse WAL, SHM, or rollback-journal destination
+  sidecars.
 
 ## [0.1.0] - 2026-08-02
 

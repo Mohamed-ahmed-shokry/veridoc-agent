@@ -233,8 +233,9 @@ uv run veridoc-reference `
 ```
 
 The backup preserves the source database's schema version. Validation and any
-supported migration run only on a disposable copy before the original snapshot
-is published.
+supported migration run only on a disposable copy; every stored fact, metadata
+field, and attached line item must satisfy the bounded persistence contract
+before the original snapshot is published.
 
 Restore requires a stopped service and explicit `--confirm-replace`; see the
 [development guide](docs/development.md) before replacing a database.

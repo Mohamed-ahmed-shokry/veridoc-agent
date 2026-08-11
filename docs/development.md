@@ -358,9 +358,10 @@ The command uses SQLite's online backup API without modifying the source. It
 validates database and foreign-key integrity, then applies supported migrations
 and checks the complete migration history plus required table, column, key,
 constraint, and index invariants on a disposable copy before committing that
-copy's migration transaction. Only after those checks does it atomically publish
-the original snapshot, preserving its schema version. It refuses a destination
-with an existing `-wal`, `-shm`, or `-journal` sidecar.
+copy's migration transaction. The same pass hydrates and validates every stored
+fact, metadata field, and attached line item. Only after those checks does it
+atomically publish the original snapshot, preserving its schema version. It
+refuses a destination with an existing `-wal`, `-shm`, or `-journal` sidecar.
 
 Restore requires a stopped service and explicit confirmation:
 
@@ -372,12 +373,11 @@ uv run veridoc-reference `
 
 Restore validates the source, copies it to a temporary sibling database,
 applies supported migrations, validates database and foreign-key integrity plus
-the required schema structure before the migration transaction commits, and
-then atomically replaces the configured database. It refuses active `-wal`,
-`-shm`, or `-journal` sidecars; stop the
-process cleanly before retrying. A failed restore leaves the existing database
-unchanged. Keep backups outside the repository and protect them as reference
-data.
+the required schema structure and every persisted row before the migration
+transaction commits, and then atomically replaces the configured database. It
+refuses active `-wal`, `-shm`, or `-journal` sidecars; stop the process cleanly
+before retrying. A failed restore leaves the existing database unchanged. Keep
+backups outside the repository and protect them as reference data.
 
 ## Operational guidance
 
