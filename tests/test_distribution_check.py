@@ -17,6 +17,9 @@ from scripts.check_distribution import (
     [
         "../outside.txt",
         "/absolute.txt",
+        "C:/outside.txt",
+        "C:outside.txt",
+        "veridoc\\..\\outside.txt",
         "veridoc/.env",
         "veridoc/.env.local",
         "veridoc/reference.sqlite3",

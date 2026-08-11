@@ -8,7 +8,7 @@ import zipfile
 from configparser import ConfigParser
 from email import policy
 from email.parser import BytesParser
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 _DIST_DIRECTORY = Path("dist")
 _SENSITIVE_SUFFIXES = {".db", ".key", ".pem", ".sqlite", ".sqlite3"}
@@ -127,7 +127,13 @@ def _check_console_scripts(contents: bytes, archive: Path) -> None:
 def _check_member_paths(members: list[str]) -> None:
     for member in members:
         path = PurePosixPath(member)
-        if path.is_absolute() or ".." in path.parts:
+        windows_path = PureWindowsPath(member)
+        if (
+            path.is_absolute()
+            or ".." in path.parts
+            or "\\" in member
+            or bool(windows_path.drive)
+        ):
             raise RuntimeError(f"Archive contains an unsafe member path: {member!r}.")
         if any(part == ".env" or part.startswith(".env.") for part in path.parts):
             raise RuntimeError(f"Archive contains an environment file: {member!r}.")
