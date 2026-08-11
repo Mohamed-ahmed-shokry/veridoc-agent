@@ -189,6 +189,13 @@ def migrate(
 ) -> None:
     """Advance and optionally validate one SQLite schema transactionally."""
     try:
+        applied = _read_applied_versions(connection)
+        _validate_applied_versions(applied)
+        if applied == {migration.version for migration in MIGRATIONS}:
+            if validate is not None:
+                validate(connection)
+            return
+
         connection.execute("BEGIN IMMEDIATE")
         connection.execute(
             """
@@ -198,12 +205,7 @@ def migrate(
             )
             """
         )
-        applied = {
-            int(row[0])
-            for row in connection.execute(
-                "SELECT version FROM schema_migrations ORDER BY version"
-            )
-        }
+        applied = _read_applied_versions(connection)
         _validate_applied_versions(applied)
 
         for migration in MIGRATIONS:
@@ -222,6 +224,23 @@ def migrate(
         raise
     else:
         connection.commit()
+
+
+def _read_applied_versions(connection: sqlite3.Connection) -> set[int]:
+    migration_table = connection.execute(
+        """
+        SELECT 1 FROM sqlite_schema
+        WHERE type = 'table' AND name = 'schema_migrations'
+        """
+    ).fetchone()
+    if migration_table is None:
+        return set()
+    return {
+        int(row[0])
+        for row in connection.execute(
+            "SELECT version FROM schema_migrations ORDER BY version"
+        )
+    }
 
 
 def _validate_applied_versions(applied: set[int]) -> None:

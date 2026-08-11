@@ -227,6 +227,27 @@ def test_repository_rejects_a_legacy_schema_with_wrong_column_affinity(
         repository.initialize()
 
 
+def test_current_repository_initialization_does_not_wait_for_a_writer(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+
+    def connect_without_waiting() -> sqlite3.Connection:
+        connection = sqlite3.connect(database_path, timeout=0)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        return connection
+
+    monkeypatch.setattr(repository, "_connect", connect_without_waiting)
+    with sqlite3.connect(database_path) as writer:
+        writer.execute("BEGIN IMMEDIATE")
+
+        repository.initialize()
+
+
 def test_repository_closes_connections_after_each_operation(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
