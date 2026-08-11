@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+from threading import get_ident
 from typing import Any
 
 import httpx
@@ -27,8 +28,12 @@ def _png_bytes() -> bytes:
 
 
 class _FakeEngine:
+    def __init__(self) -> None:
+        self.thread_id: int | None = None
+
     def recognize(self, image: Image.Image) -> OCRPageResult:
         assert image.mode == "RGB"
+        self.thread_id = get_ident()
         return OCRPageResult(text="Fictional Vendor Invoice INV-001", confidence=91.0)
 
 
@@ -55,7 +60,9 @@ async def _post_file(engine: Any, *, content_type: str = "image/png") -> httpx.R
 
 @pytest.mark.anyio
 async def test_ocr_endpoint_returns_raw_text_and_confidence() -> None:
-    response = await _post_file(_FakeEngine())
+    event_loop_thread = get_ident()
+    engine = _FakeEngine()
+    response = await _post_file(engine)
 
     assert response.status_code == 200
     assert response.json() == {
@@ -70,6 +77,8 @@ async def test_ocr_endpoint_returns_raw_text_and_confidence() -> None:
             }
         ],
     }
+    assert engine.thread_id is not None
+    assert engine.thread_id != event_loop_thread
 
 
 @pytest.mark.anyio

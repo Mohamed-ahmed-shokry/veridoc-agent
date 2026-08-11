@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from io import BytesIO
+from threading import get_ident
 
 import pytest
 from PIL import Image
@@ -15,8 +16,12 @@ from veridoc.ocr.models import OCRPageResult
 
 
 class _FakeOCREngine:
+    def __init__(self) -> None:
+        self.thread_id: int | None = None
+
     def recognize(self, image: Image.Image) -> OCRPageResult:
         assert image.mode == "RGB"
+        self.thread_id = get_ident()
         return OCRPageResult(text="Invoice No: INV-001", confidence=93.0)
 
 
@@ -42,7 +47,9 @@ def _png_bytes() -> bytes:
 @pytest.mark.anyio
 async def test_service_passes_ocr_text_and_normalized_images_to_the_graph() -> None:
     extractor = _FakeExtractor()
-    service = ExtractionService(_FakeOCREngine(), extractor)
+    ocr_engine = _FakeOCREngine()
+    event_loop_thread = get_ident()
+    service = ExtractionService(ocr_engine, extractor)
     upload = validate_upload(
         _png_bytes(),
         filename="fictional-invoice.png",
@@ -55,3 +62,5 @@ async def test_service_passes_ocr_text_and_normalized_images_to_the_graph() -> N
     assert result.ocr_confidence == 93.0
     assert extractor.requests[0].document.text == "Invoice No: INV-001"
     assert len(extractor.requests[0].page_images) == 1
+    assert ocr_engine.thread_id is not None
+    assert ocr_engine.thread_id != event_loop_thread

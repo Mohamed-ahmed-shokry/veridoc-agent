@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from asyncio import to_thread
+
 from veridoc.extraction.graph import build_extraction_graph
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.protocol import (
@@ -23,7 +25,10 @@ class ExtractionService:
 
     async def process(self, upload: ValidatedUpload) -> InvoiceExtraction:
         """Return the graph extraction after one normalized OCR pass."""
-        bundle = OCRService(self._ocr_engine).process_with_page_images(upload)
+        bundle = await to_thread(
+            OCRService(self._ocr_engine).process_with_page_images,
+            upload,
+        )
         state = await self._graph.ainvoke(
             {
                 "request": ExtractionRequest(

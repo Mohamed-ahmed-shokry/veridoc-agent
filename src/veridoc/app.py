@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import time
+from asyncio import to_thread
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -347,7 +348,7 @@ async def run_ocr(
             filename=file.filename,
             declared_content_type=file.content_type,
         )
-        result = OCRService(engine).process(upload)
+        result = await to_thread(OCRService(engine).process, upload)
     except UploadValidationError as exc:
         raise HTTPException(
             status_code=exc.status_code,
