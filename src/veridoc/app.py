@@ -235,6 +235,18 @@ async def handle_extraction_unavailable(
     )
 
 
+@app.exception_handler(OCRUnavailableError)
+async def handle_ocr_unavailable(
+    request: Request, exc: OCRUnavailableError
+) -> JSONResponse:
+    """Return a safe OCR-availability error during dependency construction."""
+    del request
+    return JSONResponse(
+        status_code=503,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
 @app.exception_handler(ExtractionProcessingError)
 async def handle_extraction_processing_error(
     request: Request, exc: ExtractionProcessingError

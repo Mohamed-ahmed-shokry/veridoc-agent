@@ -100,3 +100,31 @@ async def test_ocr_endpoint_reports_unavailable_engine_safely() -> None:
             "message": "OCR is not available on this server.",
         }
     }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("path", ["/ocr", "/extract", "/process"])
+async def test_document_endpoints_report_invalid_ocr_configuration_safely(
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TESSERACT_LANG", "eng")
+    monkeypatch.setenv("TESSERACT_TIMEOUT_SECONDS", "not-a-number")
+    request_id = "invalid-ocr-configuration"
+    transport = httpx.ASGITransport(app=app)
+
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.post(
+            path,
+            files={"file": ("fictional-invoice.png", _png_bytes(), "image/png")},
+            headers={"X-Request-ID": request_id},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": {
+            "code": "ocr_unavailable",
+            "message": "OCR is not available on this server.",
+        }
+    }
+    assert response.headers["X-Request-ID"] == request_id

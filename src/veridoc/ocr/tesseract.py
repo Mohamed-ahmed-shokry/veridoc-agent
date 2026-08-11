@@ -34,7 +34,7 @@ class TesseractEngine:
         self.command = command or os.getenv("TESSERACT_CMD")
         configured_language = language or os.getenv("TESSERACT_LANG", "eng")
         if configured_language is None or not configured_language.strip():
-            raise ValueError("TESSERACT_LANG must not be empty")
+            raise OCRUnavailableError
         self.language = configured_language
         self.timeout_seconds = _validated_timeout(timeout_seconds)
 
@@ -72,12 +72,9 @@ def _validated_timeout(configured: float | None) -> float:
     try:
         timeout = float(raw_value)
     except (TypeError, ValueError) as exc:
-        raise ValueError("TESSERACT_TIMEOUT_SECONDS must be a number") from exc
+        raise OCRUnavailableError from exc
     if not isfinite(timeout) or not 0 < timeout <= _MAX_TIMEOUT_SECONDS:
-        raise ValueError(
-            f"TESSERACT_TIMEOUT_SECONDS must be greater than 0 and at most "
-            f"{_MAX_TIMEOUT_SECONDS:g}"
-        )
+        raise OCRUnavailableError
     return timeout
 
 

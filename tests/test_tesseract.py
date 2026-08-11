@@ -83,7 +83,20 @@ def test_tesseract_rejects_unbounded_timeouts(
     configured: str,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setenv("TESSERACT_LANG", "eng")
     monkeypatch.setenv("TESSERACT_TIMEOUT_SECONDS", configured)
 
-    with pytest.raises(ValueError, match="TESSERACT_TIMEOUT_SECONDS"):
+    with pytest.raises(OCRUnavailableError, match="not available"):
+        tesseract.TesseractEngine()
+
+
+@pytest.mark.parametrize("configured", ["", "   "])
+def test_tesseract_rejects_blank_languages(
+    configured: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("TESSERACT_LANG", configured)
+    monkeypatch.setenv("TESSERACT_TIMEOUT_SECONDS", "30")
+
+    with pytest.raises(OCRUnavailableError, match="not available"):
         tesseract.TesseractEngine()
