@@ -5,10 +5,12 @@ from __future__ import annotations
 from io import BytesIO
 
 import fitz
+import pytest
 from PIL import Image
 
 from veridoc.ingestion.validation import validate_upload
 from veridoc.ocr.models import OCRPageResult
+from veridoc.ocr.protocol import OCRProcessingError
 from veridoc.ocr.service import OCRService
 
 
@@ -84,3 +86,21 @@ def test_service_exposes_normalized_page_images_for_vision_extraction() -> None:
     with Image.open(BytesIO(bundle.page_images[0].image_bytes)) as rendered:
         assert rendered.format == "PNG"
         assert rendered.mode == "RGB"
+
+
+def test_service_bounds_the_normalized_page_image_bundle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("veridoc.ocr.service.MAX_PAGE_IMAGE_BUNDLE_BYTES", 10)
+    monkeypatch.setattr("veridoc.ocr.service._encode_png", lambda image: b"x" * 6)
+    engine = _FakeEngine()
+    upload = validate_upload(
+        _pdf_bytes(2),
+        filename="fictional-invoice.pdf",
+        declared_content_type="application/pdf",
+    )
+
+    with pytest.raises(OCRProcessingError):
+        OCRService(engine).process_with_page_images(upload)
+
+    assert engine.calls == 1

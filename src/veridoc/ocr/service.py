@@ -20,6 +20,8 @@ from veridoc.ocr.models import (
 )
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 
+MAX_PAGE_IMAGE_BUNDLE_BYTES = 32 * 1024 * 1024
+
 
 class OCRService:
     """Decode validated uploads and send each page to an injected OCR engine."""
@@ -40,18 +42,25 @@ class OCRService:
     ) -> OCRDocumentBundle:
         pages: list[OCRPageResult] = []
         page_images: list[RenderedPage] = []
+        page_image_bytes = 0
         try:
             with temporary_upload(upload) as path:
                 for page_number, image in enumerate(
                     _iter_page_images(path, upload.media_type), start=1
                 ):
                     try:
-                        pages.append(self._engine.recognize(image))
+                        encoded_image: bytes | None = None
                         if include_page_images:
+                            encoded_image = _encode_png(image)
+                            page_image_bytes += len(encoded_image)
+                            if page_image_bytes > MAX_PAGE_IMAGE_BUNDLE_BYTES:
+                                raise OCRProcessingError
+                        pages.append(self._engine.recognize(image))
+                        if encoded_image is not None:
                             page_images.append(
                                 RenderedPage(
                                     page_number=page_number,
-                                    image_bytes=_encode_png(image),
+                                    image_bytes=encoded_image,
                                 )
                             )
                     finally:
