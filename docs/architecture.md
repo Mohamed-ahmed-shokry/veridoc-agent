@@ -253,6 +253,8 @@ SQLite and unsupported-schema failures map to a safe unavailable error.
 Initialization also validates the current primary keys, required `NOT NULL`
 columns, child foreign keys, purchase-order natural uniqueness, and managed
 record/provenance indexes after migration.
+Compound reads hold one SQLite snapshot so pagination counts, parent records,
+and child line items remain coherent during concurrent administration writes.
 
 The separate `ReferenceDataAdminRepository` protocol exposes bounded pages,
 provenance-preserving CRUD, and one-transaction imports. Provenance identity is

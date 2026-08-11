@@ -42,6 +42,8 @@ semantic versions for tagged releases.
   validation completes before external service construction.
 - First-time migrations and record updates acquire SQLite write locks before
   reading state that governs their writes.
+- Compound SQLite reads use one snapshot for coherent pagination and line items
+  during concurrent administration writes.
 - Ruff targets Python 3.12 explicitly; pytest rejects unknown configuration and
   markers; CI scans tracked whitespace and verifies critical installed routes,
   entry points, and version parity.
