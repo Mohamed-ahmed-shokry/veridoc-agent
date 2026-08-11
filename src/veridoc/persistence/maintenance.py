@@ -102,6 +102,7 @@ def backup_database(
     temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
+        _require_no_live_sidecars(destination)
         SQLiteInvoiceRepository(source).initialize()
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = _temporary_sibling(destination)
@@ -161,7 +162,7 @@ def _require_distinct_existing_source(source: Path, destination: Path) -> None:
 
 
 def _require_no_live_sidecars(database_path: Path) -> None:
-    for suffix in ("-wal", "-shm"):
+    for suffix in ("-wal", "-shm", "-journal"):
         if Path(f"{database_path}{suffix}").exists():
             raise ReferenceDataMaintenanceError
 

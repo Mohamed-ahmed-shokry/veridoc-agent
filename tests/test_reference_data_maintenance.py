@@ -171,7 +171,7 @@ def test_restore_rejects_foreign_key_corruption_and_preserves_target(tmp_path) -
     assert preserved.find_invoice("fictional-supplies", "INV-KEEP") is not None
 
 
-def test_maintenance_rejects_missing_same_path_and_live_sidecars(tmp_path) -> None:
+def test_maintenance_rejects_missing_and_same_paths(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     _repository(database_path)
 
@@ -180,8 +180,27 @@ def test_maintenance_rejects_missing_same_path_and_live_sidecars(tmp_path) -> No
     with pytest.raises(ReferenceDataMaintenanceError):
         backup_database(database_path, database_path)
 
-    backup_path = tmp_path / "backup.sqlite"
-    backup_database(database_path, backup_path)
-    Path(f"{database_path}-wal").touch()
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+@pytest.mark.parametrize("sidecar_suffix", ["-wal", "-shm", "-journal"])
+def test_maintenance_rejects_destination_sidecars_without_replacement(
+    operation,
+    sidecar_suffix: str,
+    tmp_path,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    source_repository = _repository(source_path)
+    _add_invoice(source_repository, "INV-SOURCE")
+
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_destination = destination_path.read_bytes()
+    sidecar_path = Path(f"{destination_path}{sidecar_suffix}")
+    sidecar_path.touch()
+
     with pytest.raises(ReferenceDataMaintenanceError):
-        restore_database(backup_path, database_path)
+        operation(source_path, destination_path)
+
+    assert destination_path.read_bytes() == original_destination
+    assert sidecar_path.exists()
