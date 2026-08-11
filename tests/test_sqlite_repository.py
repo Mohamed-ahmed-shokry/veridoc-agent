@@ -1,7 +1,7 @@
 """SQLite repository integration tests using synthetic reference facts."""
 
 import sqlite3
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
 import pytest
@@ -9,7 +9,10 @@ from pydantic import ValidationError
 
 from veridoc.persistence.migrations import LATEST_SCHEMA_VERSION
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
-from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+from veridoc.persistence.sqlite import (
+    InvalidPersistedReferenceDataError,
+    SQLiteInvoiceRepository,
+)
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -119,6 +122,55 @@ def test_legacy_repository_writes_reject_oversized_line_item_collections(
 
     assert repository.list_vendor_invoices("fictional-supplies") == []
     assert repository.get_purchase_order("fictional-supplies", "PO-TOO-LARGE") is None
+
+
+def test_repository_maps_malformed_persisted_amounts_to_a_safe_error(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-CORRUPT",
+            total="10.00",
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE vendor_invoices SET total = 'not-a-decimal' "
+            "WHERE invoice_number = 'INV-CORRUPT'"
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError) as error:
+        repository.find_invoice("fictional-supplies", "INV-CORRUPT")
+
+    persisted_error = error.value.__cause__
+    assert isinstance(persisted_error, InvalidPersistedReferenceDataError)
+    assert isinstance(persisted_error.__cause__, InvalidOperation)
+
+
+def test_repository_maps_invalid_persisted_metadata_to_a_safe_error(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-METADATA",
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE vendor_invoices SET created_at = 'not-a-timestamp' "
+            "WHERE invoice_number = 'INV-METADATA'"
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError) as error:
+        repository.list_invoices(vendor_key=None, offset=0, limit=100)
+
+    persisted_error = error.value.__cause__
+    assert isinstance(persisted_error, InvalidPersistedReferenceDataError)
+    assert isinstance(persisted_error.__cause__, ValidationError)
 
 
 def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(

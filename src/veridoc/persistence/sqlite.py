@@ -6,7 +6,7 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, date, datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Literal, cast
 from uuid import uuid4
@@ -39,6 +39,10 @@ from veridoc.verification.references import (
     PurchaseOrder,
     ReferenceLineItem,
 )
+
+
+class InvalidPersistedReferenceDataError(RuntimeError):
+    """Raised when stored rows violate the repository's semantic contract."""
 
 
 class SQLiteInvoiceRepository:
@@ -377,6 +381,7 @@ class SQLiteInvoiceRepository:
                 yield connection
         except (
             sqlite3.Error,
+            InvalidPersistedReferenceDataError,
             InvalidReferenceSchemaError,
             UnsupportedSchemaVersionError,
         ) as exc:
@@ -712,39 +717,51 @@ def _update_purchase_order(
 def _invoice_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> HistoricalInvoice:
-    return HistoricalInvoice(
-        vendor_key=row["vendor_key"],
-        invoice_number=row["invoice_number"],
-        purchase_order_number=row["purchase_order_number"],
-        invoice_date=_text_to_date(row["invoice_date"]),
-        due_date=_text_to_date(row["due_date"]),
-        currency=row["currency"],
-        subtotal=_text_to_decimal(row["subtotal"]),
-        tax=_text_to_decimal(row["tax"]),
-        discount=_text_to_decimal(row["discount"]),
-        total=_text_to_decimal(row["total"]),
-        payment_terms=row["payment_terms"],
-        line_items=_line_items_from_rows(
-            connection, "invoice_line_items", "invoice_id", row["id"]
-        ),
-    )
+    try:
+        invoice = HistoricalInvoice(
+            vendor_key=row["vendor_key"],
+            invoice_number=row["invoice_number"],
+            purchase_order_number=row["purchase_order_number"],
+            invoice_date=_text_to_date(row["invoice_date"]),
+            due_date=_text_to_date(row["due_date"]),
+            currency=row["currency"],
+            subtotal=_text_to_decimal(row["subtotal"]),
+            tax=_text_to_decimal(row["tax"]),
+            discount=_text_to_decimal(row["discount"]),
+            total=_text_to_decimal(row["total"]),
+            payment_terms=row["payment_terms"],
+            line_items=_line_items_from_rows(
+                connection, "invoice_line_items", "invoice_id", row["id"]
+            ),
+        )
+        validated = InvoiceReferenceInput.model_validate(
+            invoice.model_dump()
+        ).to_domain()
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
+    if validated != invoice:
+        raise InvalidPersistedReferenceDataError
+    return invoice
 
 
 def _admin_invoice_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> InvoiceRecord:
     invoice = _invoice_from_row(connection, row)
-    return InvoiceRecord(
-        metadata=ReferenceRecordMetadata(
-            record_id=row["record_id"],
-            source=row["source"],
-            external_id=row["external_id"],
-            created_at=row["created_at"],
-            updated_at=row["updated_at"],
-            retention_until=_text_to_date(row["retention_until"]),
-        ),
-        invoice=InvoiceReferenceInput.model_validate(invoice.model_dump()),
-    )
+    try:
+        return InvoiceRecord(
+            metadata=ReferenceRecordMetadata(
+                record_id=row["record_id"],
+                source=row["source"],
+                external_id=row["external_id"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                retention_until=_text_to_date(row["retention_until"]),
+            ),
+            invoice=InvoiceReferenceInput.model_validate(invoice.model_dump()),
+        )
+    except (InvalidOperation, TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
 
 
 def _purchase_order_from_row(
