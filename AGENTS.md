@@ -50,8 +50,9 @@ runtime implementation remains deliberately small:
   keys, constraints, foreign keys, and required provenance indexes.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite.
-- `src/veridoc/persistence/maintenance.py` provides integrity-, migration-, and
-  schema-checked online backup and stopped-service atomic restore.
+- `src/veridoc/persistence/maintenance.py` provides non-mutating, integrity-,
+  migration-, and schema-checked online backup plus stopped-service atomic
+  restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
   rules, an API-neutral service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
@@ -386,7 +387,8 @@ following documentation commit.
   Preserve immutable provenance and apply bulk writes in one transaction.
 - Treat local SQLite files and backups as sensitive reference data. Restore only
   while the service is stopped, reject live WAL/SHM/rollback-journal sidecars,
-  and replace a database or backup only after database and foreign-key
+  keep online backup sources and published snapshots at their original schema
+  version, and replace a database or backup only after database and foreign-key
   integrity, migration-history, and required-schema checks pass.
 
 ## Phase boundaries

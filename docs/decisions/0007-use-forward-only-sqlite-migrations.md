@@ -21,12 +21,14 @@ initial schema migration before later migrations. Refuse to open a database
 that reports a migration newer than this application understands.
 
 Migrations are forward-only. Before an application upgrade, create a SQLite
-online backup. Backup writes to a temporary sibling file, validates database
-integrity, the complete migration ledger, and all required tables and columns,
-then atomically replaces the requested destination. Restore copies a validated
-source backup into a temporary sibling database, applies supported migrations
-there, repeats the integrity and schema-structure checks, and then atomically
-replaces the configured database. The local service must be stopped for restore.
+online backup. Backup copies a consistent snapshot without migrating or otherwise
+modifying the source. It validates database integrity, applies supported
+migrations, and checks the complete ledger and required structure on a disposable
+copy before atomically publishing the original snapshot. Restore copies a
+validated source backup into a temporary sibling database, applies supported
+migrations there, repeats the integrity and schema-structure checks, and then
+atomically replaces the configured database. The local service must be stopped
+for restore.
 
 ## Alternatives considered
 

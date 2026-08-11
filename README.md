@@ -48,7 +48,7 @@ atomic imports, and safe backup/restore tooling for approved reference facts.
   behavior;
 - numbered forward-only SQLite migrations with provenance and optional retention
   metadata;
-- integrity-, foreign-key-, migration-, and constraint-validated online backup
+- non-mutating online backup with integrity, migration, and constraint validation,
   plus stopped-service atomic restore tooling;
 - safe `X-Request-ID` correlation and metadata-only request completion logs;
 - deterministic fictional invoice fixtures and focused error-path tests; and
@@ -227,6 +227,10 @@ uv run veridoc-reference `
   --database veridoc-reference.sqlite3 `
   backup --output backups/reference-data.backup.sqlite
 ```
+
+The backup preserves the source database's schema version. Validation and any
+supported migration run only on a disposable copy before the original snapshot
+is published.
 
 Restore requires a stopped service and explicit `--confirm-replace`; see the
 [development guide](docs/development.md) before replacing a database.

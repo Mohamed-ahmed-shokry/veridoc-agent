@@ -44,6 +44,8 @@ semantic versions for tagged releases.
   reading state that governs their writes.
 - Compound SQLite reads use one snapshot for coherent pagination and line items
   during concurrent administration writes.
+- Online backup preserves the live source and the published snapshot at their
+  original schema version while validating a disposable migrated copy.
 - Ruff targets Python 3.12 explicitly; pytest rejects unknown configuration and
   markers; CI scans tracked whitespace and verifies critical installed routes,
   entry points, and version parity.

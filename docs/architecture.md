@@ -95,7 +95,7 @@ document bundle, and not retained after the request.
 - `veridoc.persistence.migrations` owns the ordered SQLite schema ledger;
   `veridoc.persistence.schema` validates required tables, columns, keys,
   constraints, and provenance indexes; `veridoc.persistence.maintenance` owns
-  integrity-checked online backup and validated atomic restore.
+  non-mutating, integrity-checked online backup and validated atomic restore.
 - `veridoc.verification` owns strict findings, pure arithmetic/history/PO
   comparison rules, an API-neutral service, and a typed single-node verification
   graph. Verification imports the repository protocol, not SQLite connection
@@ -266,9 +266,11 @@ are metadata only; no background deletion service exists.
 
 `veridoc-reference` performs online backup and stopped-service restore without
 an HTTP database export. Both destination replacements refuse live WAL, SHM,
-or rollback-journal sidecars. Restore validates the source, migrates a temporary
-sibling database, validates database and foreign-key integrity plus structural
-invariants again, and atomically replaces the destination. See
+or rollback-journal sidecars. Backup preserves the live source and published
+snapshot at their original schema version while migrations and structural checks
+run on a disposable validation copy. Restore validates the source, migrates a
+temporary sibling database, validates database and foreign-key integrity plus
+structural invariants again, and atomically replaces the destination. See
 [ADR 0003](decisions/0003-use-sqlite-for-phase-3-reference-data.md) and
 [ADR 0007](decisions/0007-use-forward-only-sqlite-migrations.md).
 

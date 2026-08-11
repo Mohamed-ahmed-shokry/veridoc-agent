@@ -335,11 +335,12 @@ uv run veridoc-reference `
   backup --output backups/reference-data.backup.sqlite
 ```
 
-The command initializes supported migrations, uses SQLite's online backup API,
-validates database and foreign-key integrity, the complete migration history,
-and required table, column, key, constraint, and index invariants, then
-atomically replaces the requested backup destination. It refuses a destination
-with an existing `-wal`, `-shm`, or `-journal` sidecar.
+The command uses SQLite's online backup API without modifying the source. It
+validates database and foreign-key integrity, then applies supported migrations
+and checks the complete migration history plus required table, column, key,
+constraint, and index invariants on a disposable copy. Only after those checks
+does it atomically publish the original snapshot, preserving its schema version.
+It refuses a destination with an existing `-wal`, `-shm`, or `-journal` sidecar.
 
 Restore requires a stopped service and explicit confirmation:
 
