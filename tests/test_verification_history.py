@@ -45,6 +45,35 @@ def test_historical_total_check_reports_an_outlier_with_statistics() -> None:
     assert finding.z_score is not None and finding.z_score > 3
 
 
+def test_historical_total_check_accepts_an_exact_uniform_history_match() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice", currency="USD", total="7200.00"
+    )
+
+    assert (
+        check_historical_total(invoice, _history("7200.00", "7200.00", "7200.00")) == []
+    )
+
+
+def test_historical_total_check_reports_a_uniform_history_mismatch() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice", currency="USD", total="7200.01"
+    )
+
+    findings = check_historical_total(
+        invoice,
+        _history("7200.00", "7200.00", "7200.00"),
+    )
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "historical_total_outlier"
+    assert finding.deterministic_rule == "standard_deviation == 0 and total != mean"
+    assert finding.expected_value == "7200.00"
+    assert finding.historical_standard_deviation == 0
+    assert finding.z_score is None
+
+
 def test_historical_total_check_declares_insufficient_same_currency_history() -> None:
     invoice = InvoiceExtraction(
         document_type="invoice", currency="USD", total="7200.00"
