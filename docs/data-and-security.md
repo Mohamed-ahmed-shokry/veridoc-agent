@@ -174,6 +174,11 @@ read from SQLite as untrusted: facts and metadata are revalidated, silent
 normalization is rejected, and malformed stored values map to the safe
 reference-data availability error.
 
+Migration 4 enforces one row per `(parent_id, position)` in both line-item
+tables. This prevents ambiguous child ordering and supplies the index used by
+ordered parent hydration; schema validation rejects a current ledger if either
+index is missing or has a different shape.
+
 Purchase-order natural-key conflicts are scoped to vendor key plus purchase
 order number. Parameterized repository queries protect SQL boundaries; this
 does not make unreviewed input trustworthy. Public errors identify the safe

@@ -54,6 +54,8 @@ semantic versions for tagged releases.
   needless write reservation during normal requests.
 - Repository initialization validates the final schema before committing its
   migration transaction, so rejected upgrades leave the database unchanged.
+- Migration 4 adds required unique parent/position indexes for invoice and
+  purchase-order line items, enforcing order integrity and serving child reads.
 - Compound SQLite reads use one snapshot for coherent pagination and line items
   during concurrent administration writes.
 - Online backup preserves the live source and the published snapshot at their

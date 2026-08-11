@@ -259,10 +259,11 @@ the same vendor-key normalization as records; they require neither a network
 listener nor a developer database.
 
 `test_sqlite_migrations.py` also races concurrent initialization against one
-fresh temporary database. `test_reference_data_maintenance.py` uses temporary
-databases to prove database and foreign-key integrity, key/constraint/index
-validation, full parent/child row semantics, stopped-service restore validation,
-atomic replacement, destination preservation, temporary-file cleanup, and active
+fresh temporary database and verifies unique child positions plus index-backed
+ordered reads. `test_reference_data_maintenance.py` uses temporary databases to
+prove database and foreign-key integrity, key/constraint/index validation, full
+parent/child row semantics, stopped-service restore validation, atomic
+replacement, destination preservation, temporary-file cleanup, and active
 WAL/SHM/rollback-journal refusal.
 `test_administration_cli.py` exercises help, confirmation, and safe failure
 behavior without touching configured developer data.

@@ -22,6 +22,11 @@ later migrations. Refuse to open a database that reports a migration newer than
 this application understands. A rejected final schema rolls back the migration
 ledger, structural changes, and data backfills together.
 
+Migration 4 adds unique `(parent_id, position)` indexes to both line-item tables.
+They make child ordering an explicit integrity invariant and serve the ordered
+hydration queries used by the repository. Current-schema validation requires
+their exact names, uniqueness, columns, order, and non-partial form.
+
 Migrations are forward-only. Before an application upgrade, create a SQLite
 online backup. Backup copies a consistent snapshot without migrating or otherwise
 modifying the source. It validates database integrity, applies supported
@@ -44,7 +49,7 @@ for restore.
 
 Existing local databases gain deterministic upgrade history, and failed
 migrations or restores leave the prior database intact. The implementation must
-test both fresh creation and Phase 3 upgrade paths. Forward-only migrations mean
-rollback restores a pre-upgrade backup rather than attempting destructive schema
-reversal. This remains a single-process local operational model, not a remote or
-high-availability database design.
+test fresh creation, Phase 3 upgrade paths, and every required index invariant.
+Forward-only migrations mean rollback restores a pre-upgrade backup rather than
+attempting destructive schema reversal. This remains a single-process local
+operational model, not a remote or high-availability database design.

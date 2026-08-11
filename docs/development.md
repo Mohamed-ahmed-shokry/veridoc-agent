@@ -315,8 +315,10 @@ safe and non-secret. Never log or commit either credential.
 `SQLiteInvoiceRepository` at `VERIDOC_REFERENCE_DATABASE`. Initialization
 applies numbered forward-only migrations and validates required table identity,
 columns and declared types, primary and foreign keys, `NOT NULL` constraints,
-and unique natural/provenance indexes, while rejecting triggers on managed
-tables, before committing the same transaction. A rejected schema leaves its
+unique natural/provenance indexes, and unique child parent/position indexes,
+while rejecting triggers on managed tables, before committing the same
+transaction. Migration 4 adds the child indexes so ordered line-item reads are
+index-backed and duplicate positions are rejected. A rejected schema leaves its
 prior structure, ledger, and records unchanged. Local integration code can
 initialize the current schema explicitly:
 

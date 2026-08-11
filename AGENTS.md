@@ -46,10 +46,11 @@ runtime implementation remains deliberately small:
   FastAPI routes, and the maintenance CLI.
 - `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
   migrations, validates current schemas without a write lock, validates upgrades
-  before commit, and rejects unsupported future schema versions.
+  before commit, adds unique parent/position child indexes in migration 4, and
+  rejects unsupported future schema versions.
 - `src/veridoc/persistence/schema.py` validates the current tables, columns,
   declared types, keys, constraints, foreign keys, required provenance indexes,
-  and absence of triggers on managed tables.
+  required child-position indexes, and absence of triggers on managed tables.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite and applies the same canonical,
   bounded record contract to every write and hydrated-row read path.
