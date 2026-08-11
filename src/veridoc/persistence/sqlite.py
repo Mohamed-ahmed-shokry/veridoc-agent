@@ -45,6 +45,25 @@ class InvalidPersistedReferenceDataError(RuntimeError):
     """Raised when stored rows violate the repository's semantic contract."""
 
 
+def validate_persisted_reference_data(connection: sqlite3.Connection) -> None:
+    """Validate every managed parent and child row on one SQLite snapshot."""
+    original_row_factory = connection.row_factory
+    try:
+        connection.row_factory = sqlite3.Row
+        invoice_rows = connection.execute(
+            "SELECT * FROM vendor_invoices ORDER BY id"
+        ).fetchall()
+        for row in invoice_rows:
+            _admin_invoice_from_row(connection, row)
+        purchase_order_rows = connection.execute(
+            "SELECT * FROM purchase_orders ORDER BY id"
+        ).fetchall()
+        for row in purchase_order_rows:
+            _admin_purchase_order_from_row(connection, row)
+    finally:
+        connection.row_factory = original_row_factory
+
+
 class SQLiteInvoiceRepository:
     """Persist vendor reference facts in a local SQLite database."""
 

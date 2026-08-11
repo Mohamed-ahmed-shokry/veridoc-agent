@@ -12,6 +12,7 @@ from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.persistence.sqlite import (
     InvalidPersistedReferenceDataError,
     SQLiteInvoiceRepository,
+    validate_persisted_reference_data,
 )
 from veridoc.verification.references import (
     HistoricalInvoice,
@@ -221,6 +222,56 @@ def test_repository_maps_invalid_purchase_order_metadata_to_a_safe_error(
     persisted_error = error.value.__cause__
     assert isinstance(persisted_error, InvalidPersistedReferenceDataError)
     assert isinstance(persisted_error.__cause__, ValidationError)
+
+
+def test_persisted_reference_validator_accepts_bounded_records(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    line_items = [ReferenceLineItem(quantity="2", unit_price="10.00")]
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-VALID",
+            line_items=line_items,
+        )
+    )
+    repository.add_purchase_order(
+        PurchaseOrder(
+            vendor_key="fictional-supplies",
+            purchase_order_number="PO-VALID",
+            line_items=line_items,
+        )
+    )
+
+    with sqlite3.connect(database_path) as connection:
+        validate_persisted_reference_data(connection)
+
+
+def test_persisted_reference_validator_rejects_invalid_children_and_restores_factory(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-CORRUPT-CHILD",
+            line_items=[ReferenceLineItem(quantity="2")],
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("UPDATE invoice_line_items SET quantity = 'not-a-decimal'")
+
+    original_row_factory = lambda cursor, row: tuple(row)
+    with sqlite3.connect(database_path) as connection:
+        connection.row_factory = original_row_factory
+
+        with pytest.raises(InvalidPersistedReferenceDataError):
+            validate_persisted_reference_data(connection)
+
+        assert connection.row_factory is original_row_factory
 
 
 def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(
