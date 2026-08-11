@@ -30,6 +30,10 @@ from veridoc.administration.models import (
 from veridoc.administration.protocol import ReferenceDataConflictError
 from veridoc.persistence.migrations import UnsupportedSchemaVersionError, migrate
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
+from veridoc.persistence.schema import (
+    InvalidReferenceSchemaError,
+    validate_current_schema,
+)
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -51,6 +55,7 @@ class SQLiteInvoiceRepository:
             raise ReferenceDataUnavailableError from exc
         with self._connection() as connection:
             migrate(connection)
+            validate_current_schema(connection)
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""
@@ -363,7 +368,11 @@ class SQLiteInvoiceRepository:
         try:
             with closing(self._connect()) as connection, connection:
                 yield connection
-        except (sqlite3.Error, UnsupportedSchemaVersionError) as exc:
+        except (
+            sqlite3.Error,
+            InvalidReferenceSchemaError,
+            UnsupportedSchemaVersionError,
+        ) as exc:
             raise ReferenceDataUnavailableError from exc
 
 

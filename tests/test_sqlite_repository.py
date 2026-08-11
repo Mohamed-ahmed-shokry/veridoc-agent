@@ -124,6 +124,19 @@ def test_repository_maps_unsupported_schema_versions_to_a_safe_boundary_error(
         repository.initialize()
 
 
+def test_repository_rejects_a_missing_provenance_uniqueness_constraint(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("DROP INDEX vendor_invoices_source_external_id_index")
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
 def test_repository_closes_connections_after_each_operation(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
