@@ -11,9 +11,11 @@ from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from veridoc import __version__
 from veridoc.administration.api import router as administration_router
+from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
 from veridoc.explanation.config import OpenAIExplanationSettings
 from veridoc.explanation.openai_responses import OpenAIResponsesExplainer
 from veridoc.explanation.protocol import ExplanationUnavailableError
@@ -28,6 +30,7 @@ from veridoc.extraction.protocol import (
 )
 from veridoc.extraction.service import ExtractionService
 from veridoc.ingestion.validation import (
+    MAX_UPLOAD_BYTES,
     UploadValidationError,
     read_bounded_upload,
     validate_upload,
@@ -48,6 +51,9 @@ from veridoc.verification.service import VerificationService
 
 _REQUEST_LOGGER = logging.getLogger("veridoc.request")
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+_MULTIPART_OVERHEAD_BYTES = 64 * 1024
+MAX_DOCUMENT_REQUEST_BYTES = MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_BYTES
+MAX_ADMIN_IMPORT_REQUEST_BYTES = MAX_ADMIN_IMPORT_BYTES + _MULTIPART_OVERHEAD_BYTES
 
 
 class HealthResponse(BaseModel):
@@ -56,12 +62,111 @@ class HealthResponse(BaseModel):
     status: Literal["ok"]
 
 
+class RequestBodyLimitMiddleware:
+    """Reject oversized multipart requests before body parsing or spooling."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self._app = app
+
+    async def __call__(
+        self,
+        scope: Scope,
+        receive: Receive,
+        send: Send,
+    ) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+
+        limit = _request_body_limit(str(scope.get("path", "")))
+        if limit is None:
+            await self._app(scope, receive, send)
+            return
+
+        maximum_bytes, code, message = limit
+        content_length = _content_length(scope)
+        if content_length is not None and content_length > maximum_bytes:
+            await _send_body_too_large(scope, receive, send, code, message)
+            return
+
+        messages: list[Message] = []
+        received_bytes = 0
+        while True:
+            incoming = await receive()
+            messages.append(incoming)
+            if incoming["type"] == "http.disconnect":
+                break
+            if incoming["type"] != "http.request":
+                continue
+            received_bytes += len(incoming.get("body", b""))
+            if received_bytes > maximum_bytes:
+                await _send_body_too_large(scope, receive, send, code, message)
+                return
+            if not incoming.get("more_body", False):
+                break
+
+        index = 0
+
+        async def replay_receive() -> Message:
+            nonlocal index
+            if index >= len(messages):
+                return {"type": "http.disconnect"}
+            message_to_replay = messages[index]
+            index += 1
+            return message_to_replay
+
+        await self._app(scope, replay_receive, send)
+
+
+def _request_body_limit(path: str) -> tuple[int, str, str] | None:
+    if path in {"/ocr", "/extract", "/process"}:
+        return (
+            MAX_DOCUMENT_REQUEST_BYTES,
+            "upload_too_large",
+            f"Uploads must not exceed {MAX_UPLOAD_BYTES} bytes.",
+        )
+    if path == "/admin/reference-data/import":
+        return (
+            MAX_ADMIN_IMPORT_REQUEST_BYTES,
+            "reference_data_import_too_large",
+            "The reference-data import exceeds the size limit.",
+        )
+    return None
+
+
+def _content_length(scope: Scope) -> int | None:
+    for name, value in scope.get("headers", []):
+        if name.lower() != b"content-length":
+            continue
+        try:
+            parsed = int(value)
+        except ValueError:
+            return None
+        return parsed if parsed >= 0 else None
+    return None
+
+
+async def _send_body_too_large(
+    scope: Scope,
+    receive: Receive,
+    send: Send,
+    code: str,
+    message: str,
+) -> None:
+    response = JSONResponse(
+        status_code=413,
+        content={"detail": {"code": code, "message": message}},
+    )
+    await response(scope, receive, send)
+
+
 app = FastAPI(
     title="Veridoc",
     description="Invoice and purchase-order verification service.",
     version=__version__,
 )
 app.include_router(administration_router)
+app.add_middleware(RequestBodyLimitMiddleware)
 
 
 @app.middleware("http")
