@@ -108,13 +108,52 @@ Verified results:
 synchronization repeated the pre-existing stale `websockets` metadata repair
 warning but completed successfully; every later local gate passed.
 
+## Current Phase 0-8 hardening snapshot
+
+The local Phase 0-8 hardening gate was recorded on 2026-08-11 against commit
+`118e7e4` before this evidence section was added. Phase 9 was not started.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 141 files already formatted |
+| `uv run --no-sync mypy` | No issues in 59 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 223 passed; 94.28% branch coverage against a 90% floor |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, schema-module, and path-safety validation |
+| Cache-free isolated-wheel smoke | Verified version metadata, console scripts, documented API routes, and the runtime review route |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help` |
+| Local Markdown links | All 50 local links resolved across 19 tracked Markdown files |
+| Full-tree and working-tree whitespace checks | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. Locked
+synchronization repeated the pre-existing stale `websockets` metadata repair
+warning and used a cross-filesystem copy fallback; synchronization completed
+successfully and every later local gate passed.
+
 ## Evidence boundaries
 
-The repository workflow reproduces these gates on GitHub-hosted Ubuntu runners,
-but no hosted CI result was observed during this local completion run. This
-snapshot therefore does not claim a remote CI pass, deployment readiness, live
-provider execution, or accuracy on a representative invoice corpus. Tests use
-deterministic fakes for external OCR and model boundaries.
+The repository workflow reproduces the dependency, audit, quality, test,
+coverage, build, distribution, isolated-wheel, and full-tree whitespace gates
+on GitHub-hosted Ubuntu runners. Markdown-link validation, the maintenance CLI
+smoke, and the final clean-worktree check remain local evidence. No hosted CI
+result was observed during this local completion run. This snapshot therefore
+does not claim a remote CI pass, deployment readiness, live provider execution,
+or accuracy on a representative invoice corpus. Tests use deterministic fakes
+for external OCR and model boundaries.
 
 See the [development guide](development.md) for the reproducible commands and
 the [testing guide](testing.md) for the evidence required by change type.
