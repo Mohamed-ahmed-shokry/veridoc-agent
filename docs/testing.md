@@ -25,6 +25,8 @@ tests/
 ├── test_health.py                 health behavior and OpenAPI contract
 ├── test_ingestion_validation.py   signatures, limits, mismatch, streaming
 ├── test_ingestion_storage.py      temporary-file cleanup
+├── test_request_body_limits.py    pre-parser multipart byte limits
+├── test_upload_dependency_order.py  validation-before-dependency ordering
 ├── test_ocr_models.py             typed result and response contracts
 ├── test_tesseract.py              mocked adapter parsing and failures
 ├── test_ocr_service.py            raster/PDF page orchestration
@@ -100,6 +102,8 @@ Run focused Phase 2 through Phase 8 modules:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
+uv run pytest tests/test_request_body_limits.py
+uv run pytest tests/test_upload_dependency_order.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
 uv run pytest tests/test_extraction_models.py
@@ -152,7 +156,11 @@ warnings in committed automation.
 ## Unit and integration boundaries
 
 `test_ingestion_validation.py` tests cheap signature, declared-type, filename,
-streaming, page, and decoded-pixel controls without an HTTP server.
+streaming, page, and per-page/cumulative decoded-pixel controls without an HTTP
+server. `test_request_body_limits.py` proves declared and streamed request bodies
+are rejected before multipart routing. `test_upload_dependency_order.py` proves
+invalid documents do not construct OCR, provider, processing, or storage
+dependencies.
 
 `test_ingestion_storage.py` proves temporary files and directories disappear
 after the context exits.
@@ -164,8 +172,8 @@ confidence aggregation, command restoration, and unavailable-engine mapping are
 deterministic and do not require a local Tesseract executable.
 
 `test_ocr_service.py` uses synthetic Pillow and PyMuPDF pages with a fake engine
-to test sequential image/PDF decoding, page composition, and normalized PNG
-page inputs for vision extraction.
+to test sequential image/PDF decoding, page composition, the aggregate PNG
+bundle bound, and normalized page inputs for vision extraction.
 
 `test_ocr_api.py` calls the FastAPI app through HTTPX's ASGI transport and
 overrides the engine dependency. It verifies successful raw text, safe type
@@ -225,7 +233,8 @@ temporary SQLite repository, processing graph, verification, and deterministic
 explanation service while replacing only OCR and extraction external boundaries.
 It proves that a duplicate reference invoice reaches the typed response without
 persisting the current upload. `test_request_context.py` covers safe correlation
-headers and confirms request logs omit query values.
+headers, generic correlated server errors, and request logs that omit query
+values.
 `test_review_page.py` verifies that the local review form targets `/process` and
 renders response values through text nodes rather than injected HTML.
 

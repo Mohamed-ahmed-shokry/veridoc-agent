@@ -250,6 +250,8 @@ Run focused Phase 2 through Phase 8 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
+uv run pytest tests/test_request_body_limits.py
+uv run pytest tests/test_upload_dependency_order.py
 uv run pytest tests/test_ocr_service.py
 uv run pytest tests/test_ocr_api.py
 uv run pytest tests/test_extraction_graph.py

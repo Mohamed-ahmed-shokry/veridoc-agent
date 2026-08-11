@@ -79,6 +79,8 @@ runtime implementation remains deliberately small:
   graph with a temporary SQLite repository and deterministic external fakes.
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
+- `tests/test_request_body_limits.py` and `tests/test_upload_dependency_order.py`
+  cover pre-parser body bounds and validation before external dependencies.
 - `tests/test_administration_*.py`, `tests/test_sqlite_migrations.py`, and
   `tests/test_reference_data_maintenance.py` cover canonical vendor keys,
   bounded schemas, fixed-length credential comparison, OpenAPI security,
@@ -153,6 +155,8 @@ uv run pytest tests/test_app.py
 # Run focused Phase 1 through Phase 8 boundary tests.
 uv run pytest tests/test_ingestion_validation.py
 uv run pytest tests/test_ingestion_storage.py
+uv run pytest tests/test_request_body_limits.py
+uv run pytest tests/test_upload_dependency_order.py
 uv run pytest tests/test_fixtures.py
 uv run pytest tests/test_ocr_models.py
 uv run pytest tests/test_ocr_service.py
