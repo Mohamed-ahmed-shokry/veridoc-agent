@@ -13,6 +13,8 @@ def test_settings_load_the_shared_openai_provider_values() -> None:
 
     assert settings.api_key == "test-key"
     assert settings.model == "test-model"
+    assert "test-key" not in repr(settings)
+    assert "test-model" in repr(settings)
 
 
 @pytest.mark.parametrize(

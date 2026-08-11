@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from veridoc.extraction.protocol import ExtractionUnavailableError
 
@@ -13,7 +13,7 @@ from veridoc.extraction.protocol import ExtractionUnavailableError
 class OpenAIExtractionSettings:
     """Required configuration for the OpenAI structured extraction adapter."""
 
-    api_key: str
+    api_key: str = field(repr=False)
     model: str
 
     @classmethod
