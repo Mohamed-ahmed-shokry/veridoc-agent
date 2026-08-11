@@ -381,9 +381,9 @@ following documentation commit.
   credential values to fixed-length SHA-256 digests before constant-time
   comparison, never accept it in URLs or bodies, and resolve storage only after
   authentication succeeds.
-- Bound administration imports to 1 MiB, 500 total records, and 200 line items
-  per record before writes. Preserve immutable provenance and apply bulk writes
-  in one transaction.
+- Bound administration create/update JSON bodies and import files to 1 MiB
+  before parsing; imports allow 500 total records and 200 line items per record.
+  Preserve immutable provenance and apply bulk writes in one transaction.
 - Treat local SQLite files and backups as sensitive reference data. Restore only
   while the service is stopped, reject live WAL/SHM/rollback-journal sidecars,
   and replace a database or backup only after database and foreign-key

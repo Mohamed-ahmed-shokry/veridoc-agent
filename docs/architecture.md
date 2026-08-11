@@ -59,14 +59,14 @@ flowchart LR
     Migrations["Forward-only migration ledger"] --> SQLite
 ```
 
-The outer ASGI boundary limits complete document/import request bodies before
-multipart parsing, even without `Content-Length`. Route-relative matching keeps
-those limits active under ASGI mounts and configured root paths. Document
-validation and upload closure finish before OCR, provider, processing, or
-repository dependency construction. Rasterization and OCR run in worker threads.
-Validated bytes use a private temporary directory only during processing; page
-images are normalized in memory, bounded as a document bundle, and not retained
-after the request.
+The outer ASGI boundary limits complete document, import, and administration
+mutation request bodies before parsing, even without `Content-Length`.
+Route-relative matching keeps those limits active under ASGI mounts and
+configured root paths. Document validation and upload closure finish before OCR,
+provider, processing, or repository dependency construction. Rasterization and
+OCR run in worker threads. Validated bytes use a private temporary directory
+only during processing; page images are normalized in memory, bounded as a
+document bundle, and not retained after the request.
 
 ## Package boundaries
 

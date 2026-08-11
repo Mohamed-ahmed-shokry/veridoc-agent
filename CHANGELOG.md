@@ -53,7 +53,8 @@ semantic versions for tagged releases.
 - Administration validates a 32-256 character local token and compares
   fixed-length credential digests in constant time before resolving the
   reference database.
-- Raw imports are limited to 1 MiB, 500 records, and 200 line items per record.
+- Administration create/update JSON bodies and raw imports are limited to 1 MiB
+  before parsing; imports allow 500 records and 200 line items per record.
 - Backup and restore reject incomplete current schemas and replace destinations
   only after all checks succeed.
 - Document/import multipart bodies are bounded before parsing, including under

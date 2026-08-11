@@ -159,12 +159,12 @@ external identifier remain immutable on update so later facts retain their
 declared provenance. These fields are metadata, not proof that a source is
 trustworthy; operators must admit only approved reference facts.
 
-The boundary validates schemas before opening a write transaction. Each invoice
-or purchase order is limited to 200 line items, each import contains at most 500
-total records, and a raw JSON import file is limited to 1 MiB before parsing.
-Imports apply one explicit `reject`, `skip`, or `replace` conflict policy inside
-one transaction. Invalid input or a rejected conflict rolls back the entire
-write, and dry runs always roll back.
+The boundary limits create/update JSON request bodies and raw JSON import files
+to 1 MiB before parsing. Each invoice or purchase order is limited to 200 line
+items, and each import contains at most 500 total records. Imports apply one
+explicit `reject`, `skip`, or `replace` conflict policy inside one transaction.
+Invalid input or a rejected conflict rolls back the entire write, and dry runs
+always roll back.
 
 Purchase-order natural-key conflicts are scoped to vendor key plus purchase
 order number. Parameterized repository queries protect SQL boundaries; this

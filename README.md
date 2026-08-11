@@ -214,10 +214,11 @@ curl.exe http://127.0.0.1:8000/admin/reference-data/invoices `
 ```
 
 Each record carries immutable source/external identifiers, server timestamps,
-and optional retention metadata. Imports are limited to 1 MiB and 500 total
-records, and each record is limited to 200 line items. The shared token is a
-local control, not user identity or production authorization. See the
-[API guide](docs/api.md) for payloads and conflict behavior.
+and optional retention metadata. Create/update JSON bodies and import files are
+limited to 1 MiB before parsing, imports contain at most 500 total records, and
+each record is limited to 200 line items. The shared token is a local control,
+not user identity or production authorization. See the [API guide](docs/api.md)
+for payloads and conflict behavior.
 
 Create an online backup with the maintenance entry point:
 

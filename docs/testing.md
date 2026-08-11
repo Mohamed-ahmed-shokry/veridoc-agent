@@ -25,7 +25,7 @@ tests/
 ├── test_health.py                 health behavior and OpenAPI contract
 ├── test_ingestion_validation.py   signatures, limits, mismatch, streaming
 ├── test_ingestion_storage.py      temporary-file cleanup
-├── test_request_body_limits.py    pre-parser multipart byte limits
+├── test_request_body_limits.py    pre-parser request-body byte limits
 ├── test_upload_dependency_order.py  validation-before-dependency ordering
 ├── test_ocr_models.py             typed result and response contracts
 ├── test_tesseract.py              mocked adapter parsing and failures
@@ -158,9 +158,9 @@ warnings in committed automation.
 `test_ingestion_validation.py` tests cheap signature, declared-type, filename,
 streaming, page, and per-page/cumulative decoded-pixel controls without an HTTP
 server. `test_request_body_limits.py` proves declared and streamed request bodies
-are rejected before multipart routing. `test_upload_dependency_order.py` proves
-invalid documents do not construct OCR, provider, processing, or storage
-dependencies.
+are rejected before multipart or JSON routing, including under an ASGI root
+path. `test_upload_dependency_order.py` proves invalid documents do not construct
+OCR, provider, processing, or storage dependencies.
 
 `test_ingestion_storage.py` proves temporary files and directories disappear
 after the context exits.

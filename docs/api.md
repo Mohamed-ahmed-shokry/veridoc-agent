@@ -379,6 +379,9 @@ removed. The canonical result must contain 1-128 characters. The optional
 
 ### CRUD routes
 
+Invoice and purchase-order create/update JSON request bodies are limited to
+1 MiB before parsing.
+
 | Method and path | Result |
 | --- | --- |
 | `POST /admin/reference-data/invoices` | Create one managed invoice; returns `201`. |
@@ -454,6 +457,7 @@ counts. It does not return the imported records.
 | `401` | `invalid_admin_credentials` | The Bearer credential is missing, malformed, or incorrect. |
 | `404` | `reference_record_not_found` | The requested server record identifier does not exist. |
 | `409` | `reference_data_conflict` | Provenance or a protected PO natural key conflicts. |
+| `413` | `reference_data_request_too_large` | A create/update JSON body exceeds 1 MiB. |
 | `413` | `reference_data_import_too_large` | The import exceeds 1 MiB. |
 | `415` | `unsupported_import_media_type` | The import is not declared as `application/json`. |
 | `422` | `invalid_reference_data_import` | Import JSON or its typed records are invalid. |
