@@ -118,9 +118,21 @@ def test_list_purchase_orders_filters_and_paginates_in_stable_order(
 
 def test_update_purchase_order_preserves_provenance_and_replaces_line_items(
     tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
     repository = _repository(tmp_path)
     created = repository.create_purchase_order(_record())
+    statements: list[str] = []
+
+    def traced_connection() -> sqlite3.Connection:
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    monkeypatch.setattr(repository, "_connect", traced_connection)
     update = PurchaseOrderRecordUpdate(
         purchase_order=PurchaseOrderReferenceInput(
             vendor_key="fictional-supplies",
@@ -144,6 +156,7 @@ def test_update_purchase_order_preserves_provenance_and_replaces_line_items(
     assert [item.description for item in updated.purchase_order.line_items] == [
         "Updated item"
     ]
+    assert statements[0] == "BEGIN IMMEDIATE"
 
 
 def test_delete_purchase_order_cascades_line_items_and_reports_missing_records(

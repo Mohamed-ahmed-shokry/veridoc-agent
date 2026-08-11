@@ -137,6 +137,7 @@ class SQLiteInvoiceRepository:
     ) -> InvoiceRecord | None:
         """Replace invoice facts while preserving identity and provenance."""
         with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT id FROM vendor_invoices WHERE record_id = ?", (record_id,)
             ).fetchone()
@@ -251,6 +252,7 @@ class SQLiteInvoiceRepository:
     ) -> PurchaseOrderRecord | None:
         """Replace purchase-order facts while preserving provenance."""
         with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
                 "SELECT id FROM purchase_orders WHERE record_id = ?", (record_id,)
             ).fetchone()

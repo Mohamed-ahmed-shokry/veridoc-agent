@@ -96,9 +96,23 @@ def test_list_invoices_filters_and_paginates_in_stable_order(tmp_path) -> None:
     assert first.metadata.record_id != second.metadata.record_id
 
 
-def test_update_invoice_preserves_provenance_and_replaces_line_items(tmp_path) -> None:
+def test_update_invoice_preserves_provenance_and_replaces_line_items(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
     repository = _repository(tmp_path)
     created = repository.create_invoice(_record())
+    statements: list[str] = []
+
+    def traced_connection() -> sqlite3.Connection:
+        connection = sqlite3.connect(database_path)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.set_trace_callback(statements.append)
+        return connection
+
+    monkeypatch.setattr(repository, "_connect", traced_connection)
     update = InvoiceRecordUpdate(
         invoice=InvoiceReferenceInput(
             vendor_key="fictional-supplies",
@@ -120,6 +134,7 @@ def test_update_invoice_preserves_provenance_and_replaces_line_items(tmp_path) -
     assert updated.metadata.retention_until.isoformat() == "2028-01-01"
     assert updated.invoice.invoice_number == "INV-UPDATED"
     assert [item.description for item in updated.invoice.line_items] == ["Updated item"]
+    assert statements[0] == "BEGIN IMMEDIATE"
 
 
 def test_delete_invoice_cascades_line_items_and_reports_missing_records(
