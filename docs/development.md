@@ -248,7 +248,9 @@ phase-level work.
 Ubuntu job checks the complete tracked snapshot for whitespace errors and
 conflict markers, synchronizes the committed lockfile, validates the lock, runs
 Ruff, mypy, the full coverage gate, builds both distributions, and imports the
-wheel in an isolated environment. The suite uses deterministic fakes, so CI
+wheel in an isolated environment. That smoke checks package/API version parity,
+both console entry points, and the health, OCR, extraction, processing, review,
+and administration route families. The suite uses deterministic fakes, so CI
 requires no OpenAI credential or installed Tesseract executable.
 
 CI is remote evidence only after GitHub reports the job result. Run the same
