@@ -174,10 +174,25 @@ _BACKFILL_MISSING_METADATA = Migration(
     ),
 )
 
+_UNIQUE_LINE_ITEM_POSITIONS = Migration(
+    version=4,
+    statements=(
+        """
+        CREATE UNIQUE INDEX invoice_line_items_invoice_position_index
+        ON invoice_line_items(invoice_id, position)
+        """,
+        """
+        CREATE UNIQUE INDEX purchase_order_line_items_purchase_order_position_index
+        ON purchase_order_line_items(purchase_order_id, position)
+        """,
+    ),
+)
+
 MIGRATIONS = (
     _INITIAL_SCHEMA,
     _ADMINISTRATION_METADATA,
     _BACKFILL_MISSING_METADATA,
+    _UNIQUE_LINE_ITEM_POSITIONS,
 )
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 

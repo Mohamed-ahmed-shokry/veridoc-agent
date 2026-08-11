@@ -37,6 +37,68 @@ def test_migrations_create_the_latest_schema_and_are_idempotent(tmp_path) -> Non
     } <= invoice_columns
 
 
+def test_migrations_index_unique_child_positions(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        migrate(connection)
+        invoice_id = connection.execute(
+            "INSERT INTO vendor_invoices (vendor_key) VALUES ('fictional-supplies')"
+        ).lastrowid
+        purchase_order_id = connection.execute(
+            """
+            INSERT INTO purchase_orders (vendor_key, purchase_order_number)
+            VALUES ('fictional-supplies', 'PO-INDEXED')
+            """
+        ).lastrowid
+        connection.execute(
+            "INSERT INTO invoice_line_items (invoice_id, position) VALUES (?, 0)",
+            (invoice_id,),
+        )
+        connection.execute(
+            """
+            INSERT INTO purchase_order_line_items (purchase_order_id, position)
+            VALUES (?, 0)
+            """,
+            (purchase_order_id,),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO invoice_line_items (invoice_id, position) VALUES (?, 0)",
+                (invoice_id,),
+            )
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO purchase_order_line_items (purchase_order_id, position)
+                VALUES (?, 0)
+                """,
+                (purchase_order_id,),
+            )
+
+        invoice_plan = connection.execute(
+            """
+            EXPLAIN QUERY PLAN
+            SELECT * FROM invoice_line_items
+            WHERE invoice_id = ? ORDER BY position
+            """,
+            (invoice_id,),
+        ).fetchall()
+        purchase_order_plan = connection.execute(
+            """
+            EXPLAIN QUERY PLAN
+            SELECT * FROM purchase_order_line_items
+            WHERE purchase_order_id = ? ORDER BY position
+            """,
+            (purchase_order_id,),
+        ).fetchall()
+
+    assert "invoice_line_items_invoice_position_index" in str(invoice_plan)
+    assert "purchase_order_line_items_purchase_order_position_index" in str(
+        purchase_order_plan
+    )
+
+
 def test_concurrent_initial_migrations_are_serialized(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     ready = Barrier(5)
@@ -132,10 +194,11 @@ def test_migrations_backfill_writes_created_after_metadata_upgrade(tmp_path) -> 
     database_path = tmp_path / "reference-data.sqlite"
     with sqlite3.connect(database_path) as connection:
         migrate(connection)
+        connection.execute("DROP INDEX invoice_line_items_invoice_position_index")
         connection.execute(
-            "DELETE FROM schema_migrations WHERE version = ?",
-            (LATEST_SCHEMA_VERSION,),
+            "DROP INDEX purchase_order_line_items_purchase_order_position_index"
         )
+        connection.execute("DELETE FROM schema_migrations WHERE version >= 3")
         connection.execute(
             """
             INSERT INTO vendor_invoices (vendor_key, invoice_number)
