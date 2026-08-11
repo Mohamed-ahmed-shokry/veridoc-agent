@@ -26,6 +26,12 @@ def _png_bytes(size: tuple[int, int] = (8, 4)) -> bytes:
     return output.getvalue()
 
 
+def _jpeg_bytes(size: tuple[int, int] = (8, 4)) -> bytes:
+    output = BytesIO()
+    Image.new("RGB", size, color="white").save(output, format="JPEG")
+    return output.getvalue()
+
+
 def _pdf_bytes(page_count: int = 1) -> bytes:
     document = pymupdf.open()
     for index in range(page_count):
@@ -45,6 +51,19 @@ def test_png_is_validated_by_signature_and_dimensions() -> None:
 
     assert validated.media_type == "image/png"
     assert validated.filename == "invoice.png"
+    assert (validated.width, validated.height, validated.page_count) == (8, 4, 1)
+
+
+def test_jpeg_alias_is_validated_and_normalized() -> None:
+    validated = validate_upload(
+        _jpeg_bytes(),
+        filename=r"..\private/fictional invoice.jpeg",
+        declared_content_type="image/jpg",
+    )
+
+    assert validated.media_type == "image/jpeg"
+    assert validated.suffix == ".jpg"
+    assert validated.filename == "fictional_invoice.jpeg"
     assert (validated.width, validated.height, validated.page_count) == (8, 4, 1)
 
 
