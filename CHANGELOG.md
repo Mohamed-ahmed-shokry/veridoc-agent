@@ -42,6 +42,8 @@ semantic versions for tagged releases.
   validation completes before external service construction.
 - First-time migrations and record updates acquire SQLite write locks before
   reading state that governs their writes.
+- Repository initialization validates the final schema before committing its
+  migration transaction, so rejected upgrades leave the database unchanged.
 - Compound SQLite reads use one snapshot for coherent pagination and line items
   during concurrent administration writes.
 - Online backup preserves the live source and the published snapshot at their

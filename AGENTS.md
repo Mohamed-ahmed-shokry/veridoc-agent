@@ -45,7 +45,8 @@ runtime implementation remains deliberately small:
   canonical vendor keys, the repository protocol, local Bearer authentication,
   FastAPI routes, and the maintenance CLI.
 - `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
-  migrations and rejects unsupported future schema versions.
+  migrations, validates before commit, and rejects unsupported future schema
+  versions.
 - `src/veridoc/persistence/schema.py` validates the current tables, columns,
   keys, constraints, foreign keys, and required provenance indexes.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration

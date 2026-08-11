@@ -15,10 +15,12 @@ dependency.
 ## Decision
 
 Track numbered migrations in a `schema_migrations` table. Apply each missing
-migration exactly once and in order within a transaction. An existing Phase 3
-database without migration metadata is adopted by idempotently applying the
-initial schema migration before later migrations. Refuse to open a database
-that reports a migration newer than this application understands.
+migration exactly once and in order within a transaction, and validate the final
+schema before committing it. An existing Phase 3 database without migration
+metadata is adopted by idempotently applying the initial schema migration before
+later migrations. Refuse to open a database that reports a migration newer than
+this application understands. A rejected final schema rolls back the migration
+ledger, structural changes, and data backfills together.
 
 Migrations are forward-only. Before an application upgrade, create a SQLite
 online backup. Backup copies a consistent snapshot without migrating or otherwise
