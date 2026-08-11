@@ -8,7 +8,7 @@ import re
 import httpx
 import pytest
 
-from veridoc.app import app
+from veridoc.app import app, get_ocr_engine
 
 
 @pytest.fixture
@@ -45,3 +45,34 @@ async def test_request_context_replaces_unsafe_identifiers_on_error_responses() 
 
     assert response.status_code == 404
     assert re.fullmatch(r"[0-9a-f]{32}", response.headers["X-Request-ID"])
+
+
+@pytest.mark.anyio
+async def test_unexpected_errors_return_a_safe_correlated_response() -> None:
+    def fail_without_exposing_details() -> None:
+        raise RuntimeError("sensitive internal detail")
+
+    app.dependency_overrides[get_ocr_engine] = fail_without_exposing_details
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/ocr",
+                files={"file": ("invoice.png", b"synthetic", "image/png")},
+                headers={"X-Request-ID": "failed-request"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": {
+            "code": "internal_server_error",
+            "message": "An unexpected server error occurred.",
+        }
+    }
+    assert response.headers["X-Request-ID"] == "failed-request"
+    assert "sensitive internal detail" not in response.text

@@ -249,6 +249,23 @@ async def handle_processing_error(
     )
 
 
+@app.exception_handler(Exception)
+async def handle_unexpected_error(request: Request, exc: Exception) -> JSONResponse:
+    """Return a safe correlated response for an unexpected application failure."""
+    del exc
+    request_id = _request_id(getattr(request.state, "request_id", None))
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": {
+                "code": "internal_server_error",
+                "message": "An unexpected server error occurred.",
+            }
+        },
+        headers={"X-Request-ID": request_id},
+    )
+
+
 @app.get("/health", response_model=HealthResponse, tags=["system"])
 def health_check() -> HealthResponse:
     """Return the service health status without touching external dependencies."""
