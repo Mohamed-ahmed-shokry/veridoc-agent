@@ -83,7 +83,8 @@ runtime implementation remains deliberately small:
 - `tests/test_request_context.py` covers safe correlation headers and
   metadata-only request logging.
 - `tests/test_request_body_limits.py` and `tests/test_upload_dependency_order.py`
-  cover pre-parser body bounds and validation before external dependencies.
+  cover pre-parser body bounds, off-loop validation, deterministic upload
+  closure, and validation before external dependencies.
 - `tests/test_administration_*.py`, `tests/test_sqlite_migrations.py`, and
   `tests/test_reference_data_maintenance.py` cover canonical vendor keys,
   bounded schemas, fixed-length credential comparison, OpenAPI security,

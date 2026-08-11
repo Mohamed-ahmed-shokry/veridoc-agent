@@ -38,8 +38,9 @@ semantic versions for tagged releases.
   and invoice or purchase-order list filters.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
-- OCR and reference-data import work run outside async request loops, and upload
-  validation completes before external service construction.
+- Upload decoding/inspection, OCR, and reference-data import work run outside
+  async request loops, and validation completes before external service
+  construction.
 - First-time migrations and record updates acquire SQLite write locks before
   reading state that governs their writes.
 - Already-current repository initialization validates read-only, avoiding a

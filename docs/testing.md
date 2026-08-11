@@ -1,10 +1,11 @@
 # Testing
 
 Veridoc uses pytest. The Phase 8 suite covers the FastAPI application, bounded
-upload validation, temporary-file cleanup, typed OCR contracts, normalized page
-images, structured invoice schemas, typed extraction and verification graphs,
-the mocked OpenAI adapter, local SQLite reference persistence, and deterministic
-invoice verification rules. It also covers strict explanation schemas,
+upload validation outside the async request loop, temporary-file cleanup, typed
+OCR contracts, normalized page images, structured invoice schemas, typed
+extraction and verification graphs, the mocked OpenAI adapter, local SQLite
+reference persistence, and deterministic invoice verification rules. It also
+covers strict explanation schemas,
 deterministic explanation rendering, provider-draft guardrails, mocked
 explanation providers, the typed explanation graph, the complete processing
 graph/service/API, safe reference-data failures, and the local review page.
