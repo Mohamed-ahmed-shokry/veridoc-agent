@@ -121,6 +121,20 @@ def test_pdf_page_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     assert MAX_PDF_PAGES > 1
 
 
+def test_pdf_page_pixel_limit_is_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("veridoc.ingestion.validation.MAX_IMAGE_PIXELS", 20_000)
+
+    with pytest.raises(UploadValidationError) as error:
+        validate_upload(
+            _pdf_bytes(), filename="invoice.pdf", declared_content_type=None
+        )
+
+    assert error.value.code == "page_too_large"
+    assert error.value.status_code == 413
+    assert error.value.message == "Rendered PDF pages must not exceed 20000 pixels."
+    assert MAX_IMAGE_PIXELS > 20_000
+
+
 def test_pdf_document_pixel_limit_is_enforced(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
