@@ -179,13 +179,14 @@ bundle bound, and normalized page inputs for vision extraction.
 overrides the engine dependency. It verifies successful raw text, safe type
 mismatch errors, and unavailable-engine responses without binding a port.
 
-`test_extraction_models.py` validates nullable invoice fields, dates, decimals,
-confidence bounds, evidence references, and schema strictness.
+`test_extraction_models.py` validates nullable invoice fields, dates, bounded
+decimals, confidence bounds, evidence references, and schema strictness.
 
 `test_extraction_protocol.py` validates that OCR pages and image pages align.
 `test_extraction_graph.py` exercises the single typed LangGraph node with a fake
-extractor. `test_extraction_service.py` proves the service passes both OCR text
-and normalized page images into that graph.
+extractor, including page-range and normalized OCR-span grounding.
+`test_extraction_service.py` proves the service passes both OCR text and
+normalized page images into that graph.
 
 `test_openai_responses.py` uses a fake SDK client to verify structured parsing,
 OCR-text/image construction, deterministic OCR confidence, unavailable-provider

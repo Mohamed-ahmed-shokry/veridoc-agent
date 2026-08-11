@@ -124,9 +124,12 @@ header fields, nullable line-item values, confidence values, evidence keyed by
 field name, and explicit uncertainty. `ocr_confidence` is calculated by the OCR
 boundary and overrides any provider-supplied value. `extraction_confidence` is a
 provider-reported signal, not a calibrated probability or verification verdict.
-Evidence is deliberately limited to page number, OCR-or-image source, and an
-optional text span. Stable bounding-box coordinates are not an implemented
-contract.
+Quantities and amounts are bounded to 24 digits and 6 decimal places before
+verification arithmetic. Evidence is deliberately limited to page number,
+OCR-or-image source, and an optional text span. The graph rejects nonexistent
+pages and requires each supplied OCR span to occur on its referenced page after
+Unicode, case, and whitespace normalization. Stable bounding-box coordinates
+are not an implemented contract.
 
 ## Typed verification flow
 

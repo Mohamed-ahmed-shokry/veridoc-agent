@@ -208,12 +208,15 @@ Status: `200 OK`
 
 `document_type` is `invoice`, `purchase_order`, or `unknown`. Invoice fields
 that are not visible are `null`; they are never invented to fill the schema.
-Amounts are serialized as decimal strings. `ocr_confidence` is calculated from
+Amounts and quantities are serialized as decimal strings and accept at most 24
+digits with no more than 6 decimal places. `ocr_confidence` is calculated from
 the selected OCR baseline, while `extraction_confidence` is provider-reported
 and not a verification verdict. Evidence references use a one-based page number,
-an `ocr_text` or `page_image` source, and an optional text span. Line items use
-the same optional description, product identifier, quantity, unit price, total
-price, and evidence fields.
+an `ocr_text` or `page_image` source, and an optional text span. Every referenced
+page must exist in the OCR request. When an `ocr_text` span is supplied, its
+non-empty Unicode-normalized, case-folded, whitespace-collapsed value must occur
+on that page. Line items use the same optional description, product identifier,
+quantity, unit price, total price, and evidence rules.
 
 ### Error responses
 

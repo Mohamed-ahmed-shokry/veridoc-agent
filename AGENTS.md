@@ -369,6 +369,9 @@ following documentation commit.
   cumulative pixel bounds, normalized-image bundle size, and filenames before
   expensive parsing or external dependency construction at the implemented
   upload boundary.
+- Treat extracted provider values as untrusted: bound decimals before arithmetic,
+  require evidence pages to exist, and ground supplied OCR spans in normalized
+  page text before verification.
 - Bound streaming reads, isolate temporary files, clean them up deterministically,
   and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw

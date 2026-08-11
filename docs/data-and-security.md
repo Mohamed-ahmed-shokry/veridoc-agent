@@ -142,6 +142,12 @@ deterministic numerical context rather than a provider calculation. That request
 option and narrowed data payload do not replace an organization-specific review
 of provider retention, regional-processing, account, and contractual controls.
 
+Structured provider output remains untrusted. Amounts and quantities are bounded
+before arithmetic, evidence pages must exist in the current OCR result, and any
+supplied OCR text span must match its referenced page after normalization.
+Invalid provider output maps to a safe extraction-processing error and is never
+passed to verification.
+
 ## Reference-data administration boundary
 
 Administration accepts typed invoice and purchase-order facts, not document

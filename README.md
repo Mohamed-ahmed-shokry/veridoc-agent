@@ -182,7 +182,10 @@ curl.exe -X POST http://127.0.0.1:8000/extract \
 
 The typed response preserves absent fields as `null`, reports OCR and extraction
 confidence separately, and returns page/source evidence plus uncertainty rather
-than fabricating missing data. Normalized page images are limited to 32 MiB in
+than fabricating missing data. Extracted quantities and amounts are limited to
+24 digits with at most 6 decimal places. Every evidence page must exist, and a
+supplied OCR text span must occur on that page after Unicode, case, and
+whitespace normalization. Normalized page images are limited to 32 MiB in
 aggregate before provider input. See the [API guide](docs/api.md) for the
 complete schema, limits, and error responses.
 
