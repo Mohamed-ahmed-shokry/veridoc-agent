@@ -247,11 +247,12 @@ phase-level work.
 `.github/workflows/ci.yml` runs on pull requests and pushes to `main`. Its
 Ubuntu job checks the complete tracked snapshot for whitespace errors and
 conflict markers, synchronizes the committed lockfile, validates the lock, runs
-Ruff, mypy, the full coverage gate, builds both distributions, and imports the
-wheel in an isolated environment. That smoke checks package/API version parity,
-both console entry points, and the health, OCR, extraction, processing, review,
-and administration route families. The suite uses deterministic fakes, so CI
-requires no OpenAI credential or installed Tesseract executable.
+Ruff, mypy, the full coverage gate, builds both distributions, and installs the
+wheel and source distribution in separate isolated environments. The shared
+smoke script checks package/API version parity, both console entry points, and
+the health, OCR, extraction, processing, review, and administration route
+families. The suite uses deterministic fakes, so CI requires no OpenAI credential
+or installed Tesseract executable.
 
 CI is remote evidence only after GitHub reports the job result. Run the same
 documented commands locally before committing; a local pass does not imply that
@@ -272,16 +273,20 @@ The content validator requires both console entry points, the Phase 8
 administration/maintenance modules, and package metadata. It rejects unsafe
 or colliding archive paths, links and special archive members, plus environment,
 database, and private-key artifacts. On PowerShell, smoke-test the built wheel
-outside the project environment with:
+and source distribution outside the project environment with:
 
 ```powershell
-$wheel = Get-ChildItem dist -Filter *.whl | Select-Object -First 1
-uv run --isolated --no-project --no-cache --with $wheel.FullName python -c `
-  "import veridoc; from veridoc.app import app; assert app.title == 'Veridoc'"
+$wheelPath = (Get-ChildItem dist -Filter *.whl | Select-Object -First 1).FullName
+uv run --isolated --no-project --no-cache --with $wheelPath `
+  python scripts/smoke_distribution.py
+
+$sdistPath = (Get-ChildItem dist -Filter *.tar.gz | Select-Object -First 1).FullName
+uv run --isolated --no-project --no-cache --with $sdistPath `
+  python scripts/smoke_distribution.py
 ```
 
-`--no-cache` ensures a rebuilt wheel with an unchanged version and filename is
-installed from the current artifact rather than reused from uv's package cache.
+`--no-cache` ensures rebuilt artifacts with unchanged versions and filenames are
+installed from the current files rather than reused from uv's package cache.
 
 ## Configuration
 

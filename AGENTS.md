@@ -93,6 +93,9 @@ runtime implementation remains deliberately small:
 - `scripts/check_distribution.py` validates wheel and source-distribution
   metadata, required contents, regular member types, unique safe paths, and
   sensitive-file exclusions.
+- `scripts/smoke_distribution.py` verifies installed metadata, entry points,
+  versions, and critical routes for isolated wheel and source-distribution
+  installs.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
 
 Phase 6 completes product behavior, integration coverage, documentation,

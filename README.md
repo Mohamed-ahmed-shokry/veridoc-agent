@@ -297,7 +297,7 @@ uv run python scripts/check_distribution.py
 
 The coverage gate measures branches and fails below 90%. See the
 [testing guide](docs/testing.md) for focused-test boundaries and the
-[development guide](docs/development.md) for package and isolated-wheel checks.
+[development guide](docs/development.md) for package and isolated-artifact checks.
 
 ## Architecture
 
@@ -360,7 +360,8 @@ API also returns an `X-Request-ID` for safe operational correlation. See
 │       ├── __main__.py
 │       └── app.py
 ├── scripts/
-│   └── check_distribution.py
+│   ├── check_distribution.py
+│   └── smoke_distribution.py
 ├── tests/
 │   ├── fixtures/
 │   │   └── README.md

@@ -354,9 +354,9 @@ do not collect coverage, so they remain suitable for atomic changes.
 | API behavior or schema | Success and relevant error/contract tests |
 | Dependency or lockfile | `uv lock --check`, full pytest, applicable quality checks |
 | Dependency audit | `uv run pip-audit`; document any explicit advisory exception |
-| Distribution packaging | Fresh build, Twine check, archive-content check, isolated-wheel import |
+| Distribution packaging | Fresh build, Twine check, archive-content check, isolated wheel and sdist smokes |
 | Production type contract | Focused pytest, `uv run mypy`, Ruff lint, Ruff format check |
-| Phase completion | Clean sync, isolated import, coverage gate, mypy, lint, format, runtime smoke test, clean Git status |
+| Phase completion | Clean sync, both isolated artifact smokes, coverage gate, mypy, lint, format, runtime smoke test, clean Git status |
 
 Run the full suite before completing a phase even when every individual commit
 already had a focused check. See `AGENTS.md` for staging and commit rules and
