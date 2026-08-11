@@ -170,3 +170,90 @@ async def test_mounted_import_limit_counts_streamed_body_bytes(
     assert response.json()["detail"]["code"] == "reference_data_import_too_large"
     assert response.headers["X-Request-ID"] == "mounted-import-limit"
     assert dependency_resolved is False
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/admin/reference-data/invoices"),
+        ("PUT", "/admin/reference-data/invoices/record-1"),
+        ("POST", "/admin/reference-data/purchase-orders"),
+        ("PUT", "/admin/reference-data/purchase-orders/record-1"),
+    ],
+)
+async def test_declared_oversized_admin_json_is_rejected_before_authentication(
+    method: str,
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authentication_resolved = False
+
+    def unexpected_authentication() -> None:
+        nonlocal authentication_resolved
+        authentication_resolved = True
+
+    monkeypatch.setattr("veridoc.app.MAX_ADMIN_JSON_REQUEST_BYTES", 10)
+    app.dependency_overrides[require_admin] = unexpected_authentication
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.request(
+                method,
+                path,
+                content=b"",
+                headers={
+                    "Content-Length": "11",
+                    "Content-Type": "application/json",
+                    "X-Request-ID": "admin-json-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "reference_data_request_too_large"
+    assert response.headers["X-Request-ID"] == "admin-json-limit"
+    assert authentication_resolved is False
+
+
+@pytest.mark.anyio
+async def test_streamed_oversized_admin_json_is_rejected_before_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authentication_resolved = False
+
+    def unexpected_authentication() -> None:
+        nonlocal authentication_resolved
+        authentication_resolved = True
+
+    async def chunks() -> AsyncIterator[bytes]:
+        yield b"a" * 6
+        yield b"b" * 5
+
+    monkeypatch.setattr("veridoc.app.MAX_ADMIN_JSON_REQUEST_BYTES", 10)
+    app.dependency_overrides[require_admin] = unexpected_authentication
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/admin/reference-data/invoices",
+                content=chunks(),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Request-ID": "streamed-admin-json-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "reference_data_request_too_large"
+    assert response.headers["X-Request-ID"] == "streamed-admin-json-limit"
+    assert authentication_resolved is False

@@ -56,6 +56,10 @@ _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _MULTIPART_OVERHEAD_BYTES = 64 * 1024
 MAX_DOCUMENT_REQUEST_BYTES = MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_BYTES
 MAX_ADMIN_IMPORT_REQUEST_BYTES = MAX_ADMIN_IMPORT_BYTES + _MULTIPART_OVERHEAD_BYTES
+MAX_ADMIN_JSON_REQUEST_BYTES = MAX_ADMIN_IMPORT_BYTES
+_ADMIN_JSON_PATH_PATTERN = re.compile(
+    r"^/admin/reference-data/(?:invoices|purchase-orders)(?:/[^/]+)?$"
+)
 
 
 class HealthResponse(BaseModel):
@@ -80,7 +84,9 @@ class RequestBodyLimitMiddleware:
             await self._app(scope, receive, send)
             return
 
-        limit = _request_body_limit(_route_relative_path(scope))
+        limit = _request_body_limit(
+            _route_relative_path(scope), str(scope.get("method", ""))
+        )
         if limit is None:
             await self._app(scope, receive, send)
             return
@@ -120,7 +126,7 @@ class RequestBodyLimitMiddleware:
         await self._app(scope, replay_receive, send)
 
 
-def _request_body_limit(path: str) -> tuple[int, str, str] | None:
+def _request_body_limit(path: str, method: str) -> tuple[int, str, str] | None:
     if path in {"/ocr", "/extract", "/process"}:
         return (
             MAX_DOCUMENT_REQUEST_BYTES,
@@ -132,6 +138,12 @@ def _request_body_limit(path: str) -> tuple[int, str, str] | None:
             MAX_ADMIN_IMPORT_REQUEST_BYTES,
             "reference_data_import_too_large",
             "The reference-data import exceeds the size limit.",
+        )
+    if method.upper() in {"POST", "PUT"} and _ADMIN_JSON_PATH_PATTERN.fullmatch(path):
+        return (
+            MAX_ADMIN_JSON_REQUEST_BYTES,
+            "reference_data_request_too_large",
+            "The reference-data request exceeds the size limit.",
         )
     return None
 
