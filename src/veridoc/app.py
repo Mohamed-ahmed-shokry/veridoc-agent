@@ -30,6 +30,7 @@ from veridoc.extraction.protocol import (
     StructuredExtractor,
 )
 from veridoc.extraction.service import ExtractionService
+from veridoc.ingestion.models import ValidatedUpload
 from veridoc.ingestion.validation import (
     MAX_UPLOAD_BYTES,
     UploadValidationError,
@@ -284,6 +285,26 @@ def get_ocr_engine() -> OCREngine:
     return TesseractEngine()
 
 
+async def get_validated_upload(
+    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
+) -> ValidatedUpload:
+    """Read, validate, and close one upload before external dependencies resolve."""
+    try:
+        data = await read_bounded_upload(file)
+        return validate_upload(
+            data,
+            filename=file.filename,
+            declared_content_type=file.content_type,
+        )
+    except UploadValidationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    finally:
+        await file.close()
+
+
 def get_structured_extractor() -> StructuredExtractor:
     """Build the configured structured extraction adapter for one request."""
     settings = OpenAIExtractionSettings.from_environment()
@@ -337,23 +358,12 @@ def get_processing_service(
 
 @app.post("/ocr", response_model=OCRResponse, tags=["ocr"])
 async def run_ocr(
-    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
+    upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
     engine: Annotated[OCREngine, Depends(get_ocr_engine)],
 ) -> OCRResponse:
     """Validate one invoice upload and return raw OCR text and confidence."""
     try:
-        data = await read_bounded_upload(file)
-        upload = validate_upload(
-            data,
-            filename=file.filename,
-            declared_content_type=file.content_type,
-        )
         result = await to_thread(OCRService(engine).process, upload)
-    except UploadValidationError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={"code": exc.code, "message": exc.message},
-        ) from exc
     except OCRUnavailableError as exc:
         raise HTTPException(
             status_code=503,
@@ -364,9 +374,6 @@ async def run_ocr(
             status_code=422,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    finally:
-        await file.close()
-
     return OCRResponse(
         media_type=result.media_type,
         text=result.text,
@@ -380,24 +387,13 @@ async def run_ocr(
 
 @app.post("/extract", response_model=InvoiceExtraction, tags=["extraction"])
 async def extract_invoice(
-    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
+    upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
     ocr_engine: Annotated[OCREngine, Depends(get_ocr_engine)],
     extractor: Annotated[StructuredExtractor, Depends(get_structured_extractor)],
 ) -> InvoiceExtraction:
     """Validate one upload and return typed evidence-linked extraction data."""
     try:
-        data = await read_bounded_upload(file)
-        upload = validate_upload(
-            data,
-            filename=file.filename,
-            declared_content_type=file.content_type,
-        )
         return await ExtractionService(ocr_engine, extractor).process(upload)
-    except UploadValidationError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={"code": exc.code, "message": exc.message},
-        ) from exc
     except OCRUnavailableError as exc:
         raise HTTPException(
             status_code=503,
@@ -408,29 +404,16 @@ async def extract_invoice(
             status_code=422,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    finally:
-        await file.close()
 
 
 @app.post("/process", response_model=ProcessingResult, tags=["processing"])
 async def process_invoice(
-    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
+    upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
     service: Annotated[ProcessingService, Depends(get_processing_service)],
 ) -> ProcessingResult:
     """Return extraction, findings, explanations, and a deterministic verdict."""
     try:
-        data = await read_bounded_upload(file)
-        upload = validate_upload(
-            data,
-            filename=file.filename,
-            declared_content_type=file.content_type,
-        )
         return await service.process(upload)
-    except UploadValidationError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={"code": exc.code, "message": exc.message},
-        ) from exc
     except OCRUnavailableError as exc:
         raise HTTPException(
             status_code=503,
@@ -441,5 +424,3 @@ async def process_invoice(
             status_code=422,
             detail={"code": exc.code, "message": exc.message},
         ) from exc
-    finally:
-        await file.close()
