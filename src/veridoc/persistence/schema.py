@@ -99,7 +99,10 @@ _REQUIRED_FOREIGN_KEYS = {
         {("purchase_order_id", "purchase_orders", "id", "CASCADE")}
     ),
 }
-_REQUIRED_NAMED_UNIQUE_INDEXES = {
+_REQUIRED_NAMED_UNIQUE_INDEXES: dict[
+    str,
+    dict[str, tuple[tuple[str, ...], str | None]],
+] = {
     "vendor_invoices": {
         "vendor_invoices_record_id_index": (
             ("record_id",),
@@ -118,6 +121,18 @@ _REQUIRED_NAMED_UNIQUE_INDEXES = {
         "purchase_orders_source_external_id_index": (
             ("source", "external_id"),
             "WHERE SOURCE IS NOT NULL AND EXTERNAL_ID IS NOT NULL",
+        ),
+    },
+    "invoice_line_items": {
+        "invoice_line_items_invoice_position_index": (
+            ("invoice_id", "position"),
+            None,
+        ),
+    },
+    "purchase_order_line_items": {
+        "purchase_order_line_items_purchase_order_position_index": (
+            ("purchase_order_id", "position"),
+            None,
         ),
     },
 }
@@ -202,7 +217,8 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
             )
         }
         for index_name, (index_columns, predicate) in required_indexes.items():
-            if indexes.get(index_name) != (True, True):
+            expected_partial = predicate is not None
+            if indexes.get(index_name) != (True, expected_partial):
                 raise InvalidReferenceSchemaError
             if _index_columns(connection, index_name) != index_columns:
                 raise InvalidReferenceSchemaError
@@ -214,7 +230,11 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
                 " ".join(str(sql_row[0]).upper().split()) if sql_row else ""
             )
             _, separator, actual_predicate = normalized_sql.partition(" WHERE ")
-            if not separator or actual_predicate != predicate.removeprefix("WHERE "):
+            if predicate is None and separator:
+                raise InvalidReferenceSchemaError
+            if predicate is not None and (
+                not separator or actual_predicate != predicate.removeprefix("WHERE ")
+            ):
                 raise InvalidReferenceSchemaError
 
     purchase_order_indexes = list(

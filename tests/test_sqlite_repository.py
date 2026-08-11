@@ -342,6 +342,27 @@ def test_repository_rejects_a_missing_provenance_uniqueness_constraint(
         repository.initialize()
 
 
+@pytest.mark.parametrize(
+    "index_name",
+    [
+        "invoice_line_items_invoice_position_index",
+        "purchase_order_line_items_purchase_order_position_index",
+    ],
+)
+def test_repository_rejects_a_missing_line_item_position_index(
+    index_name: str,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(f"DROP INDEX {index_name}")
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
 def test_rejected_initialization_leaves_a_legacy_schema_unchanged(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     with sqlite3.connect(database_path) as connection:
