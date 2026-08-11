@@ -79,7 +79,8 @@ jobs:
               for entry_point in installed.entry_points
               if entry_point.group == "console_scripts"
           }
-          paths = {getattr(route, "path", None) for route in app.routes}
+          schema_paths = set(app.openapi()["paths"])
+          runtime_paths = {getattr(route, "path", None) for route in app.routes}
 
           assert installed.version == veridoc.__version__ == app.version
           assert scripts == {
@@ -91,7 +92,7 @@ jobs:
               "/ocr",
               "/extract",
               "/process",
-              "/review",
               "/admin/reference-data/import",
-          } <= paths
+          } <= schema_paths
+          assert "/review" in runtime_paths
           PY
