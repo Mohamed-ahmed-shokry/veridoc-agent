@@ -77,6 +77,13 @@ _REQUIRED_PRIMARY_KEYS = {
     "purchase_orders": ("id",),
     "purchase_order_line_items": ("id",),
 }
+_REQUIRED_INTEGER_COLUMNS = {
+    "schema_migrations": frozenset({"version"}),
+    "vendor_invoices": frozenset({"id"}),
+    "invoice_line_items": frozenset({"id", "invoice_id", "position"}),
+    "purchase_orders": frozenset({"id"}),
+    "purchase_order_line_items": frozenset({"id", "purchase_order_id", "position"}),
+}
 _REQUIRED_NOT_NULL_COLUMNS = {
     "schema_migrations": frozenset({"applied_at"}),
     "vendor_invoices": frozenset({"vendor_key"}),
@@ -139,6 +146,9 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
             connection.execute("SELECT * FROM pragma_table_info(?)", (table_name,))
         )
         actual_columns = {str(row[1]) for row in column_rows}
+        actual_column_types = {
+            str(row[1]): str(row[2]).strip().upper() for row in column_rows
+        }
         primary_key = tuple(
             str(row[1])
             for row in sorted(column_rows, key=lambda row: int(row[5]))
@@ -149,6 +159,15 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
             table_type is None
             or str(table_type[0]) != "table"
             or not required_columns.issubset(actual_columns)
+            or any(
+                actual_column_types[column_name]
+                != (
+                    "INTEGER"
+                    if column_name in _REQUIRED_INTEGER_COLUMNS[table_name]
+                    else "TEXT"
+                )
+                for column_name in required_columns
+            )
             or primary_key != _REQUIRED_PRIMARY_KEYS[table_name]
             or not _REQUIRED_NOT_NULL_COLUMNS[table_name].issubset(not_null_columns)
         ):

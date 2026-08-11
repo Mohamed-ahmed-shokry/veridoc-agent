@@ -197,6 +197,36 @@ def test_rejected_initialization_leaves_a_legacy_schema_unchanged(tmp_path) -> N
     assert final_rows == original_rows
 
 
+def test_repository_rejects_a_legacy_schema_with_wrong_column_affinity(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE vendor_invoices (
+                id TEXT PRIMARY KEY,
+                vendor_key TEXT NOT NULL,
+                invoice_number TEXT,
+                purchase_order_number TEXT,
+                invoice_date TEXT,
+                due_date TEXT,
+                currency TEXT,
+                subtotal TEXT,
+                tax TEXT,
+                discount TEXT,
+                total TEXT,
+                payment_terms TEXT
+            )
+            """
+        )
+
+    repository = SQLiteInvoiceRepository(database_path)
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
 def test_repository_closes_connections_after_each_operation(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
