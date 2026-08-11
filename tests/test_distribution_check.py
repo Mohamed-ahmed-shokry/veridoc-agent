@@ -1,5 +1,8 @@
 """Distribution archive safety-check tests."""
 
+import stat
+import tarfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -7,6 +10,8 @@ import pytest
 from scripts.check_distribution import (
     _check_console_scripts,
     _check_member_paths,
+    _check_source_member_types,
+    _check_wheel_member_types,
     _require_members,
     _required_package_members,
 )
@@ -38,6 +43,28 @@ def test_distribution_check_reports_missing_required_members() -> None:
             {"veridoc/__init__.py", "veridoc/app.py"},
             Path("dist/veridoc.whl"),
         )
+
+
+def test_distribution_check_rejects_wheel_symlinks() -> None:
+    member = zipfile.ZipInfo("veridoc/link")
+    member.create_system = 3
+    member.external_attr = (stat.S_IFLNK | 0o777) << 16
+
+    with pytest.raises(RuntimeError, match="non-regular member"):
+        _check_wheel_member_types([member], Path("dist/veridoc.whl"))
+
+
+@pytest.mark.parametrize(
+    "member_type", [tarfile.SYMTYPE, tarfile.LNKTYPE, tarfile.FIFOTYPE]
+)
+def test_distribution_check_rejects_special_source_members(
+    member_type: bytes,
+) -> None:
+    member = tarfile.TarInfo("veridoc-0.1.0/link")
+    member.type = member_type
+
+    with pytest.raises(RuntimeError, match="non-regular member"):
+        _check_source_member_types([member], Path("dist/veridoc.tar.gz"))
 
 
 def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:

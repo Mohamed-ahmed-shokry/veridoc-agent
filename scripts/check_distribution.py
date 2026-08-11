@@ -9,6 +9,7 @@ from configparser import ConfigParser
 from email import policy
 from email.parser import BytesParser
 from pathlib import Path, PurePosixPath, PureWindowsPath
+from stat import S_IFDIR, S_IFMT, S_IFREG
 
 _DIST_DIRECTORY = Path("dist")
 _SENSITIVE_SUFFIXES = {".db", ".key", ".pem", ".sqlite", ".sqlite3"}
@@ -51,8 +52,10 @@ def _single_artifact(pattern: str) -> Path:
 
 def _check_wheel(path: Path, *, name: str, version: str) -> None:
     with zipfile.ZipFile(path) as archive:
-        members = archive.namelist()
+        member_info = archive.infolist()
+        members = [member.filename for member in member_info]
         _check_member_paths(members)
+        _check_wheel_member_types(member_info, path)
         required = _required_package_members(name)
         _require_members(members, required, path)
 
@@ -91,7 +94,9 @@ def _check_wheel(path: Path, *, name: str, version: str) -> None:
 def _check_source_distribution(path: Path, *, name: str, version: str) -> None:
     root = f"{name}-{version}"
     with tarfile.open(path, mode="r:gz") as archive:
-        members = archive.getnames()
+        member_info = archive.getmembers()
+        members = [member.name for member in member_info]
+    _check_source_member_types(member_info, path)
     _check_member_paths(members)
     if any(PurePosixPath(member).parts[0] != root for member in members):
         raise RuntimeError(f"{path} contains a member outside the {root!r} root.")
@@ -140,6 +145,25 @@ def _check_member_paths(members: list[str]) -> None:
             raise RuntimeError(f"Archive contains an environment file: {member!r}.")
         if path.suffix.casefold() in _SENSITIVE_SUFFIXES:
             raise RuntimeError(f"Archive contains a sensitive file type: {member!r}.")
+
+
+def _check_wheel_member_types(members: list[zipfile.ZipInfo], archive: Path) -> None:
+    for member in members:
+        if member.create_system != 3:
+            continue
+        member_type = S_IFMT(member.external_attr >> 16)
+        if member_type not in {0, S_IFREG, S_IFDIR}:
+            raise RuntimeError(
+                f"{archive} contains a non-regular member: {member.filename!r}."
+            )
+
+
+def _check_source_member_types(members: list[tarfile.TarInfo], archive: Path) -> None:
+    for member in members:
+        if not (member.isfile() or member.isdir()):
+            raise RuntimeError(
+                f"{archive} contains a non-regular member: {member.name!r}."
+            )
 
 
 def _require_members(members: list[str], required: set[str], archive: Path) -> None:
