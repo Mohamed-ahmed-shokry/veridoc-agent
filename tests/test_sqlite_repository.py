@@ -5,6 +5,7 @@ from decimal import Decimal
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from veridoc.persistence.migrations import LATEST_SCHEMA_VERSION
 from veridoc.persistence.protocol import ReferenceDataUnavailableError
@@ -67,6 +68,57 @@ def test_sqlite_repository_finds_duplicate_invoice_and_purchase_order(tmp_path) 
         repository.get_purchase_order("fictional-supplies", "PO-001") == purchase_order
     )
     assert repository.get_purchase_order("fictional-supplies", "PO-404") is None
+
+
+def test_legacy_repository_writes_canonicalize_vendor_keys(tmp_path) -> None:
+    repository = SQLiteInvoiceRepository(tmp_path / "reference-data.sqlite")
+    repository.initialize()
+    invoice = HistoricalInvoice(
+        vendor_key="Fictional Supplies",
+        invoice_number="INV-CANONICAL",
+    )
+    purchase_order = PurchaseOrder(
+        vendor_key="Fictional Supplies",
+        purchase_order_number="PO-CANONICAL",
+    )
+
+    repository.add_invoice(invoice)
+    repository.add_purchase_order(purchase_order)
+
+    stored_invoice = repository.find_invoice("fictional-supplies", "INV-CANONICAL")
+    stored_purchase_order = repository.get_purchase_order(
+        "fictional-supplies", "PO-CANONICAL"
+    )
+    assert stored_invoice is not None
+    assert stored_invoice.vendor_key == "fictional-supplies"
+    assert stored_purchase_order is not None
+    assert stored_purchase_order.vendor_key == "fictional-supplies"
+
+
+def test_legacy_repository_writes_reject_oversized_line_item_collections(
+    tmp_path,
+) -> None:
+    repository = SQLiteInvoiceRepository(tmp_path / "reference-data.sqlite")
+    repository.initialize()
+    line_items = [
+        ReferenceLineItem(description=f"Item {index}") for index in range(201)
+    ]
+
+    with pytest.raises(ValidationError, match="line_items"):
+        repository.add_invoice(
+            HistoricalInvoice(vendor_key="fictional-supplies", line_items=line_items)
+        )
+    with pytest.raises(ValidationError, match="line_items"):
+        repository.add_purchase_order(
+            PurchaseOrder(
+                vendor_key="fictional-supplies",
+                purchase_order_number="PO-TOO-LARGE",
+                line_items=line_items,
+            )
+        )
+
+    assert repository.list_vendor_invoices("fictional-supplies") == []
+    assert repository.get_purchase_order("fictional-supplies", "PO-TOO-LARGE") is None
 
 
 def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(

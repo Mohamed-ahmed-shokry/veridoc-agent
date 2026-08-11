@@ -58,12 +58,15 @@ class SQLiteInvoiceRepository:
 
     def add_invoice(self, invoice: HistoricalInvoice) -> None:
         """Persist one historical invoice and its line items."""
+        validated_invoice = InvoiceReferenceInput.model_validate(
+            invoice.model_dump()
+        ).to_domain()
         record_id = uuid4().hex
         timestamp = _timestamp()
         with self._connection() as connection:
             _insert_invoice(
                 connection,
-                invoice,
+                validated_invoice,
                 record_id=record_id,
                 source="application",
                 external_id=f"invoice-{record_id}",
@@ -165,12 +168,15 @@ class SQLiteInvoiceRepository:
 
     def add_purchase_order(self, purchase_order: PurchaseOrder) -> None:
         """Persist one purchase order and its line items."""
+        validated_purchase_order = PurchaseOrderReferenceInput.model_validate(
+            purchase_order.model_dump()
+        ).to_domain()
         record_id = uuid4().hex
         timestamp = _timestamp()
         with self._connection() as connection:
             _insert_purchase_order(
                 connection,
-                purchase_order,
+                validated_purchase_order,
                 record_id=record_id,
                 source="application",
                 external_id=f"purchase-order-{record_id}",
