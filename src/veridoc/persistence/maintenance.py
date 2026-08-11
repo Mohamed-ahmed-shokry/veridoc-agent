@@ -12,12 +12,10 @@ from veridoc.persistence.migrations import (
     UnsupportedSchemaVersionError,
     migrate,
 )
-from veridoc.persistence.protocol import ReferenceDataUnavailableError
 from veridoc.persistence.schema import (
     InvalidReferenceSchemaError,
     validate_current_schema,
 )
-from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 
 
 class ReferenceDataMaintenanceError(RuntimeError):
@@ -38,24 +36,30 @@ def backup_database(
     source = Path(database_path).resolve()
     destination = Path(destination_path).resolve()
     temporary: Path | None = None
+    validation_temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
         _require_no_live_sidecars(destination)
-        SQLiteInvoiceRepository(source).initialize()
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = _temporary_sibling(destination)
+        validation_temporary = _temporary_sibling(destination)
         with (
             closing(sqlite3.connect(source)) as source_connection,
             closing(sqlite3.connect(temporary)) as backup_connection,
         ):
             source_connection.backup(backup_connection)
             _validate_integrity(backup_connection)
-            validate_current_schema(backup_connection)
+            with closing(
+                sqlite3.connect(validation_temporary)
+            ) as validation_connection:
+                backup_connection.backup(validation_connection)
+                migrate(validation_connection)
+                _validate_integrity(validation_connection)
+                validate_current_schema(validation_connection)
         os.replace(temporary, destination)
     except (
         OSError,
         sqlite3.Error,
-        ReferenceDataUnavailableError,
         InvalidReferenceSchemaError,
         UnsupportedSchemaVersionError,
     ) as exc:
@@ -63,6 +67,8 @@ def backup_database(
     finally:
         if temporary is not None:
             temporary.unlink(missing_ok=True)
+        if validation_temporary is not None:
+            validation_temporary.unlink(missing_ok=True)
     return destination
 
 

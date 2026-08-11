@@ -54,6 +54,60 @@ def test_backup_creates_an_integrity_checked_independent_database(tmp_path) -> N
     ] == ["INV-001"]
 
 
+def test_backup_preserves_a_legacy_source_and_pre_upgrade_snapshot(tmp_path) -> None:
+    database_path = tmp_path / "legacy-reference-data.sqlite"
+    backup_path = tmp_path / "legacy-reference-data.backup.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            CREATE TABLE vendor_invoices (
+                id INTEGER PRIMARY KEY,
+                vendor_key TEXT NOT NULL,
+                invoice_number TEXT,
+                purchase_order_number TEXT,
+                invoice_date TEXT,
+                due_date TEXT,
+                currency TEXT,
+                subtotal TEXT,
+                tax TEXT,
+                discount TEXT,
+                total TEXT,
+                payment_terms TEXT
+            )
+            """
+        )
+        connection.execute(
+            """
+            INSERT INTO vendor_invoices (vendor_key, invoice_number)
+            VALUES ('fictional-supplies', 'INV-LEGACY')
+            """
+        )
+    original_source = database_path.read_bytes()
+
+    backup_database(database_path, backup_path)
+
+    assert database_path.read_bytes() == original_source
+    for path in (database_path, backup_path):
+        with sqlite3.connect(path) as connection:
+            table_names = {
+                row[0]
+                for row in connection.execute(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'"
+                )
+            }
+            columns = {
+                row[1]
+                for row in connection.execute("PRAGMA table_info(vendor_invoices)")
+            }
+        assert "schema_migrations" not in table_names
+        assert "record_id" not in columns
+
+    restored_path = tmp_path / "restored-reference-data.sqlite"
+    restore_database(backup_path, restored_path)
+    restored = _repository(restored_path)
+    assert restored.find_invoice("fictional-supplies", "INV-LEGACY") is not None
+
+
 def test_restore_atomically_replaces_target_and_migrates_the_backup(tmp_path) -> None:
     backup_path = tmp_path / "legacy-backup.sqlite"
     database_path = tmp_path / "reference-data.sqlite"
