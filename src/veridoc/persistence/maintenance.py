@@ -48,7 +48,7 @@ def backup_database(
         temporary = _temporary_sibling(destination)
         validation_temporary = _temporary_sibling(destination)
         with (
-            closing(sqlite3.connect(source)) as source_connection,
+            closing(_connect_existing(source)) as source_connection,
             closing(sqlite3.connect(temporary)) as backup_connection,
         ):
             source_connection.backup(backup_connection)
@@ -97,7 +97,7 @@ def restore_database(
         _require_no_live_sidecars(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = _temporary_sibling(destination)
-        with closing(sqlite3.connect(source)) as source_connection:
+        with closing(_connect_existing(source)) as source_connection:
             _validate_integrity(source_connection)
             with closing(sqlite3.connect(temporary)) as restore_connection:
                 source_connection.backup(restore_connection)
@@ -124,6 +124,10 @@ def restore_database(
 def _require_distinct_existing_source(source: Path, destination: Path) -> None:
     if source == destination or not source.is_file():
         raise ReferenceDataMaintenanceError
+
+
+def _connect_existing(database_path: Path) -> sqlite3.Connection:
+    return sqlite3.connect(f"{database_path.as_uri()}?mode=rw", uri=True)
 
 
 def _require_no_live_sidecars(database_path: Path) -> None:

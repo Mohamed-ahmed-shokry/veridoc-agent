@@ -435,6 +435,39 @@ def test_maintenance_rejects_missing_and_same_paths(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("operation", [backup_database, restore_database])
+def test_maintenance_does_not_recreate_a_source_removed_after_validation(
+    operation,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    source_repository = _repository(source_path)
+    _add_invoice(source_repository, "INV-SOURCE")
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_destination = destination_path.read_bytes()
+    require_source = maintenance._require_distinct_existing_source
+
+    def remove_source_after_validation(source: Path, destination: Path) -> None:
+        require_source(source, destination)
+        source.unlink()
+
+    monkeypatch.setattr(
+        maintenance,
+        "_require_distinct_existing_source",
+        remove_source_after_validation,
+    )
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        operation(source_path, destination_path)
+
+    assert not source_path.exists()
+    assert destination_path.read_bytes() == original_destination
+    assert list(tmp_path.glob(f".{destination_path.name}.*.tmp")) == []
+
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
 @pytest.mark.parametrize("sidecar_suffix", ["-wal", "-shm", "-journal"])
 def test_maintenance_rejects_destination_sidecars_without_replacement(
     operation,
