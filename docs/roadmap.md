@@ -196,19 +196,104 @@ identity and infrastructure remain Phase 10 concerns.
 
 ## Phase 10: deployment and operational security
 
-Candidate scope:
+Status: planned; not approved or implemented.
 
-- deployment target and container/base-image decision;
-- Tesseract language-data packaging and health/readiness behavior;
-- TLS termination, authentication enforcement, secret management, and rate
-  limits;
-- malware scanning and document quarantine boundaries;
-- database encryption, backup, recovery, and lifecycle controls; and
-- structured log/metric/trace export with privacy review.
+Goal: create one reproducible, security-reviewed deployment profile for the
+approved application scope. A container, manifest, or successful health check is
+not evidence of production readiness; the selected environment must demonstrate
+identity, transport, secret, storage, recovery, and privacy controls.
 
-No production-readiness claim is allowed merely because a container or cloud
-manifest exists. The deployment must demonstrate its security and recovery
-controls in the selected environment.
+Entry criteria:
+
+- explicit user approval for Phase 10 and either completion of Phase 9 or an
+  approved scope exception explaining why deployment precedes it;
+- an approved deployment-target and trust-boundary ADR identifying the runtime,
+  network edges, managed services, operator responsibilities, and regions;
+- a threat model and data classification covering documents, OCR, provider
+  requests, reference data, review records, logs, metrics, traces, and backups;
+- approved identity, TLS, secret-management, encryption, retention, malware
+  handling, and recovery policies; and
+- named owners for vulnerability response, credential rotation, backup drills,
+  and incident handling.
+
+Planned deliverables:
+
+- a reproducible runtime artifact with a pinned minimal base, non-root user,
+  explicit Tesseract language data, read-only application filesystem where
+  practical, and declared CPU/memory/temporary-storage limits;
+- separate liveness, readiness, and startup behavior that checks only the
+  dependencies appropriate to each signal and supports graceful shutdown;
+- TLS termination, authenticated processing/review access, authorization at
+  every protected boundary, bounded request concurrency, and rate limits;
+- external secret injection with rotation and revocation procedures and no
+  credentials in images, manifests, logs, or diagnostic responses;
+- malware scanning and quarantine before document decoding, with typed failure
+  behavior and an operator-controlled release/disposal workflow;
+- encrypted database and backup storage, least-privilege access, automated
+  retention, scheduled backups, verified restore drills, and recovery targets;
+- structured metrics, traces, and logs restricted to approved metadata, with
+  redaction tests and documented provider/data residency controls; and
+- deployment, rollback, incident, key-rotation, backup, restore, and disposal
+  runbooks tied to the chosen environment.
+
+Proposed implementation sequence after approval:
+
+1. Record the deployment/trust-boundary decision and threat model separately.
+2. Record identity/TLS, secrets, storage/recovery, malware, and observability
+   decisions as focused ADR commits.
+3. Add reproducible runtime packaging and a local container smoke test.
+4. Add explicit Tesseract language assets and startup validation.
+5. Add liveness, readiness, startup, and graceful-shutdown behavior in separate
+   commits with dependency-specific tests.
+6. Add processing/review authentication, then authorization policies, without
+   weakening the Phase 8 administration boundary.
+7. Add bounded concurrency and rate limiting with deterministic overload tests.
+8. Add the scanning/quarantine boundary before upload decoding.
+9. Move sensitive persistence to the selected encrypted storage profile and add
+   least-privilege credentials.
+10. Automate retention and backups, then verify restore and rollback drills.
+11. Add privacy-reviewed metrics, traces, and structured log export.
+12. Add artifact provenance, dependency/image scanning, and deployment-policy
+    validation to CI.
+13. Write the environment-specific operations and incident runbooks.
+14. Synchronize public limitations, architecture, security, testing, changelog,
+    README, and operating guidance.
+15. Run and record the complete Phase 10 deployment-security gate.
+
+Required verification:
+
+- deterministic image builds, package/archive gates, software inventory, and
+  vulnerability/policy scans for runtime and deployment artifacts;
+- tests proving unauthenticated or unauthorized requests fail before document,
+  provider, review, or storage work;
+- load and overload tests for byte, pixel, concurrency, rate, timeout, and
+  temporary-storage limits;
+- safe scanner failure, quarantine, release, retention, and disposal tests with
+  synthetic files only;
+- secret-leak and telemetry-redaction tests across responses, logs, metrics,
+  traces, crash paths, and support artifacts;
+- liveness/readiness/startup and graceful-shutdown tests during dependency loss;
+- encrypted backup, point-in-time or declared recovery, restore, rollback, key
+  rotation, and credential-revocation drills in the selected environment; and
+- a hosted deployment smoke that records exact artifact identity and environment
+  without sending real invoices or invoking unapproved providers.
+
+Exit criteria:
+
+- the selected deployment is reproducible from reviewed source and immutable
+  dependencies;
+- all exposed routes have documented authentication, authorization, rate, and
+  request-size controls;
+- secrets and sensitive data remain absent from artifacts and telemetry;
+- recovery objectives are stated and met by an observed restore drill;
+- rollback and incident procedures are executable by the named operators; and
+- evidence clearly says the deployment is a Phase 11 evaluation candidate, not
+  yet a production-ready service.
+
+Explicit non-goals: supporting multiple deployment targets, multi-region high
+availability, arbitrary OCR engines, customer onboarding, real-document use,
+accuracy certification, or a production go-live decision. Those either require
+separate approval or belong to Phase 11 evaluation.
 
 ## Phase 11: evaluation and readiness decision
 
