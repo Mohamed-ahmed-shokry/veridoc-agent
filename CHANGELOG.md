@@ -43,9 +43,9 @@ semantic versions for tagged releases.
   noncanonical rows to the safe reference-data availability boundary.
 - Fictional PDF fixtures suppress generated trailer IDs for reproducible bytes.
 - Distribution validation now requires Phase 8 modules and both console scripts.
-- Upload decoding/inspection, OCR, reference-import parsing, and SQLite import
-  work run outside async request loops, and validation completes before external
-  service construction.
+- Upload decoding/inspection, OCR, multimodal provider-payload encoding,
+  reference-import parsing, and SQLite import work run outside async request
+  loops, and validation completes before external service construction.
 - Invalid Tesseract language or timeout settings map to the typed, correlated
   `ocr_unavailable` response on every document endpoint.
 - First-time migrations and record updates acquire SQLite write locks before

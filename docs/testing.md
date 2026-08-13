@@ -193,8 +193,9 @@ extractor, including page-range and normalized OCR-span grounding.
 normalized page images into that graph.
 
 `test_openai_responses.py` uses a fake SDK client to verify structured parsing,
-OCR-text/image construction, deterministic OCR confidence, unavailable-provider
-mapping, and invalid-output mapping without credentials or network access.
+off-loop OCR-text/image payload construction, deterministic OCR confidence,
+unavailable-provider mapping, and invalid-output mapping without credentials or
+network access.
 
 `test_extraction_api.py` calls `/extract` through HTTPX's ASGI transport with
 fake OCR and extraction dependencies. It covers the typed evidence-linked
