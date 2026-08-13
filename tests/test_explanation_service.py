@@ -48,6 +48,14 @@ class UnavailableExplainer:
         raise ExplanationUnavailableError
 
 
+class MalformedExplainer:
+    """Mocked provider that violates the typed draft-result contract."""
+
+    async def explain(self, request: ExplanationRequest) -> object:
+        del request
+        return None
+
+
 def _verification() -> VerificationResult:
     return VerificationResult(
         findings=[
@@ -88,6 +96,8 @@ async def test_service_falls_back_when_provider_is_contradictory_or_unavailable(
     unavailable = await ExplanationService(UnavailableExplainer()).explain(
         _verification()
     )
+    malformed = await ExplanationService(MalformedExplainer()).explain(_verification())
 
     assert contradictory.explanations[0].source == "deterministic"
     assert unavailable.explanations[0].source == "deterministic"
+    assert malformed.explanations[0].source == "deterministic"

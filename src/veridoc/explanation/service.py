@@ -6,6 +6,7 @@ from veridoc.explanation.fallback import render_deterministic_explanations
 from veridoc.explanation.guardrails import validated_narratives
 from veridoc.explanation.models import ExplanationResult, FindingExplanation
 from veridoc.explanation.protocol import (
+    ExplanationDraftResult,
     ExplanationProcessingError,
     ExplanationRequest,
     ExplanationUnavailableError,
@@ -32,6 +33,8 @@ class ExplanationService:
         except (ExplanationUnavailableError, ExplanationProcessingError):
             return fallback
 
+        if not isinstance(drafts, ExplanationDraftResult):
+            return fallback
         narratives = validated_narratives(request, drafts)
         if narratives is None:
             return fallback
