@@ -28,6 +28,8 @@ semantic versions for tagged releases.
 - A configurable, validated per-page Tesseract timeout.
 - Central SQLite schema-invariant validation shared by repository startup,
   backup, and restore.
+- Pytest-enforced local Markdown link and documented test-module inventory
+  consistency checks.
 - Focused coverage for request-body limits, upload/dependency ordering,
   concurrent migrations, artifact safety, and uniform-history comparisons.
 
