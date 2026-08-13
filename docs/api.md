@@ -115,8 +115,9 @@ Status: `200 OK`
 
 `confidence` is an optional mean of Tesseract word confidences. It is not a
 calibrated probability and is not a verification verdict. It is `null` when the
-engine does not return usable confidence values. PDF page text is joined with
-a form-feed boundary in the top-level `text` value.
+engine does not return a finite value from 0 through 100. Malformed OCR engine
+page results are rejected with `ocr_processing_failed`. PDF page text is joined
+with a form-feed boundary in the top-level `text` value.
 
 ### Error responses
 
@@ -240,8 +241,9 @@ temporary-file lifetime are identical to `/ocr` and `/extract`.
 `/extract`. The current extraction and explanation adapters share those
 settings, so missing configuration fails the required extraction stage. After
 valid extraction configuration exists, explanation-provider unavailability or
-rejected guidance—including a provider timeout—falls back to deterministic explanations. `/process` also
-opens and initializes a local SQLite reference-data file:
+rejected or malformed guidance—including a provider timeout—falls back to
+deterministic explanations. `/process` also opens and initializes a local SQLite
+reference-data file:
 
 | Variable | Default | Purpose |
 | --- | --- | --- |

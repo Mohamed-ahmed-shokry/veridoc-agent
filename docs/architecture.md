@@ -125,6 +125,8 @@ the typed OCR result and one numbered in-memory PNG image per OCR page.
 `ExtractionRequest` rejects nonmatching page sequences. The graph's
 `ExtractionState` is a `TypedDict` with a required request and optional typed
 `InvoiceExtraction` output; no node exchanges a loose undocumented dictionary.
+The OCR boundary rejects malformed engine page results and retains only finite
+confidence values from 0 through 100 before computing its aggregate.
 
 The response supports invoice/purchase-order/unknown classification, nullable
 header fields, nullable line-item values, confidence values, evidence keyed by
@@ -166,7 +168,7 @@ The typed `ExplanationState` graph is `START -> explain -> END`. Its optional
 short action-oriented narrative. The service accepts a provider result only
 when it covers every finding exactly once and contains no numeric, comparative,
 or negated factual claim. Otherwise, including provider unavailability or
-invalid structured output, it returns the deterministic explanation instead.
+malformed structured output, it returns the deterministic explanation instead.
 
 ## Typed complete processing flow
 

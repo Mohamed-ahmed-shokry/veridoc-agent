@@ -58,7 +58,7 @@ semantic versions for tagged releases.
   deterministically after dependency teardown.
 - Extraction and explanation provider calls have a bounded 120-second
   application deadline; extraction maps expiry to `extraction_unavailable` and
-  explanation expiry uses deterministic fallback guidance.
+  explanation expiry or malformed drafts use deterministic fallback guidance.
 - Invalid Tesseract language or timeout settings map to the typed, correlated
   `ocr_unavailable` response on every document endpoint.
 - First-time migrations and record updates acquire SQLite write locks before
@@ -95,8 +95,9 @@ semantic versions for tagged releases.
 - Document/import multipart bodies are bounded before parsing, including under
   ASGI mounts or root paths; PDFs have a cumulative raster-pixel limit;
   normalized vision inputs enforce an aggregate byte limit during PNG encoding;
-  Tesseract execution is time-bounded; and invalid OCR confidence values are
-  excluded from aggregates.
+  Tesseract execution is time-bounded; malformed OCR engine results use the
+  safe processing error; and invalid OCR confidence values are excluded from
+  aggregates.
 - PDF open, page-decoding, and geometry failures use the safe malformed-document
   response and still close the decoder document.
 - Extracted decimals are bounded before arithmetic, while evidence pages and OCR
