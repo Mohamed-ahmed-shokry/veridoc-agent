@@ -99,8 +99,8 @@ runtime implementation remains deliberately small:
   versions, and critical routes for isolated wheel and source-distribution
   installs.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
-- `tests/test_documentation.py` validates local Markdown link targets as part of
-  the ordinary pytest gate.
+- `tests/test_documentation.py` validates local Markdown link targets and the
+  exact documented test-module inventory as part of the ordinary pytest gate.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible

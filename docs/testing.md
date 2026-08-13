@@ -80,7 +80,7 @@ tests/
 ├── test_request_context.py          safe correlation header and request logs
 ├── test_review_page.py              local review-interface route
 ├── test_distribution_check.py       release archive safety checks
-├── test_documentation.py            local Markdown link consistency
+├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
 ```
 
