@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 from openai import APIError, AsyncOpenAI
@@ -23,6 +24,7 @@ statistic. Do not make comparative or negated factual claims. Do not restate the
 verified evidence. The application attaches all factual and numerical context after
 your guidance. Use only the supplied verified findings and do not invent facts.
 """
+_PROVIDER_CALL_TIMEOUT_SECONDS = 120.0
 
 
 class OpenAIResponsesExplainer:
@@ -41,13 +43,16 @@ class OpenAIResponsesExplainer:
     async def explain(self, request: ExplanationRequest) -> ExplanationDraftResult:
         """Return structured explanation drafts without exposing provider failures."""
         try:
-            response = await self._client.responses.parse(
-                model=self._settings.model,
-                instructions=_INSTRUCTIONS,
-                input=_build_response_input(request),
-                text_format=ExplanationDraftResult,
-                store=False,
-            )
+            async with asyncio.timeout(_PROVIDER_CALL_TIMEOUT_SECONDS):
+                response = await self._client.responses.parse(
+                    model=self._settings.model,
+                    instructions=_INSTRUCTIONS,
+                    input=_build_response_input(request),
+                    text_format=ExplanationDraftResult,
+                    store=False,
+                )
+        except TimeoutError as exc:
+            raise ExplanationUnavailableError from exc
         except APIError as exc:
             raise ExplanationUnavailableError from exc
         except (TypeError, ValidationError, ValueError) as exc:
