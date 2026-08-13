@@ -7,8 +7,9 @@ reference persistence, deterministic verification services, and an internal
 evidence-grounded explanation layer. `POST /process` now orchestrates those
 stages into a typed final response and `GET /review` provides a minimal local
 review page. Phase 8 adds bearer-token-protected local reference-data CRUD and
-bounded atomic import plus offline backup/restore. User identities, roles,
-review records, and production deployment controls remain later work.
+bounded atomic import plus online backup and stopped-service atomic restore.
+User identities, roles, review records, and production deployment controls
+remain later work.
 
 ## System boundary
 
