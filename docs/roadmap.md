@@ -131,6 +131,10 @@ Planned deliverables:
   implementation isolated from reference-data repository interfaces;
 - immutable storage of the complete processing result plus its schema version,
   creation time, correlation identifier, and content digest;
+- a trusted creation boundary that accepts a bounded document and idempotency
+  key, runs the approved processing pipeline server-side, and atomically stores
+  its result with the initial `case_created` event; clients cannot submit or
+  replace canonical extraction, finding, explanation, or verdict fields;
 - an explicit state machine for unassigned, assigned, decided, and escalated
   cases, with authorized transitions and required reason text;
 - authenticated, bounded APIs for case creation, list/detail views, assignment,
@@ -150,7 +154,8 @@ verified concern per commit:
 4. Add the `ReviewRepository` protocol and typed conflict/unavailable errors.
 5. Add one migration for review cases and immutable processing snapshots.
 6. Add one migration for append-only events and required indexes.
-7. Implement case creation and retrieval with digest verification.
+7. Implement idempotent case creation from server-produced processing results,
+   with digest verification and the initial event in one transaction.
 8. Implement assignment with optimistic concurrency.
 9. Implement decisions and escalation with append-only event creation in the
    same transaction.
@@ -172,6 +177,8 @@ Required verification:
   case contents;
 - transaction and race tests for duplicate creation, concurrent assignment,
   repeated decisions, stale versions, and event ordering;
+- boundary tests proving retries return the original case while client-supplied
+  canonical processing fields are rejected before persistence;
 - persistence tests proving stored processing snapshots and prior audit events
   cannot be updated through supported interfaces;
 - malformed-row, migration, backup, restore, and retention-policy tests using
@@ -183,7 +190,8 @@ Exit criteria:
 
 - every review decision is attributable to an authenticated actor and linked to
   an immutable processing snapshot;
-- every state change creates a durable ordered event in the same transaction;
+- case creation and every later state change create durable ordered events in
+  their respective transactions;
 - concurrency conflicts fail safely without lost updates or duplicate events;
 - retention and recovery behavior is documented and verified locally; and
 - release evidence states the limits of the chosen local identity and storage
