@@ -98,31 +98,37 @@ class RequestBodyLimitMiddleware:
             await _send_body_too_large(scope, receive, send, code, message)
             return
 
-        messages: list[Message] = []
-        received_bytes = 0
+        body = bytearray()
+        received_request = False
+        disconnected = False
         while True:
             incoming = await receive()
-            messages.append(incoming)
             if incoming["type"] == "http.disconnect":
+                disconnected = True
                 break
             if incoming["type"] != "http.request":
                 continue
-            received_bytes += len(incoming.get("body", b""))
-            if received_bytes > maximum_bytes:
+            received_request = True
+            body.extend(incoming.get("body", b""))
+            if len(body) > maximum_bytes:
                 await _send_body_too_large(scope, receive, send, code, message)
                 return
             if not incoming.get("more_body", False):
                 break
 
-        index = 0
+        replay_body = bytes(body)
+        replayed = False
 
         async def replay_receive() -> Message:
-            nonlocal index
-            if index >= len(messages):
-                return {"type": "http.disconnect"}
-            message_to_replay = messages[index]
-            index += 1
-            return message_to_replay
+            nonlocal replayed
+            if received_request and not replayed:
+                replayed = True
+                return {
+                    "type": "http.request",
+                    "body": replay_body,
+                    "more_body": disconnected,
+                }
+            return {"type": "http.disconnect"}
 
         await self._app(scope, replay_receive, send)
 

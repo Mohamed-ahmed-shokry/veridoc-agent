@@ -9,7 +9,7 @@ import pytest
 from fastapi import FastAPI
 
 from veridoc.administration.api import require_admin
-from veridoc.app import app, get_ocr_engine
+from veridoc.app import RequestBodyLimitMiddleware, app, get_ocr_engine
 
 
 @pytest.fixture
@@ -267,3 +267,48 @@ async def test_streamed_oversized_admin_json_is_rejected_before_authentication(
     assert response.json()["detail"]["code"] == "reference_data_request_too_large"
     assert response.headers["X-Request-ID"] == "streamed-admin-json-limit"
     assert authentication_resolved is False
+
+
+@pytest.mark.anyio
+async def test_request_body_limit_middleware_replays_fragmented_body_once() -> None:
+    received: list[dict[str, object]] = []
+    sent: list[dict[str, object]] = []
+    fragments = [
+        {"type": "http.request", "body": b"x", "more_body": True} for _ in range(64)
+    ]
+    fragments.append({"type": "http.request", "body": b"", "more_body": False})
+
+    async def receive() -> dict[str, object]:
+        return fragments.pop(0)
+
+    async def send(message: dict[str, object]) -> None:
+        sent.append(message)
+
+    async def downstream(scope: dict[str, object], receive, send) -> None:
+        del scope
+        received.append(await receive())
+        received.append(await receive())
+        await send({"type": "http.response.start", "status": 204, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    middleware = RequestBodyLimitMiddleware(downstream)
+    await middleware(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/ocr",
+            "root_path": "",
+            "headers": [],
+        },
+        receive,
+        send,
+    )
+
+    assert received == [
+        {"type": "http.request", "body": b"x" * 64, "more_body": False},
+        {"type": "http.disconnect"},
+    ]
+    assert sent == [
+        {"type": "http.response.start", "status": 204, "headers": []},
+        {"type": "http.response.body", "body": b""},
+    ]
