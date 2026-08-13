@@ -21,6 +21,8 @@ from veridoc.persistence.sqlite import (
     validate_persisted_reference_data,
 )
 
+_SIDECAR_SUFFIXES = ("-wal", "-shm", "-journal")
+
 
 class ReferenceDataMaintenanceError(RuntimeError):
     """Raised when backup or restore cannot complete without data risk."""
@@ -43,6 +45,7 @@ def backup_database(
     validation_temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
+        _require_destination_not_source_sidecar(source, destination)
         _require_no_live_sidecars(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = _temporary_sibling(destination)
@@ -94,6 +97,7 @@ def restore_database(
     temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
+        _require_destination_not_source_sidecar(source, destination)
         _require_no_live_sidecars(source)
         _require_no_live_sidecars(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -131,8 +135,13 @@ def _connect_existing(database_path: Path) -> sqlite3.Connection:
     return sqlite3.connect(f"{database_path.as_uri()}?mode=rw", uri=True)
 
 
+def _require_destination_not_source_sidecar(source: Path, destination: Path) -> None:
+    if destination in {Path(f"{source}{suffix}") for suffix in _SIDECAR_SUFFIXES}:
+        raise ReferenceDataMaintenanceError
+
+
 def _require_no_live_sidecars(database_path: Path) -> None:
-    for suffix in ("-wal", "-shm", "-journal"):
+    for suffix in _SIDECAR_SUFFIXES:
         if Path(f"{database_path}{suffix}").exists():
             raise ReferenceDataMaintenanceError
 
