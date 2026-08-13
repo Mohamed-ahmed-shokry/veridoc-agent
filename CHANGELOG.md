@@ -30,6 +30,7 @@ semantic versions for tagged releases.
   backup, and restore.
 - Pytest-enforced local Markdown link and documented test-module inventory
   consistency checks.
+- The project now requires the validated uv 0.9.13 toolchain locally and in CI.
 - Focused coverage for request-body limits, upload/dependency ordering,
   concurrent migrations, artifact safety, and uniform-history comparisons.
 
