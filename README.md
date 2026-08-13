@@ -179,8 +179,10 @@ than fabricating missing data. Extracted quantities and amounts are limited to
 24 digits with at most 6 decimal places. Every evidence page must exist, and a
 supplied OCR text span must occur on that page after Unicode, case, and
 whitespace normalization. Normalized page images are limited to 32 MiB in
-aggregate before provider input. See the [API guide](docs/api.md) for the
-complete schema, limits, and error responses.
+aggregate before provider input. Each extraction or explanation provider call
+has a fixed 120-second application deadline; extraction expiry returns a safe
+503 and explanation expiry falls back to deterministic guidance. See the [API
+guide](docs/api.md) for the complete schema, limits, and error responses.
 
 ## Complete processing and review
 
