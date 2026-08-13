@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+from asyncio import to_thread
 
 from openai import APIError, AsyncOpenAI
 from openai.types.responses import ResponseInputContentParam, ResponseInputParam
@@ -38,10 +39,11 @@ class OpenAIResponsesExtractor:
     async def extract(self, request: ExtractionRequest) -> InvoiceExtraction:
         """Extract one invoice without exposing provider failures to callers."""
         try:
+            response_input = await to_thread(_build_response_input, request)
             response = await self._client.responses.parse(
                 model=self._settings.model,
                 instructions=_INSTRUCTIONS,
-                input=_build_response_input(request),
+                input=response_input,
                 text_format=InvoiceExtraction,
                 store=False,
             )

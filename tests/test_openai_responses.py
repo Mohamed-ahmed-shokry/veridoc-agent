@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from types import SimpleNamespace
 from typing import Any
 
@@ -9,6 +10,7 @@ import httpx
 import pytest
 from openai import APIConnectionError
 
+from veridoc.extraction import openai_responses
 from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.openai_responses import OpenAIResponsesExtractor
@@ -85,6 +87,33 @@ async def test_adapter_sends_ocr_and_page_images_and_preserves_ocr_confidence() 
         "image_url": "data:image/png;base64,ZmljdGlvbmFsLWltYWdl",
         "detail": "high",
     }
+
+
+@pytest.mark.anyio
+async def test_adapter_builds_multimodal_input_off_the_event_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    event_loop_thread = threading.get_ident()
+    builder_thread: int | None = None
+    expected_input = [{"role": "user", "content": []}]
+
+    def build_response_input(request: ExtractionRequest) -> Any:
+        nonlocal builder_thread
+        builder_thread = threading.get_ident()
+        assert request == _request()
+        return expected_input
+
+    monkeypatch.setattr(openai_responses, "_build_response_input", build_response_input)
+    client = _FakeClient(
+        SimpleNamespace(output_parsed=InvoiceExtraction(document_type="invoice"))
+    )
+    extractor = OpenAIResponsesExtractor(_settings(), client=client)  # type: ignore[arg-type]
+
+    await extractor.extract(_request())
+
+    assert builder_thread is not None
+    assert builder_thread != event_loop_thread
+    assert client.responses.calls[0]["input"] is expected_input
 
 
 @pytest.mark.anyio
