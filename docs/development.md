@@ -391,9 +391,10 @@ Restore validates the source, copies it to a temporary sibling database,
 applies supported migrations, validates database and foreign-key integrity plus
 the required schema structure and every persisted row before the migration
 transaction commits, and then atomically replaces the configured database. It
-refuses active `-wal`, `-shm`, or `-journal` sidecars; stop the process cleanly
-before retrying. A failed restore leaves the existing database unchanged. Keep
-backups outside the repository and protect them as reference data.
+refuses active `-wal`, `-shm`, or `-journal` sidecars next to either the source
+backup or destination; stop the source service cleanly before taking or
+restoring a backup. A failed restore leaves the existing database unchanged.
+Keep backups outside the repository and protect them as reference data.
 
 ## Operational guidance
 

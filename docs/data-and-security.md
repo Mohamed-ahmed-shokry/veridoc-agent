@@ -214,9 +214,9 @@ rejects triggers on managed tables and hydrates every fact, metadata field, and
 attached line item through the bounded persistence models. The command atomically
 publishes the original snapshot only after those checks, preserving the source
 schema version.
-Backup and restore destinations must have no live WAL, SHM, or rollback-journal
-sidecar. Restore additionally requires a stopped service, explicit
-`--confirm-replace`, and a valid source backup. It validates
+Backup destinations and both restore inputs and destinations must have no live
+WAL, SHM, or rollback-journal sidecar. Restore additionally requires a stopped
+service, explicit `--confirm-replace`, and a valid source backup. It validates
 the same database structure and persisted-row semantics on a temporary sibling
 copy before atomically replacing the configured database, so a failed restore
 leaves the existing database unchanged. Store backups outside the repository
