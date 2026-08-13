@@ -94,6 +94,7 @@ def restore_database(
     temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
+        _require_no_live_sidecars(source)
         _require_no_live_sidecars(destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary = _temporary_sibling(destination)

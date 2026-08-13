@@ -490,3 +490,28 @@ def test_maintenance_rejects_destination_sidecars_without_replacement(
 
     assert destination_path.read_bytes() == original_destination
     assert sidecar_path.exists()
+
+
+@pytest.mark.parametrize("sidecar_suffix", ["-wal", "-shm", "-journal"])
+def test_restore_rejects_source_sidecars_without_replacement(
+    sidecar_suffix: str,
+    tmp_path,
+) -> None:
+    backup_path = tmp_path / "source.sqlite"
+    backup_repository = _repository(backup_path)
+    _add_invoice(backup_repository, "INV-SOURCE")
+    database_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(database_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_source = backup_path.read_bytes()
+    original_destination = database_path.read_bytes()
+    sidecar_path = Path(f"{backup_path}{sidecar_suffix}")
+    sidecar_path.touch()
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        restore_database(backup_path, database_path)
+
+    assert backup_path.read_bytes() == original_source
+    assert database_path.read_bytes() == original_destination
+    assert sidecar_path.exists()
+    assert list(tmp_path.glob(f".{database_path.name}.*.tmp")) == []
