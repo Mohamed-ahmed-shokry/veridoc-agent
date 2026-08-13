@@ -10,6 +10,7 @@ from typing import Annotated, Literal
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
 from starlette.middleware.base import RequestResponseEndpoint
@@ -228,6 +229,23 @@ def _request_id(supplied_value: str | None) -> str:
     if supplied_value and _REQUEST_ID_PATTERN.fullmatch(supplied_value):
         return supplied_value
     return uuid4().hex
+
+
+@app.exception_handler(RequestValidationError)
+async def handle_request_validation_error(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    """Return a safe request-validation error without echoing submitted data."""
+    del request, exc
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "code": "invalid_request",
+                "message": "The request is invalid.",
+            }
+        },
+    )
 
 
 @app.exception_handler(ExtractionUnavailableError)

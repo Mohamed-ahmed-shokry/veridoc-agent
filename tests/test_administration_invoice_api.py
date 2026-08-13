@@ -217,6 +217,32 @@ async def test_invoice_admin_returns_safe_conflict_and_validation_errors(
 
 
 @pytest.mark.anyio
+async def test_invoice_admin_validation_errors_do_not_expose_request_data(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    sensitive_value = "fictional-sensitive-reference-value"
+    request_id = "safe-invalid-request"
+    async with _client(repository) as client:
+        response = await client.post(
+            "/admin/reference-data/invoices",
+            headers={**_AUTHORIZATION, "X-Request-ID": request_id},
+            json={"unrecognized": sensitive_value},
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": {
+            "code": "invalid_request",
+            "message": "The request is invalid.",
+        }
+    }
+    assert sensitive_value not in response.text
+    assert response.headers["X-Request-ID"] == request_id
+
+
+@pytest.mark.anyio
 async def test_invoice_admin_rejects_an_offset_beyond_sqlite_range(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
