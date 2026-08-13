@@ -16,6 +16,7 @@ _DIST_DIRECTORY = Path("dist")
 _SENSITIVE_SUFFIXES = {".db", ".key", ".pem", ".sqlite", ".sqlite3"}
 _REQUIRED_RUNTIME_FILES = {
     "__init__.py",
+    "__main__.py",
     "administration/api.py",
     "administration/cli.py",
     "app.py",

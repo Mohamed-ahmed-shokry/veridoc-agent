@@ -90,6 +90,7 @@ def test_distribution_check_rejects_special_source_members(
 def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:
     required = _required_package_members("veridoc")
 
+    assert "veridoc/__main__.py" in required
     assert "veridoc/administration/api.py" in required
     assert "veridoc/administration/cli.py" in required
     assert "veridoc/persistence/migrations.py" in required
