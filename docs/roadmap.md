@@ -115,15 +115,18 @@ canonical findings, explanations, or the deterministic verdict.
 Entry criteria:
 
 - explicit user approval for Phase 9 after a fresh Phase 0-8 release gate;
+- synthetic data only until the later deployment and privacy controls are
+  approved.
+
+Mandatory design gates before schema, API, or UI implementation:
+
 - an approved actor/authentication ADR covering identity, session or token
   lifecycle, roles, and authorization checks;
 - an approved review-record ADR covering immutable snapshots, status
   transitions, reason requirements, optimistic concurrency, idempotency, and
   the review-store topology and recovery boundary;
 - an approved retention ADR covering review records, audit events, deletion,
-  legal holds, and backup interaction; and
-- synthetic data only until the later deployment and privacy controls are
-  approved.
+  legal holds, and backup interaction.
 
 Planned deliverables:
 
