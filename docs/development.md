@@ -8,7 +8,7 @@ unimplemented.
 ## Prerequisites
 
 - Git
-- [uv](https://docs.astral.sh/uv/)
+- [uv](https://docs.astral.sh/uv/) 0.9.13 (required by `pyproject.toml`)
 - a platform supported by Python 3.12
 - Tesseract OCR executable and trained data for local OCR requests
 - an OpenAI API key and a current vision-capable Responses API model for
@@ -24,6 +24,8 @@ uv python install 3.12
 ```
 
 Do not create or manage this project with pip, Conda, Poetry, or Pipenv.
+The repository requires uv 0.9.13 so local resolution matches the pinned CI
+toolchain.
 
 ## Environment setup
 
