@@ -31,6 +31,8 @@ def build_extraction_graph(
     async def extract(state: ExtractionState) -> dict[str, InvoiceExtraction]:
         request = state["request"]
         extraction = await extractor.extract(request)
+        if not isinstance(extraction, InvoiceExtraction):
+            raise ExtractionProcessingError
         if not _evidence_is_grounded(extraction, request):
             raise ExtractionProcessingError
         return {"extraction": extraction}

@@ -71,6 +71,12 @@ class _InvalidExtractor:
         raise ExtractionProcessingError
 
 
+class _MalformedExtractor:
+    async def extract(self, request: ExtractionRequest) -> object:
+        del request
+        return None
+
+
 async def _post_file(extractor: Any) -> httpx.Response:
     app.dependency_overrides[get_ocr_engine] = _FakeOCREngine
     app.dependency_overrides[get_structured_extractor] = lambda: extractor
@@ -156,6 +162,7 @@ async def test_extract_endpoint_reports_missing_provider_configuration_safely(
     [
         (_UnavailableExtractor(), 503, "extraction_unavailable"),
         (_InvalidExtractor(), 422, "extraction_processing_failed"),
+        (_MalformedExtractor(), 422, "extraction_processing_failed"),
     ],
 )
 async def test_extract_endpoint_returns_safe_provider_errors(

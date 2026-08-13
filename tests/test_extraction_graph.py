@@ -26,6 +26,12 @@ class _FakeExtractor:
         )
 
 
+class _MalformedExtractor:
+    async def extract(self, request: ExtractionRequest) -> object:
+        del request
+        return None
+
+
 @pytest.mark.anyio
 async def test_graph_runs_the_typed_extraction_node() -> None:
     extractor = _FakeExtractor()
@@ -43,6 +49,21 @@ async def test_graph_runs_the_typed_extraction_node() -> None:
     assert extractor.requests == [request]
     assert result["extraction"].invoice_number == "INV-001"
     assert result["extraction"].ocr_confidence == 92.0
+
+
+@pytest.mark.anyio
+async def test_graph_rejects_malformed_extractor_results() -> None:
+    graph = build_extraction_graph(_MalformedExtractor())
+    request = ExtractionRequest(
+        document=OCRDocumentResult(
+            media_type="image/png",
+            pages=(OCRPageResult(text="Invoice INV-001", confidence=92.0),),
+        ),
+        page_images=(RenderedPage(page_number=1, image_bytes=b"image"),),
+    )
+
+    with pytest.raises(ExtractionProcessingError):
+        await graph.ainvoke({"request": request})
 
 
 @pytest.mark.anyio
