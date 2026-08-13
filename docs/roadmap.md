@@ -145,7 +145,11 @@ Planned deliverables:
 - authenticated, bounded APIs for case creation, list/detail views, assignment,
   and decisions, with version preconditions preventing lost updates;
 - a review UI that renders canonical evidence safely and submits decisions
-  without changing canonical processing facts; and
+  without changing canonical processing facts, using an explicitly selected
+  credential transport with expiry and logout; cookie-based sessions require
+  `HttpOnly`, `Secure`, and `SameSite` controls plus CSRF and origin validation,
+  and no credential may be embedded or stored in browser `localStorage` or
+  `sessionStorage`; and
 - backup/restore, migration, retention, and operational documentation for the
   new review store.
 
@@ -169,8 +173,9 @@ verified concern per commit:
     resolution.
 11. Add one bounded API group at a time: create/list/detail, assignment, then
     decisions.
-12. Extend the review UI for authenticated case work without embedding secrets
-    or trusting provider prose.
+12. Extend the review UI for authenticated case work with the approved session,
+    CSRF/origin, expiry, and logout behavior, without embedding secrets or
+    trusting provider prose.
 13. Extend maintenance validation and backup/restore for review data.
 14. Synchronize API, architecture, security, development, testing, changelog,
     README, and operating guidance.
@@ -181,6 +186,8 @@ Required verification:
 - model and state-machine tests for every allowed and forbidden transition;
 - authorization tests proving rejected actors cannot resolve storage or learn
   case contents;
+- browser tests covering login/session transport, CSRF and origin rejection,
+  expiry, logout, and the absence of credentials in rendered or stored content;
 - transaction and race tests for duplicate creation, concurrent assignment,
   repeated decisions, stale versions, and event ordering;
 - boundary tests proving retries return the original case while client-supplied
