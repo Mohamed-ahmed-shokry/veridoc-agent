@@ -3,6 +3,8 @@
 from importlib.metadata import distribution
 
 import veridoc
+from veridoc.__main__ import main as api_main
+from veridoc.administration.cli import main as reference_main
 from veridoc.app import app
 
 _EXPECTED_SCRIPTS = {
@@ -35,6 +37,8 @@ def main() -> None:
 
     assert installed.version == veridoc.__version__ == app.version
     assert scripts == _EXPECTED_SCRIPTS
+    assert callable(api_main)
+    assert callable(reference_main)
     assert _REQUIRED_SCHEMA_PATHS <= schema_paths
     assert "/review" in runtime_paths
 

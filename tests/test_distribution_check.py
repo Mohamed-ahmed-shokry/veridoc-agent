@@ -16,7 +16,7 @@ from scripts.check_distribution import (
     _require_members,
     _required_package_members,
 )
-from scripts.smoke_distribution import _REQUIRED_SCHEMA_PATHS
+from scripts.smoke_distribution import _REQUIRED_SCHEMA_PATHS, api_main, reference_main
 
 
 @pytest.mark.parametrize(
@@ -119,3 +119,8 @@ def test_distribution_smoke_requires_all_administration_route_families() -> None
         "/admin/reference-data/purchase-orders/{record_id}",
         "/admin/reference-data/import",
     } <= _REQUIRED_SCHEMA_PATHS
+
+
+def test_distribution_smoke_imports_both_console_targets() -> None:
+    assert callable(api_main)
+    assert callable(reference_main)
