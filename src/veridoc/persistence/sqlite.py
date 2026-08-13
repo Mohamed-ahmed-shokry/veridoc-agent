@@ -841,6 +841,8 @@ def _line_items_from_rows(
         f"SELECT * FROM {table_name} WHERE {parent_column} = ? ORDER BY position",
         (parent_id,),
     ).fetchall()
+    if [row["position"] for row in rows] != list(range(len(rows))):
+        raise InvalidPersistedReferenceDataError
     return [
         ReferenceLineItem(
             description=row["description"],

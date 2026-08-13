@@ -274,6 +274,35 @@ def test_persisted_reference_validator_rejects_invalid_children_and_restores_fac
         assert connection.row_factory is original_row_factory
 
 
+@pytest.mark.parametrize("position", [-1, 2])
+def test_repository_rejects_noncanonical_persisted_line_item_positions(
+    position: int, tmp_path
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-NONCANONICAL-POSITION",
+            line_items=[ReferenceLineItem(quantity="2")],
+        )
+    )
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO invoice_line_items (invoice_id, position)
+            SELECT id, ? FROM vendor_invoices WHERE invoice_number = ?
+            """,
+            (position, "INV-NONCANONICAL-POSITION"),
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError) as error:
+        repository.find_invoice("fictional-supplies", "INV-NONCANONICAL-POSITION")
+
+    assert isinstance(error.value.__cause__, InvalidPersistedReferenceDataError)
+
+
 def test_sqlite_repository_maps_sqlite_errors_to_a_safe_boundary_error(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

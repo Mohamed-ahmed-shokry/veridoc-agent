@@ -53,6 +53,26 @@ def _corrupt_invoice_line_item(path: Path, repository: SQLiteInvoiceRepository) 
         connection.execute("UPDATE invoice_line_items SET quantity = 'not-a-decimal'")
 
 
+def _add_noncanonical_invoice_line_item_position(
+    path: Path, repository: SQLiteInvoiceRepository, position: int
+) -> None:
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-NONCANONICAL-POSITION",
+            line_items=[ReferenceLineItem(quantity="2")],
+        )
+    )
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            """
+            INSERT INTO invoice_line_items (invoice_id, position)
+            SELECT id, ? FROM vendor_invoices WHERE invoice_number = ?
+            """,
+            (position, "INV-NONCANONICAL-POSITION"),
+        )
+
+
 def test_backup_creates_an_integrity_checked_independent_database(tmp_path) -> None:
     database_path = tmp_path / "reference-data.sqlite"
     backup_path = tmp_path / "backups" / "reference-data.backup.sqlite"
@@ -422,6 +442,31 @@ def test_restore_rejects_semantic_corruption_without_replacement(tmp_path) -> No
     assert backup_path.read_bytes() == original_source
     assert database_path.read_bytes() == original_destination
     assert list(tmp_path.glob(f".{database_path.name}.*.tmp")) == []
+
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+@pytest.mark.parametrize("position", [-1, 2])
+def test_maintenance_rejects_noncanonical_line_item_positions(
+    operation, position: int, tmp_path
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    source_repository = _repository(source_path)
+    _add_noncanonical_invoice_line_item_position(
+        source_path, source_repository, position
+    )
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_source = source_path.read_bytes()
+    original_destination = destination_path.read_bytes()
+
+    with pytest.raises(ReferenceDataMaintenanceError) as error:
+        operation(source_path, destination_path)
+
+    assert isinstance(error.value.__cause__, InvalidPersistedReferenceDataError)
+    assert source_path.read_bytes() == original_source
+    assert destination_path.read_bytes() == original_destination
+    assert list(tmp_path.glob(f".{destination_path.name}.*.tmp")) == []
 
 
 def test_maintenance_rejects_missing_and_same_paths(tmp_path) -> None:
