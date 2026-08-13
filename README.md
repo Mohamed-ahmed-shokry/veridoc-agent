@@ -80,6 +80,13 @@ shell:
 ```powershell
 $env:OPENAI_API_KEY = "replace-with-your-key"
 $env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
+```
+
+Configure the local reference database separately for processing,
+administration, and maintenance. The administration token is required only for
+`/admin/reference-data/*` routes:
+
+```powershell
 $env:VERIDOC_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
 $env:VERIDOC_ADMIN_TOKEN = "replace-with-a-random-token-at-least-32-characters"
 ```
