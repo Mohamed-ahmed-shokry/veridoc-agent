@@ -40,6 +40,8 @@ semantic versions for tagged releases.
   SQLite connections explicitly.
 - Administration canonicalizes vendor keys consistently across stored records
   and invoice or purchase-order list filters.
+- Verification falls back to a usable vendor name when an extracted vendor
+  identifier cannot be normalized, preserving repository-backed checks.
 - Every repository write path applies the same canonical vendor-key and bounded
   record schema before persisting reference facts.
 - Repository reads revalidate stored facts and metadata, mapping malformed or
