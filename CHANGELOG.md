@@ -8,6 +8,9 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Detailed, approval-gated implementation plans for candidate Phases 9 through
+  11, including entry criteria, atomic delivery order, verification, and exit
+  criteria.
 - Phase 7 roadmap and explicit approval boundaries for later candidate phases.
 - Strict mypy checks for the production package.
 - A 90% branch-aware coverage floor, established from a 93.35% baseline.
