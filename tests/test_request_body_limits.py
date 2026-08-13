@@ -24,6 +24,8 @@ def anyio_backend() -> str:
     [
         ("/ocr", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
         ("/ocr/", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
+        ("/extract/", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
+        ("/process/", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
         (
             "/admin/reference-data/import",
             "MAX_ADMIN_IMPORT_REQUEST_BYTES",
