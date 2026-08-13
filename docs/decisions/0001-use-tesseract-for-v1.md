@@ -1,7 +1,8 @@
 # ADR 0001: Use Tesseract as the Version 1 OCR Baseline
 
-- Status: Accepted
-- Date: 2026-08-01
+## Status
+
+Accepted on 2026-08-01.
 
 ## Context
 
@@ -25,7 +26,11 @@ install the Arabic trained data and set `TESSERACT_LANG=eng+ara`.
 - A direct subprocess wrapper: would avoid the Python adapter but would spread
   executable and output parsing concerns beyond the typed OCR boundary.
 
-## Limitations
+## Consequences
+
+The typed OCR boundary keeps Tesseract replaceable and lets tests use
+deterministic engines without an installed executable. Runtime environments
+must install and maintain the executable and every required language data file.
 
 Tesseract is sensitive to scan quality, skew, font choice, and page layout. It
 does not provide document understanding or invoice field extraction. Word-level
