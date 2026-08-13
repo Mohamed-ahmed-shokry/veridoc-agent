@@ -215,14 +215,16 @@ attached line item through the bounded persistence models. The command atomicall
 publishes the original snapshot only after those checks, preserving the source
 schema version.
 Backup destinations and both restore inputs and destinations must have no live
-WAL, SHM, or rollback-journal sidecar. Restore additionally requires a stopped
-service, explicit `--confirm-replace`, and a valid source backup. It validates
-the same database structure and persisted-row semantics on a temporary sibling
-copy before atomically replacing the configured database, so a failed restore
-leaves the existing database unchanged. Store backups outside the repository
-with the same confidentiality, access, retention, encryption, and disposal
-controls as the database. The command supplies a mechanism, not a backup policy
-or recovery guarantee.
+WAL, SHM, or rollback-journal sidecar. Neither operation may use an output path
+that names a sidecar of its own source, even if that sidecar does not currently
+exist. Restore additionally requires a stopped service, explicit
+`--confirm-replace`, and a valid source backup. It validates the same database
+structure and persisted-row semantics on a temporary sibling copy before
+atomically replacing the configured database, so a failed restore leaves the
+existing database unchanged. Store backups outside the repository with the same
+confidentiality, access, retention, encryption, and disposal controls as the
+database. The command supplies a mechanism, not a backup policy or recovery
+guarantee.
 
 ## Current security limitations
 

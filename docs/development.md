@@ -377,7 +377,8 @@ constraint, and index invariants on a disposable copy before committing that
 copy's migration transaction. The same pass hydrates and validates every stored
 fact, metadata field, and attached line item. Only after those checks does it
 atomically publish the original snapshot, preserving its schema version. It
-refuses a destination with an existing `-wal`, `-shm`, or `-journal` sidecar.
+refuses a destination with an existing `-wal`, `-shm`, or `-journal` sidecar,
+or an output path named as one of the source database's sidecars.
 
 Restore requires a stopped service and explicit confirmation:
 
@@ -392,8 +393,9 @@ applies supported migrations, validates database and foreign-key integrity plus
 the required schema structure and every persisted row before the migration
 transaction commits, and then atomically replaces the configured database. It
 refuses active `-wal`, `-shm`, or `-journal` sidecars next to either the source
-backup or destination; stop the source service cleanly before taking or
-restoring a backup. A failed restore leaves the existing database unchanged.
+backup or destination, or a destination named as one of the source backup's
+sidecars; stop the source service cleanly before taking or restoring a backup.
+A failed restore leaves the existing database unchanged.
 Keep backups outside the repository and protect them as reference data.
 
 ## Operational guidance

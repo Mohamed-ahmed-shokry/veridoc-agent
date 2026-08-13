@@ -287,8 +287,9 @@ are metadata only; no background deletion service exists.
 `veridoc-reference` performs online backup and stopped-service restore without
 an HTTP database export. Both destination replacements refuse live WAL, SHM,
 or rollback-journal sidecars; restore applies the same guard to its source
-backup, while online backup safely snapshots a live source. Backup preserves
-the live source and published snapshot at their original schema version while
+backup, and neither operation can write to a path named as its source's
+sidecar. Online backup safely snapshots a live source. Backup preserves the
+live source and published snapshot at their original schema version while
 migrations, structural checks, and full persisted-row validation run on a
 disposable copy and commit together only after every check succeeds. Restore
 validates the source, migrates a temporary sibling database under the same

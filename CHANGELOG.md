@@ -107,7 +107,8 @@ semantic versions for tagged releases.
 - Backup and restore validate foreign-key integrity and schema constraints,
   including declared column types, reject triggers and semantically invalid
   facts or metadata, and refuse WAL, SHM, or rollback-journal destination
-  sidecars; restore also refuses those sidecars beside its source backup.
+  sidecars; restore also refuses those sidecars beside its source backup; and
+  neither operation may write to a source-sidecar path.
 - Backup and restore open validated source databases in no-create mode, so a
   source removed concurrently cannot be recreated empty or replace good data.
 
