@@ -297,18 +297,113 @@ separate approval or belong to Phase 11 evaluation.
 
 ## Phase 11: evaluation and readiness decision
 
-Candidate scope:
+Status: planned; not approved or implemented.
 
-- licensed representative evaluation corpus and documented provenance;
-- extraction, verification, explanation, latency, and resource benchmarks;
-- Arabic/Latin OCR evaluation and known-layout coverage;
-- failure-budget, concurrency, and recovery exercises;
-- model/provider version-change evaluation; and
-- an evidence-backed go/no-go production-readiness report.
+Goal: decide whether one exact Veridoc artifact and Phase 10 deployment profile
+is ready for a narrowly defined production use. The decision must be based on a
+preregistered protocol and traceable evidence, not a demo, aggregate accuracy
+number, or absence of observed failures.
 
-Evaluation results must separate OCR/extraction quality from deterministic rule
-coverage. They must not be generalized beyond the measured corpus or deployment
-environment.
+Entry criteria:
+
+- explicit user approval for Phase 11 and a completed Phase 10 security gate;
+- a frozen application, model/provider, OCR/language-data, dependency, runtime,
+  and deployment-artifact identity;
+- legal/privacy approval for a licensed, representative, access-controlled
+  evaluation corpus with documented provenance, permitted uses, retention, and
+  disposal;
+- a preregistered evaluation protocol defining populations, slices, metrics,
+  sample-size requirements, uncertainty reporting, and acceptance thresholds
+  before results are inspected; and
+- named business, security, privacy, operations, and quality owners empowered to
+  accept or reject the measured scope.
+
+Planned deliverables:
+
+- a versioned corpus manifest with license/provenance records, content digests,
+  language/layout/vendor/quality slices, and leakage checks, stored outside the
+  source repository when documents are sensitive;
+- a deterministic evaluation runner that records configuration and artifact
+  identities and emits machine-readable, reproducible results;
+- separate OCR character/word error metrics for Arabic, Latin, mixed-language,
+  scan-quality, page-count, and layout slices;
+- field-level extraction exact-match, precision/recall, null-handling,
+  line-item, amount/date, evidence-page, and OCR-span-grounding metrics;
+- rule-level verification true/false-positive and true/false-negative results,
+  insufficient-history behavior, and deterministic verdict outcomes;
+- explanation guardrail, provider-fallback, evidence fidelity, and factual
+  consistency results without treating prose preference as factual accuracy;
+- end-to-end latency, throughput, concurrency, CPU, memory, temporary-storage,
+  provider-cost, overload, and failure-budget measurements;
+- dependency-loss, timeout, malformed-input, restart, backup/restore, rollback,
+  credential-rotation, and incident-response exercises; and
+- a signed go/no-go report tying every acceptance threshold to evidence,
+  exceptions, owners, expiry/review date, and the exact approved scope.
+
+Proposed implementation sequence after approval:
+
+1. Record the evaluation protocol, acceptance authority, and corpus-governance
+   decisions before importing or observing evaluation labels.
+2. Add the corpus manifest schema and license/provenance validator.
+3. Add deterministic artifact/configuration identity capture.
+4. Add OCR metrics and slice aggregation with unit-tested reference examples.
+5. Add extraction and evidence-grounding metrics.
+6. Add verification-rule and verdict metrics.
+7. Add explanation/fallback safety metrics.
+8. Add uncertainty intervals, minimum-slice counts, and explicit
+   not-enough-evidence outcomes.
+9. Add performance/resource/cost measurement under declared concurrency.
+10. Add failure-injection and recovery exercise harnesses.
+11. Add an evaluation comparison gate for OCR, model/provider, dependency, or
+    runtime version changes.
+12. Run the frozen protocol once on the untouched evaluation corpus and retain
+    raw machine-readable results under approved access controls.
+13. Produce the decision report without tuning thresholds to the observed run.
+14. Synchronize limitations, operations, security, testing, changelog, README,
+    and operating guidance with the measured outcome.
+15. Record the complete Phase 11 evidence snapshot and decision expiry.
+
+Required verification:
+
+- golden tests for every metric, aggregation, missing-label, confidence-interval,
+  slice, and threshold-decision path;
+- manifest checks for duplicate/leaked documents, missing provenance, altered
+  content, unauthorized paths, and disallowed retention;
+- reproducibility checks proving the same frozen inputs yield the same
+  deterministic verification and evaluation outputs;
+- blinded or access-separated evaluation operation where practical, with no
+  threshold or implementation tuning on the final corpus;
+- per-slice results with uncertainty and explicit suppression when the planned
+  sample size is not met;
+- repeatable performance and recovery exercises on the exact Phase 10 target;
+  and
+- an independent review of the evidence-to-decision mapping and every accepted
+  exception.
+
+Decision outcomes:
+
+- `go` approves only the exact artifact, provider/model, language data,
+  deployment, document population, volume, and operator controls measured;
+- `conditional_go` requires named mitigations, monitoring, restricted scope,
+  owners, deadlines, and an automatic expiry; and
+- `no_go` records failed thresholds and returns work to the appropriate earlier
+  phase without weakening the preregistered criteria.
+
+Exit criteria:
+
+- all required slices meet their minimum evidence counts or are explicitly out
+  of scope;
+- every acceptance threshold has traceable machine-readable evidence;
+- operational and recovery exercises meet their declared objectives;
+- residual risks and exceptions have owners and review/expiry dates;
+- the decision report states exactly what was and was not measured; and
+- any readiness claim is limited to the frozen evaluated configuration and is
+  invalidated by unreviewed material changes.
+
+Explicit non-goals: training a model, tuning against the final evaluation set,
+claiming fraud detection, generalizing beyond the measured corpus, certifying
+legal/accounting compliance, autonomous payment approval, or approving future
+provider/model/deployment versions without comparison evidence.
 
 ## Approval rule
 
