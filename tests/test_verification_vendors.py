@@ -1,5 +1,7 @@
 """Vendor-key resolution tests."""
 
+import pytest
+
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.vendors import normalize_vendor_key, vendor_key_for
 
@@ -12,6 +14,19 @@ def test_vendor_key_prefers_the_extracted_vendor_identifier() -> None:
     )
 
     assert vendor_key_for(invoice) == "supplier-001"
+
+
+@pytest.mark.parametrize("vendor_identifier", ["   ", "___"])
+def test_vendor_key_falls_back_when_the_identifier_cannot_be_normalized(
+    vendor_identifier: str,
+) -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies Ltd.",
+        vendor_identifier=vendor_identifier,
+    )
+
+    assert vendor_key_for(invoice) == "fictional-supplies-ltd"
 
 
 def test_vendor_key_normalizes_a_vendor_name_and_handles_absence() -> None:
