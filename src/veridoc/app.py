@@ -5,6 +5,7 @@ import os
 import re
 import time
 from asyncio import to_thread
+from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -338,10 +339,14 @@ async def get_validated_upload(
         await file.close()
 
 
-def get_structured_extractor() -> StructuredExtractor:
-    """Build the configured structured extraction adapter for one request."""
+async def get_structured_extractor() -> AsyncIterator[StructuredExtractor]:
+    """Yield one configured extraction adapter and close its provider client."""
     settings = OpenAIExtractionSettings.from_environment()
-    return OpenAIResponsesExtractor(settings)
+    extractor = OpenAIResponsesExtractor(settings)
+    try:
+        yield extractor
+    finally:
+        await extractor.aclose()
 
 
 def get_invoice_repository() -> InvoiceRepository:

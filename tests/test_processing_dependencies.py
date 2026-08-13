@@ -2,7 +2,13 @@
 
 import pytest
 
-from veridoc.app import get_explanation_service, get_invoice_repository
+from veridoc import app as app_module
+from veridoc.app import (
+    get_explanation_service,
+    get_invoice_repository,
+    get_structured_extractor,
+)
+from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.verification.models import VerificationFinding, VerificationResult
 
 
@@ -16,6 +22,31 @@ def test_reference_repository_uses_the_configured_local_path(
 
     assert database_path.exists()
     assert repository.list_vendor_invoices("fictional-supplies") == []
+
+
+@pytest.mark.anyio
+async def test_extraction_dependency_closes_its_request_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ClosableExtractor:
+        def __init__(self, settings: OpenAIExtractionSettings) -> None:
+            assert settings.model == "test-model"
+            self.closed = False
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("VERIDOC_LLM_MODEL", "test-model")
+    monkeypatch.setattr(app_module, "OpenAIResponsesExtractor", ClosableExtractor)
+    dependency = get_structured_extractor()
+
+    extractor = await anext(dependency)
+    assert extractor.closed is False
+
+    await dependency.aclose()
+
+    assert extractor.closed is True
 
 
 @pytest.mark.anyio

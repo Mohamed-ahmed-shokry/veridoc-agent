@@ -37,6 +37,10 @@ class _FakeResponses:
 class _FakeClient:
     def __init__(self, response: object | Exception) -> None:
         self.responses = _FakeResponses(response)
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 def _request() -> ExtractionRequest:
@@ -114,6 +118,16 @@ async def test_adapter_builds_multimodal_input_off_the_event_loop(
     assert builder_thread is not None
     assert builder_thread != event_loop_thread
     assert client.responses.calls[0]["input"] is expected_input
+
+
+@pytest.mark.anyio
+async def test_adapter_closes_its_provider_client() -> None:
+    client = _FakeClient(SimpleNamespace(output_parsed=None))
+    extractor = OpenAIResponsesExtractor(_settings(), client=client)  # type: ignore[arg-type]
+
+    await extractor.aclose()
+
+    assert client.closed is True
 
 
 @pytest.mark.anyio

@@ -36,6 +36,10 @@ class OpenAIResponsesExtractor:
         self._settings = settings
         self._client = client or AsyncOpenAI(api_key=settings.api_key)
 
+    async def aclose(self) -> None:
+        """Close the provider client owned by this adapter."""
+        await self._client.close()
+
     async def extract(self, request: ExtractionRequest) -> InvoiceExtraction:
         """Extract one invoice without exposing provider failures to callers."""
         try:
