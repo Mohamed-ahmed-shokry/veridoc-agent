@@ -340,6 +340,11 @@ number, or absence of observed failures.
 Entry criteria:
 
 - explicit user approval for Phase 11 and a completed Phase 10 security gate;
+- named business, security, privacy, operations, and quality owners empowered to
+  accept or reject the measured scope.
+
+Mandatory gates before corpus access or evaluation execution:
+
 - a frozen application, model/provider, OCR/language-data, dependency, runtime,
   and deployment-artifact identity;
 - legal/privacy approval for a licensed, representative, access-controlled
@@ -347,9 +352,7 @@ Entry criteria:
   disposal;
 - a preregistered evaluation protocol defining populations, slices, metrics,
   sample-size requirements, uncertainty reporting, and acceptance thresholds
-  before results are inspected; and
-- named business, security, privacy, operations, and quality owners empowered to
-  accept or reject the measured scope.
+  before results are inspected.
 
 Planned deliverables:
 
