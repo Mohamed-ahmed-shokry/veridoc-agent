@@ -233,14 +233,17 @@ Entry criteria:
 
 - explicit user approval for Phase 10 and either completion of Phase 9 or an
   approved scope exception explaining why deployment precedes it;
+- named owners for vulnerability response, credential rotation, backup drills,
+  and incident handling.
+
+Mandatory design gates before deployment implementation:
+
 - an approved deployment-target and trust-boundary ADR identifying the runtime,
   network edges, managed services, operator responsibilities, and regions;
 - a threat model and data classification covering documents, OCR, provider
   requests, reference data, review records, logs, metrics, traces, and backups;
 - approved identity, TLS, secret-management, encryption, retention, malware
-  handling, and recovery policies; and
-- named owners for vulnerability response, credential rotation, backup drills,
-  and incident handling.
+  handling, and recovery policies.
 
 Planned deliverables:
 
