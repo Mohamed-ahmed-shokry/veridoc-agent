@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from veridoc.administration.api import get_admin_repository
-from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
+from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES, ReferenceDataImport
 from veridoc.app import app
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 
@@ -136,6 +136,35 @@ async def test_import_api_runs_storage_work_outside_the_event_loop(
     assert response.status_code == 200
     assert storage_thread is not None
     assert storage_thread != event_loop_thread
+
+
+@pytest.mark.anyio
+async def test_import_api_parses_batches_outside_the_event_loop(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path)
+    original_validate_json = ReferenceDataImport.model_validate_json
+    event_loop_thread = get_ident()
+    parser_thread: int | None = None
+
+    def observed_validate_json(cls, payload):
+        del cls
+        nonlocal parser_thread
+        parser_thread = get_ident()
+        return original_validate_json(payload)
+
+    monkeypatch.setattr(
+        ReferenceDataImport,
+        "model_validate_json",
+        classmethod(observed_validate_json),
+    )
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    async with _client(repository) as client:
+        response = await _import(client, json.dumps(_payload()).encode())
+
+    assert response.status_code == 200
+    assert parser_thread is not None
+    assert parser_thread != event_loop_thread
 
 
 @pytest.mark.anyio

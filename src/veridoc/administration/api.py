@@ -324,7 +324,10 @@ async def import_reference_data(
                 },
             )
         try:
-            batch = ReferenceDataImport.model_validate_json(payload)
+            batch = await run_in_threadpool(
+                ReferenceDataImport.model_validate_json,
+                payload,
+            )
         except ValidationError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
