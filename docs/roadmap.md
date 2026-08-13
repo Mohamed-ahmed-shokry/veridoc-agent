@@ -352,6 +352,9 @@ Planned deliverables:
   source repository when documents are sensitive;
 - a deterministic evaluation runner that records configuration and artifact
   identities and emits machine-readable, reproducible results;
+- a provider-identity record capturing the most specific immutable model,
+  serving, region, and configuration metadata available, plus declared drift
+  and re-evaluation triggers when the provider cannot expose a frozen artifact;
 - separate OCR character/word error metrics for Arabic, Latin, mixed-language,
   scan-quality, page-count, and layout slices;
 - field-level extraction exact-match, precision/recall, null-handling,
@@ -372,7 +375,8 @@ Proposed implementation sequence after approval:
 1. Record the evaluation protocol, acceptance authority, and corpus-governance
    decisions before importing or observing evaluation labels.
 2. Add the corpus manifest schema and license/provenance validator.
-3. Add deterministic artifact/configuration identity capture.
+3. Add deterministic artifact/configuration identity capture, including hosted
+   provider limitations and drift triggers.
 4. Add OCR metrics and slice aggregation with unit-tested reference examples.
 5. Add extraction and evidence-grounding metrics.
 6. Add verification-rule and verdict metrics.
@@ -398,6 +402,8 @@ Required verification:
   content, unauthorized paths, and disallowed retention;
 - reproducibility checks proving the same frozen inputs yield the same
   deterministic verification and evaluation outputs;
+- provider-identity checks that detect every observable model/configuration
+  change and force re-evaluation under the preregistered policy;
 - blinded or access-separated evaluation operation where practical, with no
   threshold or implementation tuning on the final corpus;
 - per-slice results with uncertainty and explicit suppression when the planned
@@ -410,7 +416,8 @@ Required verification:
 Decision outcomes:
 
 - `go` approves only the exact artifact, provider/model, language data,
-  deployment, document population, volume, and operator controls measured;
+  deployment, document population, volume, and operator controls measured, and
+  is unavailable when the hosted serving scope cannot be reproduced;
 - `conditional_go` requires named mitigations, monitoring, restricted scope,
   owners, deadlines, and an automatic expiry; and
 - `no_go` records failed thresholds and returns work to the appropriate earlier
@@ -425,7 +432,9 @@ Exit criteria:
 - residual risks and exceptions have owners and review/expiry dates;
 - the decision report states exactly what was and was not measured; and
 - any readiness claim is limited to the frozen evaluated configuration and is
-  invalidated by unreviewed material changes.
+  invalidated by unreviewed material changes; an unidentifiable hosted serving
+  artifact must be recorded as a reproducibility limitation and cannot receive
+  an unconditional `go`.
 
 Explicit non-goals: training a model, tuning against the final evaluation set,
 claiming fraud detection, generalizing beyond the measured corpus, certifying
