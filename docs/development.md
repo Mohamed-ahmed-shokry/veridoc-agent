@@ -265,7 +265,9 @@ wheel and source distribution in separate isolated environments. The shared
 smoke script checks package/API version parity, both console entry points, and
 the health, OCR, extraction, processing, review, and administration route
 families. The suite uses deterministic fakes, so CI requires no OpenAI credential
-or installed Tesseract executable.
+or installed Tesseract executable. The same pytest step also validates local
+Markdown links and the exact test-module inventory documented in the testing
+guide.
 
 CI is remote evidence only after GitHub reports the job result. Run the same
 documented commands locally before committing; a local pass does not imply that
