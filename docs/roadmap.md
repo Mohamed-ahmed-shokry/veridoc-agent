@@ -353,8 +353,10 @@ Entry criteria:
 
 Mandatory gates before corpus access or evaluation execution:
 
-- a frozen application, model/provider, OCR/language-data, dependency, runtime,
-  and deployment-artifact identity;
+- a frozen application, OCR/language-data, dependency, runtime, and deployment-
+  artifact identity, plus an immutable model/provider identity when available;
+  otherwise the preregistered protocol must define the observable provider
+  identity, drift triggers, and resulting decision limitation;
 - legal/privacy approval for a licensed, representative, access-controlled
   evaluation corpus with documented provenance, permitted uses, retention, and
   disposal;
