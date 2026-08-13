@@ -183,6 +183,42 @@ every later local gate passed. The isolated source-distribution resolver emitted
 informational warnings while ignoring obsolete upstream package files, then
 completed the build, installation, and smoke check successfully.
 
+## 2026-08-13 Phase 0-8 hardening snapshot
+
+The local Phase 0-8 hardening gate was recorded on 2026-08-13 against commit
+`799ac4c` before this evidence section was added. Phase 9 was not started.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 142 files already formatted |
+| `uv run --no-sync mypy` | No issues in 59 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 284 passed; 95.48% branch coverage against a 90% floor |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, schema-module, and path-safety validation |
+| Cache-free isolated-wheel smoke | The wheel passed `scripts/smoke_distribution.py` |
+| Cache-free isolated-source-distribution smoke | The source distribution built, installed, and passed the same smoke script |
+| Local Markdown links | No broken local links across 19 tracked Markdown files |
+| Test-module inventory | All 59 `tests/test_*.py` modules are listed in `docs/testing.md` |
+| Full-tree and working-tree whitespace checks | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. The isolated
+source-distribution resolver emitted informational warnings while ignoring
+obsolete upstream package files, then completed the build, installation, and
+smoke check successfully.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
