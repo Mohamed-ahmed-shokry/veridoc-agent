@@ -382,6 +382,9 @@ removed. The canonical result must contain 1-128 characters. The optional
 Invoice and purchase-order create/update JSON request bodies are limited to
 1 MiB before parsing.
 
+List requests accept a non-negative `offset` no greater than SQLite's signed
+64-bit maximum (`9,223,372,036,854,775,807`), and a `limit` of at most 200.
+
 | Method and path | Result |
 | --- | --- |
 | `POST /admin/reference-data/invoices` | Create one managed invoice; returns `201`. |

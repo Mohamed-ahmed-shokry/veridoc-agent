@@ -71,6 +71,8 @@ semantic versions for tagged releases.
   purchase-order line items, enforcing order integrity and serving child reads.
 - Compound SQLite reads use one snapshot for coherent pagination and line items
   during concurrent administration writes.
+- Administrative pagination offsets are bounded to SQLite's signed 64-bit
+  range before query binding.
 - Online backup preserves the live source and the published snapshot at their
   original schema version while validating a disposable migrated copy.
 - Backup and restore validation copies commit migrations only after the final
