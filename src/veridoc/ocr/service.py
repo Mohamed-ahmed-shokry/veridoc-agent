@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Buffer, Iterator
 from io import BytesIO
+from math import isfinite
 from pathlib import Path
 
 import pymupdf
@@ -60,7 +61,9 @@ class OCRService:
                             page_image_bytes += len(encoded_image)
                             if page_image_bytes > MAX_PAGE_IMAGE_BUNDLE_BYTES:
                                 raise OCRProcessingError
-                        pages.append(self._engine.recognize(image))
+                        pages.append(
+                            _normalized_page_result(self._engine.recognize(image))
+                        )
                         if encoded_image is not None:
                             page_images.append(
                                 RenderedPage(
@@ -70,7 +73,7 @@ class OCRService:
                             )
                     finally:
                         image.close()
-        except OCRUnavailableError:
+        except (OCRUnavailableError, OCRProcessingError):
             raise
         except (OSError, RuntimeError, pymupdf.FileDataError) as exc:
             raise OCRProcessingError from exc
@@ -83,6 +86,20 @@ class OCRService:
             ),
             page_images=tuple(page_images),
         )
+
+
+def _normalized_page_result(result: object) -> OCRPageResult:
+    """Reject malformed engine output and discard invalid confidence values."""
+    if not isinstance(result, OCRPageResult) or not isinstance(result.text, str):
+        raise OCRProcessingError
+    confidence = result.confidence
+    if (
+        not isinstance(confidence, float)
+        or not isfinite(confidence)
+        or not 0 <= confidence <= 100
+    ):
+        return OCRPageResult(text=result.text, confidence=None)
+    return result
 
 
 def _iter_page_images(

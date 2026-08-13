@@ -41,6 +41,21 @@ class _FakeEngine:
         return OCRPageResult(text=f"fictional page {self.calls}", confidence=90.0)
 
 
+class _InvalidConfidenceEngine:
+    def __init__(self, confidence: float) -> None:
+        self._confidence = confidence
+
+    def recognize(self, image: Image.Image) -> OCRPageResult:
+        del image
+        return OCRPageResult(text="fictional page", confidence=self._confidence)
+
+
+class _MalformedEngine:
+    def recognize(self, image: Image.Image) -> object:
+        del image
+        return None
+
+
 def test_service_decodes_raster_upload_and_returns_raw_text() -> None:
     engine = _FakeEngine()
     upload = validate_upload(
@@ -54,6 +69,31 @@ def test_service_decodes_raster_upload_and_returns_raw_text() -> None:
     assert engine.calls == 1
     assert result.text == "fictional page 1"
     assert result.confidence == 90.0
+
+
+@pytest.mark.parametrize("confidence", [float("nan"), -1.0, 101.0])
+def test_service_discards_invalid_adapter_confidence(confidence: float) -> None:
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+
+    result = OCRService(_InvalidConfidenceEngine(confidence)).process(upload)
+
+    assert result.pages == (OCRPageResult(text="fictional page", confidence=None),)
+    assert result.confidence is None
+
+
+def test_service_rejects_malformed_adapter_results() -> None:
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+
+    with pytest.raises(OCRProcessingError):
+        OCRService(_MalformedEngine()).process(upload)
 
 
 def test_service_rasterizes_each_pdf_page() -> None:

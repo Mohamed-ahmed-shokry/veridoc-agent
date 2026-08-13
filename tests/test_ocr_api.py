@@ -43,6 +43,18 @@ class _UnavailableEngine:
         raise OCRUnavailableError
 
 
+class _InvalidConfidenceEngine:
+    def recognize(self, image: Image.Image) -> OCRPageResult:
+        del image
+        return OCRPageResult(text="Fictional Vendor Invoice INV-001", confidence=101.0)
+
+
+class _MalformedEngine:
+    def recognize(self, image: Image.Image) -> object:
+        del image
+        return None
+
+
 async def _post_file(engine: Any, *, content_type: str = "image/png") -> httpx.Response:
     app.dependency_overrides[get_ocr_engine] = lambda: engine
     transport = httpx.ASGITransport(app=app)
@@ -79,6 +91,23 @@ async def test_ocr_endpoint_returns_raw_text_and_confidence() -> None:
     }
     assert engine.thread_id is not None
     assert engine.thread_id != event_loop_thread
+
+
+@pytest.mark.anyio
+async def test_ocr_endpoint_discards_invalid_engine_confidence() -> None:
+    response = await _post_file(_InvalidConfidenceEngine())
+
+    assert response.status_code == 200
+    assert response.json()["confidence"] is None
+    assert response.json()["pages"][0]["confidence"] is None
+
+
+@pytest.mark.anyio
+async def test_ocr_endpoint_reports_malformed_engine_results_safely() -> None:
+    response = await _post_file(_MalformedEngine())
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "ocr_processing_failed"
 
 
 @pytest.mark.anyio
