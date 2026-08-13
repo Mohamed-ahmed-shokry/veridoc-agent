@@ -255,8 +255,9 @@ The administration persistence tests use temporary SQLite files to cover CRUD,
 immutable provenance, purchase-order natural-key conflicts, and transactional
 `reject`, `skip`, and `replace` imports. API tests retain FastAPI dependency
 composition while replacing the repository protocol and prove list filters use
-the same vendor-key normalization as records; they require neither a network
-listener nor a developer database.
+the same vendor-key normalization as records. Import API tests also verify that
+bounded model parsing and storage work leave the event-loop thread; they require
+neither a network listener nor a developer database.
 
 `test_sqlite_migrations.py` also races concurrent initialization against one
 fresh temporary database and verifies unique child positions plus index-backed

@@ -65,10 +65,11 @@ Route-relative matching keeps those limits active under ASGI mounts and
 configured root paths. Document decoding and inspection run in a worker thread,
 then validation and upload closure finish before OCR, provider, processing, or
 repository dependency construction. Rasterization and OCR also run in worker
-threads. Validated bytes use a private temporary directory only during
-processing; page images are normalized in memory, with the remaining document
-bundle budget enforced during each PNG write, and are not retained after the
-request.
+threads. Bounded reference-import JSON parsing and its SQLite transaction run in
+worker threads as separate steps. Validated bytes use a private temporary
+directory only during processing; page images are normalized in memory, with the
+remaining document bundle budget enforced during each PNG write, and are not
+retained after the request.
 
 ## Package boundaries
 

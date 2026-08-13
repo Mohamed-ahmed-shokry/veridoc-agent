@@ -441,7 +441,8 @@ protocol.
    canonical findings, never from an LLM response.
 9. Keep the review page stateless and render returned data with DOM text nodes.
 10. Keep administration behind `ReferenceDataAdminRepository`; authenticate
-    before resolving storage and bound import bytes before JSON parsing.
+    before resolving storage, bound import bytes before JSON parsing, and run
+    bounded model parsing plus SQLite import work outside the async request loop.
 11. Preserve immutable provenance and perform bulk writes in one transaction.
 12. Add deterministic synthetic fixtures only when a focused test needs them.
 13. Run focused lint, format, import, and test checks.
