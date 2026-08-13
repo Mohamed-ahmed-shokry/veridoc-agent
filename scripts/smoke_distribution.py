@@ -14,6 +14,10 @@ _REQUIRED_SCHEMA_PATHS = {
     "/ocr",
     "/extract",
     "/process",
+    "/admin/reference-data/invoices",
+    "/admin/reference-data/invoices/{record_id}",
+    "/admin/reference-data/purchase-orders",
+    "/admin/reference-data/purchase-orders/{record_id}",
     "/admin/reference-data/import",
 }
 

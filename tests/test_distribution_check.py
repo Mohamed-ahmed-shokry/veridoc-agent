@@ -16,6 +16,7 @@ from scripts.check_distribution import (
     _require_members,
     _required_package_members,
 )
+from scripts.smoke_distribution import _REQUIRED_SCHEMA_PATHS
 
 
 @pytest.mark.parametrize(
@@ -108,3 +109,13 @@ def test_distribution_check_requires_both_console_scripts() -> None:
             b"[console_scripts]\nveridoc = veridoc.__main__:main\n",
             Path("dist/veridoc.whl"),
         )
+
+
+def test_distribution_smoke_requires_all_administration_route_families() -> None:
+    assert {
+        "/admin/reference-data/invoices",
+        "/admin/reference-data/invoices/{record_id}",
+        "/admin/reference-data/purchase-orders",
+        "/admin/reference-data/purchase-orders/{record_id}",
+        "/admin/reference-data/import",
+    } <= _REQUIRED_SCHEMA_PATHS
