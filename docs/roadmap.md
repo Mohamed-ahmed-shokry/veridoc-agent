@@ -254,6 +254,9 @@ Planned deliverables:
   behavior and an operator-controlled release/disposal workflow;
 - encrypted database and backup storage, least-privilege access, automated
   retention, scheduled backups, verified restore drills, and recovery targets;
+- a SQLite-compatible single-writer topology on the selected encrypted storage
+  profile for reference and review data; replacing SQLite or adding a remote
+  database adapter requires a separate explicit stack-change approval and ADR;
 - structured metrics, traces, and logs restricted to approved metadata, with
   redaction tests and documented provider/data residency controls; and
 - deployment, rollback, incident, key-rotation, backup, restore, and disposal
@@ -272,8 +275,9 @@ Proposed implementation sequence after approval:
    weakening the Phase 8 administration boundary.
 7. Add bounded concurrency and rate limiting with deterministic overload tests.
 8. Add the scanning/quarantine boundary before upload decoding.
-9. Move sensitive persistence to the selected encrypted storage profile and add
-   least-privilege credentials.
+9. Place the SQLite stores on the selected encrypted single-writer storage
+   profile and add least-privilege credentials without changing persistence
+   technology.
 10. Automate retention and backups, then verify restore and rollback drills.
 11. Add privacy-reviewed metrics, traces, and structured log export.
 12. Add artifact provenance, dependency/image scanning, and deployment-policy
