@@ -63,6 +63,7 @@ _RECORD_ID = Path(
     max_length=128,
     pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
 )
+_MAX_SQLITE_INTEGER = 2**63 - 1
 
 
 def require_admin(
@@ -142,7 +143,7 @@ def list_invoices(
         Depends(get_authorized_admin_repository),
     ],
     vendor_key: Annotated[VendorKey | None, Query()] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=_MAX_SQLITE_INTEGER)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> InvoiceRecordPage:
     """Return a bounded page of managed invoices."""
@@ -228,7 +229,7 @@ def list_purchase_orders(
         Depends(get_authorized_admin_repository),
     ],
     vendor_key: Annotated[VendorKey | None, Query()] = None,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    offset: Annotated[int, Query(ge=0, le=_MAX_SQLITE_INTEGER)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 100,
 ) -> PurchaseOrderRecordPage:
     """Return a bounded page of managed purchase orders."""

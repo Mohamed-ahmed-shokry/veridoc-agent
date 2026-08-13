@@ -138,3 +138,20 @@ async def test_purchase_order_admin_returns_safe_conflict_and_validation_errors(
     assert provenance_conflict.status_code == 409
     assert natural_conflict.json()["detail"]["code"] == "reference_data_conflict"
     assert invalid.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_purchase_order_admin_rejects_an_offset_beyond_sqlite_range(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = _repository(tmp_path)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    async with _client(repository) as client:
+        response = await client.get(
+            "/admin/reference-data/purchase-orders",
+            headers=_AUTHORIZATION,
+            params={"offset": str(2**63)},
+        )
+
+    assert response.status_code == 422
