@@ -21,6 +21,9 @@ _REFERENCE_LINK_PATTERN = re.compile(
     r"(?m)^[ \t]{0,3}\[[^\]]+]:[ \t]*(?P<target><[^>]*>|[^ \t\r\n]+)"
 )
 _INLINE_CODE_PATTERN = re.compile(r"(?P<delimiter>`+).*?(?P=delimiter)")
+_TEST_MODULE_PATTERN = re.compile(
+    r"(?<![A-Za-z0-9_*])test_[a-z0-9_]+\.py(?![A-Za-z0-9_*])"
+)
 
 
 def _markdown_files() -> tuple[Path, ...]:
@@ -143,3 +146,20 @@ def test_local_markdown_links_resolve() -> None:
 
     assert checked_links > 0, "No local Markdown links were discovered."
     assert not failures, "Broken local Markdown links:\n" + "\n".join(sorted(failures))
+
+
+def test_test_module_inventory_matches_testing_guide() -> None:
+    actual = {path.name for path in (_REPOSITORY_ROOT / "tests").glob("test_*.py")}
+    documented = set(
+        _TEST_MODULE_PATTERN.findall(
+            (_REPOSITORY_ROOT / "docs" / "testing.md").read_text(encoding="utf-8")
+        )
+    )
+
+    missing = sorted(actual - documented)
+    stale = sorted(documented - actual)
+
+    assert not missing and not stale, (
+        f"Missing from docs/testing.md: {missing}; "
+        f"stale entries in docs/testing.md: {stale}"
+    )
