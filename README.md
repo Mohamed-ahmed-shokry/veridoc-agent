@@ -282,6 +282,7 @@ uv run pytest tests/test_processing_api.py
 uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
+uv run pytest tests/test_documentation.py
 uv run pytest tests/test_administration_auth.py
 uv run pytest tests/test_sqlite_migrations.py
 uv run pytest tests/test_administration_sqlite_import.py
