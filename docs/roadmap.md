@@ -118,7 +118,8 @@ Entry criteria:
 - an approved actor/authentication ADR covering identity, session or token
   lifecycle, roles, and authorization checks;
 - an approved review-record ADR covering immutable snapshots, status
-  transitions, reason requirements, optimistic concurrency, and idempotency;
+  transitions, reason requirements, optimistic concurrency, idempotency, and
+  the review-store topology and recovery boundary;
 - an approved retention ADR covering review records, audit events, deletion,
   legal holds, and backup interaction; and
 - synthetic data only until the later deployment and privacy controls are
@@ -129,6 +130,10 @@ Planned deliverables:
 - strict review-case, assignment, decision, and append-only audit-event models;
 - a persistence-neutral `ReviewRepository` protocol and a forward-only SQLite
   implementation isolated from reference-data repository interfaces;
+- a separately configured review database with its own migration ledger and
+  maintenance commands, preserving the rule that the reference database never
+  stores processing results; co-location requires an explicit ADR and security-
+  boundary update rather than an implicit schema migration;
 - immutable storage of the complete processing result plus its schema version,
   creation time, correlation identifier, and content digest;
 - a trusted creation boundary that accepts a bounded document and idempotency
@@ -152,7 +157,8 @@ verified concern per commit:
 2. Add strict review identifiers, snapshots, states, decisions, and event models.
 3. Add and test the pure review transition policy.
 4. Add the `ReviewRepository` protocol and typed conflict/unavailable errors.
-5. Add one migration for review cases and immutable processing snapshots.
+5. Add the dedicated review-store configuration and one migration for review
+   cases and immutable processing snapshots.
 6. Add one migration for append-only events and required indexes.
 7. Implement idempotent case creation from server-produced processing results,
    with digest verification and the initial event in one transaction.
@@ -182,7 +188,9 @@ Required verification:
 - persistence tests proving stored processing snapshots and prior audit events
   cannot be updated through supported interfaces;
 - malformed-row, migration, backup, restore, and retention-policy tests using
-  temporary databases; and
+  temporary databases;
+- recovery tests proving the documented reference and review backup boundaries
+  cannot silently produce a mixed or incomplete restored state; and
 - ASGI integration tests using synthetic documents and identities only, plus
   the existing full quality, coverage, audit, and distribution gates.
 
