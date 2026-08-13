@@ -242,7 +242,8 @@ installation, Arabic/Latin configuration, and limitations.
 `VERIDOC_LLM_MODEL` when `/extract` is called. It passes labeled OCR text and
 high-detail in-memory PNG page images through the Responses API's Pydantic
 structured-parsing path with response storage disabled. The adapter returns a
-typed result, or raises a safe unavailable/invalid-output error. See
+typed result, or raises a safe unavailable/invalid-output error. Its
+request-scoped provider client closes during dependency teardown. See
 [ADR 0002](decisions/0002-use-openai-responses-for-phase-2.md).
 
 The adapter is replaced in tests with a fake implementation. Tests never need
@@ -311,7 +312,8 @@ to use it. It sends only serialized `VerificationFinding` values and disables
 response storage. The model returns structured narrative drafts, never an
 authoritative finding or numerical calculation. The application validates each
 draft and deterministically falls back when it is unsafe, incomplete, invalid,
-or unavailable. See [ADR 0004](decisions/0004-use-validated-llm-proposals-for-explanations.md).
+or unavailable, then closes any configured request-scoped provider client. See
+[ADR 0004](decisions/0004-use-validated-llm-proposals-for-explanations.md).
 
 The explanation graph has no standalone HTTP endpoint; `POST /process` delivers
 its canonical explanations together with the extraction, findings, and verdict.

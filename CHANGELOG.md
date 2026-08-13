@@ -46,6 +46,8 @@ semantic versions for tagged releases.
 - Upload decoding/inspection, OCR, multimodal provider-payload encoding,
   reference-import parsing, and SQLite import work run outside async request
   loops, and validation completes before external service construction.
+- Request-scoped extraction and explanation provider clients close
+  deterministically after dependency teardown.
 - Invalid Tesseract language or timeout settings map to the typed, correlated
   `ocr_unavailable` response on every document endpoint.
 - First-time migrations and record updates acquire SQLite write locks before

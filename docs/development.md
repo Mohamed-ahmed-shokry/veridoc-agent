@@ -114,7 +114,8 @@ curl.exe -X POST http://127.0.0.1:8000/extract `
 
 `/ocr` does not require OpenAI configuration. `/extract` validates the provider
 configuration when that route is invoked and returns a safe 503 error if it is
-missing or unavailable.
+missing or unavailable. Configured extraction and explanation SDK clients are
+request-scoped and close during FastAPI dependency teardown.
 
 `/process` uses the same extraction settings, initializes the configured local
 SQLite reference-data path, and requires those settings for extraction. Once
