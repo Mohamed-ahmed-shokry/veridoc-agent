@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 from types import SimpleNamespace
 from typing import Any
@@ -128,6 +129,29 @@ async def test_adapter_closes_its_provider_client() -> None:
     await extractor.aclose()
 
     assert client.closed is True
+
+
+@pytest.mark.anyio
+async def test_adapter_maps_provider_timeout_to_safe_unavailability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = _FakeClient(SimpleNamespace(output_parsed=None))
+
+    async def stalled_parse(**kwargs: Any) -> object:
+        del kwargs
+        await asyncio.sleep(0.05)
+        return SimpleNamespace(output_parsed=None)
+
+    monkeypatch.setattr(
+        openai_responses,
+        "_PROVIDER_CALL_TIMEOUT_SECONDS",
+        0.001,
+    )
+    monkeypatch.setattr(client.responses, "parse", stalled_parse)
+    extractor = OpenAIResponsesExtractor(_settings(), client=client)  # type: ignore[arg-type]
+
+    with pytest.raises(ExtractionUnavailableError):
+        await extractor.extract(_request())
 
 
 @pytest.mark.anyio

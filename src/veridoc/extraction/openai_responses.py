@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import base64
 from asyncio import to_thread
 
@@ -25,6 +26,7 @@ important header fields and line items using only the provided page numbers and
 the applicable ocr_text or page_image source. Do not perform verification,
 anomaly detection, arithmetic reconciliation, explanations, or verdicts.
 """
+_PROVIDER_CALL_TIMEOUT_SECONDS = 120.0
 
 
 class OpenAIResponsesExtractor:
@@ -44,13 +46,16 @@ class OpenAIResponsesExtractor:
         """Extract one invoice without exposing provider failures to callers."""
         try:
             response_input = await to_thread(_build_response_input, request)
-            response = await self._client.responses.parse(
-                model=self._settings.model,
-                instructions=_INSTRUCTIONS,
-                input=response_input,
-                text_format=InvoiceExtraction,
-                store=False,
-            )
+            async with asyncio.timeout(_PROVIDER_CALL_TIMEOUT_SECONDS):
+                response = await self._client.responses.parse(
+                    model=self._settings.model,
+                    instructions=_INSTRUCTIONS,
+                    input=response_input,
+                    text_format=InvoiceExtraction,
+                    store=False,
+                )
+        except TimeoutError as exc:
+            raise ExtractionUnavailableError from exc
         except APIError as exc:
             raise ExtractionUnavailableError from exc
         except (TypeError, ValidationError, ValueError) as exc:
