@@ -195,7 +195,8 @@ normalized page images into that graph.
 `test_openai_responses.py` uses a fake SDK client to verify structured parsing,
 off-loop OCR-text/image payload construction, deterministic OCR confidence,
 provider-client closure, unavailable-provider mapping, and invalid-output
-mapping without credentials or network access.
+mapping, bounded provider-timeout mapping, and invalid-output mapping without
+credentials or network access.
 
 `test_extraction_api.py` calls `/extract` through HTTPX's ASGI transport with
 fake OCR and extraction dependencies. It covers the typed evidence-linked
@@ -220,7 +221,8 @@ provider work falls back to deterministic explanations, while
 
 `test_openai_explanations.py` uses a fake SDK client to prove the adapter sends
 only canonical findings, disables response storage, maps availability failures
-safely, closes its provider client, and rejects missing structured output.
+safely, closes its provider client, maps bounded timeouts, and rejects missing
+structured output.
 
 `test_processing_models.py` and `test_processing_verdict.py` enforce the strict
 final result shape and its deterministic `clear`/`review_required` semantics.

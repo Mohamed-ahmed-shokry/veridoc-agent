@@ -225,7 +225,7 @@ quantity, unit price, total price, and evidence rules.
 | Status | Code | Meaning |
 | --- | --- | --- |
 | `422` | `extraction_processing_failed` | The provider did not return valid structured extraction data. |
-| `503` | `extraction_unavailable` | Required provider configuration is missing or the provider cannot be used safely. |
+| `503` | `extraction_unavailable` | Required provider configuration is missing, the provider times out after the bounded application deadline, or the provider cannot be used safely. |
 
 ## `POST /process`
 
@@ -240,7 +240,7 @@ temporary-file lifetime are identical to `/ocr` and `/extract`.
 `/extract`. The current extraction and explanation adapters share those
 settings, so missing configuration fails the required extraction stage. After
 valid extraction configuration exists, explanation-provider unavailability or
-rejected guidance falls back to deterministic explanations. `/process` also
+rejected guidance—including a provider timeout—falls back to deterministic explanations. `/process` also
 opens and initializes a local SQLite reference-data file:
 
 | Variable | Default | Purpose |

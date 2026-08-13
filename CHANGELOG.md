@@ -48,6 +48,9 @@ semantic versions for tagged releases.
   loops, and validation completes before external service construction.
 - Request-scoped extraction and explanation provider clients close
   deterministically after dependency teardown.
+- Extraction and explanation provider calls have a bounded 120-second
+  application deadline; extraction maps expiry to `extraction_unavailable` and
+  explanation expiry uses deterministic fallback guidance.
 - Invalid Tesseract language or timeout settings map to the typed, correlated
   `ocr_unavailable` response on every document endpoint.
 - First-time migrations and record updates acquire SQLite write locks before

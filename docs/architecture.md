@@ -243,7 +243,8 @@ installation, Arabic/Latin configuration, and limitations.
 high-detail in-memory PNG page images through the Responses API's Pydantic
 structured-parsing path with response storage disabled. The adapter returns a
 typed result, or raises a safe unavailable/invalid-output error. Its
-request-scoped provider client closes during dependency teardown. See
+request-scoped provider client closes during dependency teardown, and the
+provider call has a bounded 120-second application deadline. See
 [ADR 0002](decisions/0002-use-openai-responses-for-phase-2.md).
 
 The adapter is replaced in tests with a fake implementation. Tests never need
@@ -312,7 +313,8 @@ to use it. It sends only serialized `VerificationFinding` values and disables
 response storage. The model returns structured narrative drafts, never an
 authoritative finding or numerical calculation. The application validates each
 draft and deterministically falls back when it is unsafe, incomplete, invalid,
-or unavailable, then closes any configured request-scoped provider client. See
+or unavailable, then closes any configured request-scoped provider client. The
+provider call has the same bounded 120-second application deadline. See
 [ADR 0004](decisions/0004-use-validated-llm-proposals-for-explanations.md).
 
 The explanation graph has no standalone HTTP endpoint; `POST /process` delivers
@@ -324,7 +326,8 @@ Upload validation rejects malformed, encrypted/repaired, oversized, unsupported,
 or type-mismatched documents before OCR. OCR unavailability maps to HTTP 503 and
 processing failures map to HTTP 422. Extraction configuration/provider failures
 map to `extraction_unavailable` (503); missing or invalid structured provider
-output maps to `extraction_processing_failed` (422). Reference-data failures map
+output maps to `extraction_processing_failed` (422). A provider timeout maps to
+`extraction_unavailable` (503). Reference-data failures map
 to `reference_data_unavailable` (503), and an incomplete orchestration result
 maps to `processing_failed` (422). Public errors never expose paths, stack
 traces, credentials, document bytes, raw OCR text, or provider responses.
