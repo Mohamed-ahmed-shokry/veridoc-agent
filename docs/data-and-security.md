@@ -104,6 +104,8 @@ not log complete documents, raw OCR text, rendered pages, extracted names or
 identifiers, line items, credentials, authorization headers, query values, raw
 Tesseract output, provider responses, local temporary paths, persisted reference
 facts, verification findings, explanation narratives, or numerical context.
+Request-validation failures return a generic `invalid_request` response and do
+not echo submitted field names or values.
 
 ## Upload validation
 

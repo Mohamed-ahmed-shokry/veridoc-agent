@@ -37,6 +37,10 @@ Unexpected application failures return status `500` with the safe code
 `internal_server_error` and the same correlation header; internal exception
 messages are never returned.
 
+Request-validation failures return status `422` with the safe code
+`invalid_request`. Their generic response does not echo submitted field names or
+values.
+
 ## `GET /health`
 
 Reports that the API process can serve requests. It does not probe Tesseract,

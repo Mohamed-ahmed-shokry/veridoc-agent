@@ -90,6 +90,8 @@ semantic versions for tagged releases.
   reference database.
 - Administration create/update JSON bodies and raw imports are limited to 1 MiB
   before parsing; imports allow 500 records and 200 line items per record.
+- Request-validation responses use the generic safe `invalid_request` envelope
+  without echoing submitted fields or values.
 - Backup and restore reject incomplete current schemas and replace destinations
   only after structural and persisted-row semantic checks succeed.
 - Document/import multipart bodies are bounded before parsing, including under
