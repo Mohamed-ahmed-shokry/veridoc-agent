@@ -103,6 +103,12 @@ Phase 8 excludes persistent reviewer workflow, user accounts, role management,
 remote database services, production deployment, and document storage. Those
 remain later-phase decisions.
 
+The numbered sequences for candidate phases are dependency-ordered work
+packages, not commit boundaries. After approval and a fresh repository audit,
+each package must be expanded into an exact atomic commit plan. Every behavior,
+schema change, adapter, test group, operations control, and documentation topic
+must follow the repository's smallest independently verified commit protocol.
+
 ## Phase 9: persistent review and audit workflow
 
 Status: planned; not approved or implemented.
@@ -156,8 +162,7 @@ Planned deliverables:
 - backup/restore, migration, retention, and operational documentation for the
   new review store.
 
-Proposed implementation sequence after approval, with one independently
-verified concern per commit:
+Proposed dependency order after approval:
 
 1. Record the actor/authentication, review-record, and retention decisions as
    separate ADR commits.
@@ -273,7 +278,7 @@ Planned deliverables:
 - deployment, rollback, incident, key-rotation, backup, restore, and disposal
   runbooks tied to the chosen environment.
 
-Proposed implementation sequence after approval:
+Proposed dependency order after approval:
 
 1. Record the deployment/trust-boundary decision and threat model separately.
 2. Record identity/TLS, secrets, storage/recovery, malware, and observability
@@ -389,7 +394,7 @@ Planned deliverables:
 - a signed go/no-go report tying every acceptance threshold to evidence,
   exceptions, owners, expiry/review date, and the exact approved scope.
 
-Proposed implementation sequence after approval:
+Proposed dependency order after approval:
 
 1. Record the evaluation protocol, acceptance authority, and corpus-governance
    decisions before importing or observing evaluation labels.
