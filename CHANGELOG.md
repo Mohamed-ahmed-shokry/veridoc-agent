@@ -103,6 +103,8 @@ semantic versions for tagged releases.
   including declared column types, reject triggers and semantically invalid
   facts or metadata, and refuse WAL, SHM, or rollback-journal destination
   sidecars.
+- Backup and restore open validated source databases in no-create mode, so a
+  source removed concurrently cannot be recreated empty or replace good data.
 
 ## [0.1.0] - 2026-08-02
 
