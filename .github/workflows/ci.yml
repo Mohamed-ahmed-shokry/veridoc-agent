@@ -28,6 +28,19 @@ jobs:
         shell: bash
         run: git diff --check "$(git hash-object -t tree /dev/null)" HEAD
 
+      - name: Reject merge-conflict markers
+        shell: bash
+        run: |
+          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- .; then
+            echo "Merge-conflict markers found."
+            exit 1
+          else
+            status=$?
+          fi
+          if [ "$status" -ne 1 ]; then
+            exit "$status"
+          fi
+
       - name: Install uv and Python
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
