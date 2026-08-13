@@ -291,18 +291,19 @@ Proposed dependency order after approval:
    processing and administration authorization, then replace or disable the
    shared-token administration boundary while preserving audit attribution.
 7. Add bounded concurrency and rate limiting with deterministic overload tests.
-8. Add the scanning/quarantine boundary before upload decoding.
-9. Place the SQLite stores on the selected encrypted single-writer storage
+8. Place the SQLite stores on the selected encrypted single-writer storage
    profile and add least-privilege credentials without changing persistence
    technology.
-10. Automate retention and backups, then verify restore and rollback drills.
-11. Add privacy-reviewed metrics, traces, and structured log export.
-12. Add artifact provenance, dependency/image scanning, and deployment-policy
+9. Add encrypted quarantine storage with retention and disposal controls.
+10. Add the scanning/quarantine boundary before upload decoding.
+11. Automate retention and backups, then verify restore and rollback drills.
+12. Add privacy-reviewed metrics, traces, and structured log export.
+13. Add artifact provenance, dependency/image scanning, and deployment-policy
     validation to CI.
-13. Write the environment-specific operations and incident runbooks.
-14. Synchronize public limitations, architecture, security, testing, changelog,
+14. Write the environment-specific operations and incident runbooks.
+15. Synchronize public limitations, architecture, security, testing, changelog,
     README, and operating guidance.
-15. Run and record the complete Phase 10 deployment-security gate.
+16. Run and record the complete Phase 10 deployment-security gate.
 
 Required verification:
 
