@@ -383,6 +383,9 @@ following documentation commit.
 - Treat extracted provider values as untrusted: bound decimals before arithmetic,
   require evidence pages to exist, and ground supplied OCR spans in normalized
   page text before verification.
+- Bound extraction and explanation provider calls to the fixed 120-second
+  application deadline and close request-scoped provider clients at dependency
+  teardown.
 - Bound streaming reads, isolate temporary files, clean them up deterministically,
   and document ephemeral retention behavior.
 - Public errors must not expose internal paths, stack traces, secrets, or raw

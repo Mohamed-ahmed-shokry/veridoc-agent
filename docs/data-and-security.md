@@ -126,7 +126,9 @@ decoding, OCR, or external-provider input:
 Filename extensions and `Content-Type` alone are not trusted. Validation and
 upload closure complete before OCR, provider, processing, or repository
 dependency construction. Rasterization and OCR run outside the async request
-loop and each Tesseract page retains its configured timeout.
+loop and each Tesseract page retains its configured timeout. Extraction and
+explanation provider calls have a fixed 120-second application deadline, and
+their request-scoped clients close during dependency teardown.
 
 ## Temporary files and retention
 
