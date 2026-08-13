@@ -108,7 +108,7 @@ Verified results:
 synchronization repeated the pre-existing stale `websockets` metadata repair
 warning but completed successfully; every later local gate passed.
 
-## Current Phase 0-8 hardening snapshot
+## 2026-08-11 Phase 0-8 hardening snapshot
 
 The local Phase 0-8 hardening gate was recorded on 2026-08-11 against commit
 `118e7e4` before this evidence section was added. Phase 9 was not started.
