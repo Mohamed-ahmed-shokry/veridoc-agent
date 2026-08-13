@@ -105,17 +105,94 @@ remain later-phase decisions.
 
 ## Phase 9: persistent review and audit workflow
 
-Candidate scope:
+Status: planned; not approved or implemented.
 
-- persistent review cases linked to immutable processing results;
-- reviewer assignment and status transitions;
-- explicit approve/reject/escalate decisions with reasons;
-- append-only audit events and retention policy; and
-- an authenticated review interface that cannot mutate canonical findings.
+Goal: add an accountable human-review workflow while preserving the current
+processing result as immutable evidence. A `clear` processing verdict remains
+distinct from human approval, and no reviewer action may rewrite extraction,
+canonical findings, explanations, or the deterministic verdict.
 
-This phase must define actors, authorization rules, retention, and the legal
-meaning of a review decision. A `clear` processing verdict must remain distinct
-from human approval.
+Entry criteria:
+
+- explicit user approval for Phase 9 after a fresh Phase 0-8 release gate;
+- an approved actor/authentication ADR covering identity, session or token
+  lifecycle, roles, and authorization checks;
+- an approved review-record ADR covering immutable snapshots, status
+  transitions, reason requirements, optimistic concurrency, and idempotency;
+- an approved retention ADR covering review records, audit events, deletion,
+  legal holds, and backup interaction; and
+- synthetic data only until the later deployment and privacy controls are
+  approved.
+
+Planned deliverables:
+
+- strict review-case, assignment, decision, and append-only audit-event models;
+- a persistence-neutral `ReviewRepository` protocol and a forward-only SQLite
+  implementation isolated from reference-data repository interfaces;
+- immutable storage of the complete processing result plus its schema version,
+  creation time, correlation identifier, and content digest;
+- an explicit state machine for unassigned, assigned, decided, and escalated
+  cases, with authorized transitions and required reason text;
+- authenticated, bounded APIs for case creation, list/detail views, assignment,
+  and decisions, with version preconditions preventing lost updates;
+- a review UI that renders canonical evidence safely and submits decisions
+  without changing canonical processing facts; and
+- backup/restore, migration, retention, and operational documentation for the
+  new review store.
+
+Proposed implementation sequence after approval, with one independently
+verified concern per commit:
+
+1. Record the actor/authentication, review-record, and retention decisions as
+   separate ADR commits.
+2. Add strict review identifiers, snapshots, states, decisions, and event models.
+3. Add and test the pure review transition policy.
+4. Add the `ReviewRepository` protocol and typed conflict/unavailable errors.
+5. Add one migration for review cases and immutable processing snapshots.
+6. Add one migration for append-only events and required indexes.
+7. Implement case creation and retrieval with digest verification.
+8. Implement assignment with optimistic concurrency.
+9. Implement decisions and escalation with append-only event creation in the
+   same transaction.
+10. Add authentication and authorization dependencies before storage
+    resolution.
+11. Add one bounded API group at a time: create/list/detail, assignment, then
+    decisions.
+12. Extend the review UI for authenticated case work without embedding secrets
+    or trusting provider prose.
+13. Extend maintenance validation and backup/restore for review data.
+14. Synchronize API, architecture, security, development, testing, changelog,
+    README, and operating guidance.
+15. Run and record the complete Phase 9 release gate from a clean worktree.
+
+Required verification:
+
+- model and state-machine tests for every allowed and forbidden transition;
+- authorization tests proving rejected actors cannot resolve storage or learn
+  case contents;
+- transaction and race tests for duplicate creation, concurrent assignment,
+  repeated decisions, stale versions, and event ordering;
+- persistence tests proving stored processing snapshots and prior audit events
+  cannot be updated through supported interfaces;
+- malformed-row, migration, backup, restore, and retention-policy tests using
+  temporary databases; and
+- ASGI integration tests using synthetic documents and identities only, plus
+  the existing full quality, coverage, audit, and distribution gates.
+
+Exit criteria:
+
+- every review decision is attributable to an authenticated actor and linked to
+  an immutable processing snapshot;
+- every state change creates a durable ordered event in the same transaction;
+- concurrency conflicts fail safely without lost updates or duplicate events;
+- retention and recovery behavior is documented and verified locally; and
+- release evidence states the limits of the chosen local identity and storage
+  model without claiming production readiness.
+
+Explicit non-goals: payment execution, accounting-system writes, automatic
+approval, mutable canonical findings, generic workflow automation, multi-tenant
+deployment, SSO, production TLS, and real customer documents. Deployment-grade
+identity and infrastructure remain Phase 10 concerns.
 
 ## Phase 10: deployment and operational security
 
