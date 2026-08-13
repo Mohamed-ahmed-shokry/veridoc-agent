@@ -37,6 +37,10 @@ class _FakeResponses:
 class _FakeClient:
     def __init__(self, response: object | Exception) -> None:
         self.responses = _FakeResponses(response)
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 def _request() -> ExplanationRequest:
@@ -86,6 +90,16 @@ async def test_adapter_sends_only_verified_findings_to_structured_parsing() -> N
     assert call["store"] is False
     evidence = json.loads(call["input"][0]["content"][0]["text"])
     assert evidence["findings"][0]["observed_value"] == "18400.00"
+
+
+@pytest.mark.anyio
+async def test_adapter_closes_its_provider_client() -> None:
+    client = _FakeClient(SimpleNamespace(output_parsed=None))
+    explainer = OpenAIResponsesExplainer(_settings(), client=client)  # type: ignore[arg-type]
+
+    await explainer.aclose()
+
+    assert client.closed is True
 
 
 @pytest.mark.anyio

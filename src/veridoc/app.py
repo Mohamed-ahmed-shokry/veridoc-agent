@@ -366,13 +366,19 @@ def get_verification_service(
     return VerificationService(repository)
 
 
-def get_explanation_service() -> ExplanationService:
-    """Build optional provider guidance with deterministic fallback when unset."""
+async def get_explanation_service() -> AsyncIterator[ExplanationService]:
+    """Yield optional provider guidance and close any configured client."""
     try:
         settings = OpenAIExplanationSettings.from_environment()
     except ExplanationUnavailableError:
-        return ExplanationService()
-    return ExplanationService(OpenAIResponsesExplainer(settings))
+        yield ExplanationService()
+        return
+
+    explainer = OpenAIResponsesExplainer(settings)
+    try:
+        yield ExplanationService(explainer)
+    finally:
+        await explainer.aclose()
 
 
 def get_processing_service(

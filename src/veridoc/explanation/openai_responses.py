@@ -34,6 +34,10 @@ class OpenAIResponsesExplainer:
         self._settings = settings
         self._client = client or AsyncOpenAI(api_key=settings.api_key)
 
+    async def aclose(self) -> None:
+        """Close the provider client owned by this adapter."""
+        await self._client.close()
+
     async def explain(self, request: ExplanationRequest) -> ExplanationDraftResult:
         """Return structured explanation drafts without exposing provider failures."""
         try:

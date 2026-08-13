@@ -8,6 +8,7 @@ from veridoc.app import (
     get_invoice_repository,
     get_structured_extractor,
 )
+from veridoc.explanation.config import OpenAIExplanationSettings
 from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.verification.models import VerificationFinding, VerificationResult
 
@@ -56,18 +57,51 @@ async def test_explanation_service_uses_deterministic_fallback_without_configura
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("VERIDOC_LLM_MODEL", raising=False)
 
-    result = await get_explanation_service().explain(
-        VerificationResult(
-            findings=[
-                VerificationFinding(
-                    finding_type="duplicate_invoice_number",
-                    severity="high",
-                    explanation="The invoice number already exists for this vendor.",
-                    comparison_source="invoice_register",
-                    deterministic_rule="invoice_number must be unique within vendor history",
-                )
-            ]
+    dependency = get_explanation_service()
+    service = await anext(dependency)
+    try:
+        result = await service.explain(
+            VerificationResult(
+                findings=[
+                    VerificationFinding(
+                        finding_type="duplicate_invoice_number",
+                        severity="high",
+                        explanation="The invoice number already exists for this vendor.",
+                        comparison_source="invoice_register",
+                        deterministic_rule=(
+                            "invoice_number must be unique within vendor history"
+                        ),
+                    )
+                ]
+            )
         )
-    )
+    finally:
+        await dependency.aclose()
 
     assert result.explanations[0].source == "deterministic"
+
+
+@pytest.mark.anyio
+async def test_explanation_dependency_closes_its_request_client(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ClosableExplainer:
+        def __init__(self, settings: OpenAIExplanationSettings) -> None:
+            assert settings.model == "test-model"
+            self.closed = False
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("VERIDOC_LLM_MODEL", "test-model")
+    monkeypatch.setattr(app_module, "OpenAIResponsesExplainer", ClosableExplainer)
+    dependency = get_explanation_service()
+
+    service = await anext(dependency)
+    explainer = service._explainer
+    assert explainer.closed is False
+
+    await dependency.aclose()
+
+    assert explainer.closed is True
