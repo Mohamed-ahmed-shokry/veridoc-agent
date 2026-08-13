@@ -101,6 +101,13 @@ Configure extraction in the same process before calling `/extract`:
 ```powershell
 $env:OPENAI_API_KEY = "replace-with-your-key"
 $env:VERIDOC_LLM_MODEL = "replace-with-a-vision-capable-model"
+```
+
+Configure the local reference database separately before `/process`, reference-
+data administration, or maintenance. The token applies only to authenticated
+administration routes:
+
+```powershell
 $env:VERIDOC_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
 $env:VERIDOC_ADMIN_TOKEN = "replace-with-a-random-token-at-least-32-characters"
 ```
