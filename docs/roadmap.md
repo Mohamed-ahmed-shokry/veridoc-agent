@@ -231,8 +231,8 @@ identity, transport, secret, storage, recovery, and privacy controls.
 
 Entry criteria:
 
-- explicit user approval for Phase 10 and either completion of Phase 9 or an
-  approved scope exception explaining why deployment precedes it;
+- explicit user approval for Phase 10 after Phase 9 is complete and its release
+  gate has passed;
 - named owners for vulnerability response, credential rotation, backup drills,
   and incident handling.
 
