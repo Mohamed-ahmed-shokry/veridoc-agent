@@ -141,6 +141,41 @@ async def test_purchase_order_admin_returns_safe_conflict_and_validation_errors(
 
 
 @pytest.mark.anyio
+async def test_purchase_order_admin_maps_update_natural_key_conflicts(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    async with _client(repository) as client:
+        first = await client.post(
+            "/admin/reference-data/purchase-orders",
+            headers=_AUTHORIZATION,
+            json=_payload(),
+        )
+        second = await client.post(
+            "/admin/reference-data/purchase-orders",
+            headers=_AUTHORIZATION,
+            json=_payload(external_id="purchase-order-2", number="PO-002"),
+        )
+        conflict = await client.put(
+            "/admin/reference-data/purchase-orders/"
+            f"{first.json()['metadata']['record_id']}",
+            headers=_AUTHORIZATION,
+            json={
+                "purchase_order": {
+                    "vendor_key": "fictional-supplies",
+                    "purchase_order_number": "PO-002",
+                }
+            },
+        )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"]["code"] == "reference_data_conflict"
+
+
+@pytest.mark.anyio
 async def test_purchase_order_admin_rejects_an_offset_beyond_sqlite_range(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
