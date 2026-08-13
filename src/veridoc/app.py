@@ -153,8 +153,8 @@ def _route_relative_path(scope: Scope) -> str:
     path = str(scope.get("path", ""))
     root_path = str(scope.get("root_path", "")).rstrip("/")
     if root_path and path.startswith(f"{root_path}/"):
-        return path[len(root_path) :]
-    return path
+        path = path[len(root_path) :]
+    return path.rstrip("/") or "/"
 
 
 def _content_length(scope: Scope) -> int | None:

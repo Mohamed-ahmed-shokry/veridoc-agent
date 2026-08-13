@@ -23,8 +23,14 @@ def anyio_backend() -> str:
     ("path", "limit_name", "code"),
     [
         ("/ocr", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
+        ("/ocr/", "MAX_DOCUMENT_REQUEST_BYTES", "upload_too_large"),
         (
             "/admin/reference-data/import",
+            "MAX_ADMIN_IMPORT_REQUEST_BYTES",
+            "reference_data_import_too_large",
+        ),
+        (
+            "/admin/reference-data/import/",
             "MAX_ADMIN_IMPORT_REQUEST_BYTES",
             "reference_data_import_too_large",
         ),
@@ -177,9 +183,13 @@ async def test_mounted_import_limit_counts_streamed_body_bytes(
     ("method", "path"),
     [
         ("POST", "/admin/reference-data/invoices"),
+        ("POST", "/admin/reference-data/invoices/"),
         ("PUT", "/admin/reference-data/invoices/record-1"),
+        ("PUT", "/admin/reference-data/invoices/record-1/"),
         ("POST", "/admin/reference-data/purchase-orders"),
+        ("POST", "/admin/reference-data/purchase-orders/"),
         ("PUT", "/admin/reference-data/purchase-orders/record-1"),
+        ("PUT", "/admin/reference-data/purchase-orders/record-1/"),
     ],
 )
 async def test_declared_oversized_admin_json_is_rejected_before_authentication(
