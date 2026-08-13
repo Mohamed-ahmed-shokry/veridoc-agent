@@ -99,6 +99,8 @@ runtime implementation remains deliberately small:
   versions, and critical routes for isolated wheel and source-distribution
   installs.
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
+- `tests/test_documentation.py` validates local Markdown link targets as part of
+  the ordinary pytest gate.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -209,6 +211,7 @@ uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
 uv run pytest tests/test_distribution_check.py
+uv run pytest tests/test_documentation.py
 uv run pytest tests/test_administration_models.py
 uv run pytest tests/test_administration_auth.py
 uv run pytest tests/test_sqlite_migrations.py
@@ -316,8 +319,9 @@ state its exact intended purpose.
 - Run the full suite after dependency, cross-cutting, or graph integration
   changes and before completing a phase.
 
-For documentation-only changes, verify every referenced path and command and run
-the focused health test when the documented development workflow is affected.
+For documentation-only changes, run `uv run pytest tests/test_documentation.py`,
+verify every referenced command, and run the focused health test when the
+documented development workflow is affected.
 
 ## Documentation expectations
 

@@ -80,6 +80,7 @@ tests/
 ├── test_request_context.py          safe correlation header and request logs
 ├── test_review_page.py              local review-interface route
 ├── test_distribution_check.py       release archive safety checks
+├── test_documentation.py            local Markdown link consistency
 └── test_fixtures.py               fixture determinism
 ```
 
@@ -134,6 +135,7 @@ uv run pytest tests/test_processing_api.py
 uv run pytest tests/test_processing_integration.py
 uv run pytest tests/test_request_context.py
 uv run pytest tests/test_review_page.py
+uv run pytest tests/test_documentation.py
 uv run pytest tests/test_administration_models.py
 uv run pytest tests/test_administration_auth.py
 uv run pytest tests/test_sqlite_migrations.py
@@ -342,7 +344,7 @@ do not collect coverage, so they remain suitable for atomic changes.
 
 | Change | Minimum focused evidence |
 | --- | --- |
-| Documentation only | Verify paths, commands, examples, and links |
+| Documentation only | Documentation consistency test; verify commands and examples |
 | Validation or decoder module | Focused success/error pytest, Ruff lint, Ruff format check |
 | OCR adapter or service | Mocked boundary tests, Ruff lint, Ruff format check |
 | Extraction schema, graph, or adapter | Typed-boundary tests, mocked provider tests, Ruff lint, Ruff format check |
