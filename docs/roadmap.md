@@ -253,7 +253,12 @@ Planned deliverables:
 - separate liveness, readiness, and startup behavior that checks only the
   dependencies appropriate to each signal and supports graceful shutdown;
 - TLS termination, authenticated processing/review access, authorization at
-  every protected boundary, bounded request concurrency, and rate limits;
+  every protected boundary, stable actor attribution, bounded request
+  concurrency, and rate limits;
+- migration of the Phase 9 actor/session model to the selected deployment
+  identity provider and role policy; the Phase 8 shared administration token is
+  replaced or disabled for remote access rather than retained as a parallel
+  production credential;
 - external secret injection with rotation and revocation procedures and no
   credentials in images, manifests, logs, or diagnostic responses;
 - malware scanning and quarantine before document decoding, with typed failure
@@ -277,8 +282,9 @@ Proposed implementation sequence after approval:
 4. Add explicit Tesseract language assets and startup validation.
 5. Add liveness, readiness, startup, and graceful-shutdown behavior in separate
    commits with dependency-specific tests.
-6. Add processing/review authentication, then authorization policies, without
-   weakening the Phase 8 administration boundary.
+6. Integrate the Phase 9 actor/session model with deployment identity, add
+   processing and administration authorization, then replace or disable the
+   shared-token administration boundary while preserving audit attribution.
 7. Add bounded concurrency and rate limiting with deterministic overload tests.
 8. Add the scanning/quarantine boundary before upload decoding.
 9. Place the SQLite stores on the selected encrypted single-writer storage
@@ -299,6 +305,8 @@ Required verification:
   vulnerability/policy scans for runtime and deployment artifacts;
 - tests proving unauthenticated or unauthorized requests fail before document,
   provider, review, or storage work;
+- identity-migration tests proving actor attribution remains stable and the
+  shared administration token cannot authenticate remote deployment routes;
 - load and overload tests for byte, pixel, concurrency, rate, timeout, and
   temporary-storage limits;
 - safe scanner failure, quarantine, release, retention, and disposal tests with
