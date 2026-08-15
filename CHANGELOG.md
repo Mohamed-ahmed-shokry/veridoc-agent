@@ -8,6 +8,8 @@ semantic versions for tagged releases.
 
 ### Added
 
+- An approval-ready Phase 9 design with explicit identity, session, review-store,
+  immutable-evidence, transition, audit, recovery, and 60-commit delivery gates.
 - Detailed, approval-gated implementation plans for candidate Phases 9 through
   11, including entry criteria, atomic delivery order, verification, and exit
   criteria.
