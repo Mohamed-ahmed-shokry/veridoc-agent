@@ -18,6 +18,8 @@ def check_historical_total(
     """Compare an invoice total with same-currency historical invoice totals."""
     if invoice.total is None:
         return []
+    if invoice.currency is None:
+        return [_insufficient_history_finding(invoice, 0)]
 
     values = [
         historical_invoice.total

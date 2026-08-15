@@ -93,3 +93,20 @@ def test_historical_total_check_declares_insufficient_same_currency_history() ->
     assert findings[0].finding_type == "insufficient_history"
     assert findings[0].historical_sample_size == 1
     assert findings[0].details["metric"] == "invoice_total"
+
+
+def test_historical_total_check_requires_a_known_invoice_currency() -> None:
+    invoice = InvoiceExtraction(document_type="invoice", total="5000.00")
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number=f"INV-{index}",
+            total="100.00",
+        )
+        for index in range(1, 4)
+    ]
+
+    findings = check_historical_total(invoice, history)
+
+    assert findings[0].finding_type == "insufficient_history"
+    assert findings[0].historical_sample_size == 0
