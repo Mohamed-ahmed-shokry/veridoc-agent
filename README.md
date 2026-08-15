@@ -59,7 +59,7 @@ atomic imports, and safe backup/restore tooling for approved reference facts.
 Prerequisites:
 
 - Git
-- [uv](https://docs.astral.sh/uv/)
+- [uv](https://docs.astral.sh/uv/) 0.9.13 (required by `pyproject.toml`)
 - Tesseract OCR executable with the trained data for requested languages
 - an OpenAI API key and vision-capable model when using `POST /extract` or
   `POST /process`
