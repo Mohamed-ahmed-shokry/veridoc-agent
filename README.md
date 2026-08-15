@@ -348,6 +348,7 @@ API also returns an `X-Request-ID` for safe operational correlation. See
 │   ├── architecture.md
 │   ├── data-and-security.md
 │   ├── development.md
+│   ├── phase-9-plan.md
 │   ├── release-evidence.md
 │   ├── roadmap.md
 │   ├── testing.md
@@ -430,7 +431,8 @@ Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
 release evidence without adding endpoints or processing features. Phase 8
 completed controlled local reference-data operations with a verified release
 gate. See the [project roadmap](docs/roadmap.md) for deliverables and approval
-boundaries.
+boundaries. The proposed persistent-review design and exact atomic sequence are
+in the [Phase 9 approval plan](docs/phase-9-plan.md); Phase 9 remains unapproved.
 
 ## Documentation
 
@@ -443,6 +445,8 @@ boundaries.
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
 - [Roadmap](docs/roadmap.md): completed Phase 8 scope and unapproved later phases.
+- [Phase 9 approval plan](docs/phase-9-plan.md): proposed design, decisions,
+  atomic implementation sequence, gates, and explicit approval boundary.
 - [Release evidence](docs/release-evidence.md): verified local gates and evidence
   boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
