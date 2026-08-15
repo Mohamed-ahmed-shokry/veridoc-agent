@@ -334,6 +334,47 @@ and cross-filesystem copy warnings; the isolated artifact resolver emitted
 informational warnings while ignoring obsolete upstream package files. All
 commands completed successfully.
 
+## 2026-08-15 Boundary hardening snapshot
+
+The local Phase 0-8 gate was rerun on 2026-08-15 against commit `e515321`
+before this evidence section was added. Candidate Phases 9 through 11 remain
+unapproved and unimplemented; no Phase 9 runtime work was started.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 143 files already formatted |
+| `uv run --no-sync mypy` | No issues in 59 production source files |
+| `uv run pytest --cov=veridoc` | 351 passed; 95.96% branch coverage against a 90% floor |
+| `uv run --no-sync pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, schema-module, and path-safety validation |
+| Cache-free isolated-wheel smoke | The wheel passed `scripts/smoke_distribution.py` |
+| Cache-free isolated-source-distribution smoke | The source distribution built, installed, and passed the same smoke script |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help` |
+| Full tracked-tree and working-tree whitespace checks | Passed |
+| Merge-conflict marker scan | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. Locked
+synchronization repeated the stale `websockets` metadata repair and
+cross-filesystem copy warnings, but it completed successfully and every later
+local gate passed. The isolated artifact resolver emitted informational warnings
+while ignoring obsolete upstream package files, then completed both installs and
+smoke checks.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
