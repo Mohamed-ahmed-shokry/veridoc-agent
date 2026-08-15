@@ -6,7 +6,7 @@ import pytest
 from PIL import Image
 
 from veridoc.ocr import tesseract
-from veridoc.ocr.protocol import OCRUnavailableError
+from veridoc.ocr.protocol import OCRProcessingError, OCRUnavailableError
 
 
 def test_tesseract_parses_lines_and_averages_word_confidence(
@@ -76,6 +76,19 @@ def test_tesseract_timeout_is_reported_safely(
         tesseract.TesseractEngine(timeout_seconds=0.25).recognize(
             Image.new("RGB", (2, 2))
         )
+
+
+def test_tesseract_rejects_malformed_engine_data(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def malformed_output(*args: Any, **kwargs: Any) -> Any:
+        del args, kwargs
+        return None
+
+    monkeypatch.setattr(tesseract.pytesseract, "image_to_data", malformed_output)
+
+    with pytest.raises(OCRProcessingError, match="processed safely"):
+        tesseract.TesseractEngine().recognize(Image.new("RGB", (2, 2)))
 
 
 @pytest.mark.parametrize("configured", ["0", "301", "nan", "not-a-number"])

@@ -14,7 +14,7 @@ from pytesseract import Output
 from pytesseract.pytesseract import TesseractError, TesseractNotFoundError
 
 from veridoc.ocr.models import OCRPageResult
-from veridoc.ocr.protocol import OCRUnavailableError
+from veridoc.ocr.protocol import OCRProcessingError, OCRUnavailableError
 
 _TESSERACT_LOCK = RLock()
 _DEFAULT_TIMEOUT_SECONDS = 30.0
@@ -60,7 +60,10 @@ class TesseractEngine:
                 raise OCRUnavailableError from exc
             finally:
                 pytesseract.pytesseract.tesseract_cmd = previous_command
-        return _parse_data(data)
+        try:
+            return _parse_data(data)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise OCRProcessingError from exc
 
 
 def _validated_timeout(configured: float | None) -> float:
