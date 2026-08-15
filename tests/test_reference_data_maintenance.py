@@ -480,6 +480,33 @@ def test_maintenance_rejects_missing_and_same_paths(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("operation", [backup_database, restore_database])
+@pytest.mark.parametrize("resolution_exception", [OSError, RuntimeError])
+def test_maintenance_maps_path_resolution_failures(
+    operation,
+    resolution_exception,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    _repository(source_path)
+    destination_path = tmp_path / "destination.sqlite"
+    original_resolve = maintenance.Path.resolve
+
+    def fail_source_resolution(path: Path, *args, **kwargs) -> Path:
+        if path == source_path:
+            raise resolution_exception("synthetic resolution failure")
+        return original_resolve(path, *args, **kwargs)
+
+    monkeypatch.setattr(maintenance.Path, "resolve", fail_source_resolution)
+
+    with pytest.raises(ReferenceDataMaintenanceError) as error:
+        operation(source_path, destination_path)
+
+    assert isinstance(error.value.__cause__, resolution_exception)
+    assert not destination_path.exists()
+
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
 def test_maintenance_does_not_recreate_a_source_removed_after_validation(
     operation,
     tmp_path,

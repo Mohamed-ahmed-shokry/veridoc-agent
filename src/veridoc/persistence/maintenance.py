@@ -39,8 +39,8 @@ def backup_database(
     destination_path: str | Path,
 ) -> Path:
     """Create an integrity-checked online backup using atomic replacement."""
-    source = Path(database_path).resolve()
-    destination = Path(destination_path).resolve()
+    source = _resolve_maintenance_path(database_path)
+    destination = _resolve_maintenance_path(destination_path)
     temporary: Path | None = None
     validation_temporary: Path | None = None
     try:
@@ -93,8 +93,8 @@ def restore_database(
     database_path: str | Path,
 ) -> Path:
     """Validate, migrate, and atomically restore one stopped local database."""
-    source = Path(backup_path).resolve()
-    destination = Path(database_path).resolve()
+    source = _resolve_maintenance_path(backup_path)
+    destination = _resolve_maintenance_path(database_path)
     temporary: Path | None = None
     try:
         _require_distinct_existing_source(source, destination)
@@ -131,6 +131,13 @@ def restore_database(
 def _require_distinct_existing_source(source: Path, destination: Path) -> None:
     if source == destination or not source.is_file():
         raise ReferenceDataMaintenanceError
+
+
+def _resolve_maintenance_path(path: str | Path) -> Path:
+    try:
+        return Path(path).resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ReferenceDataMaintenanceError from exc
 
 
 def _connect_existing(database_path: Path) -> sqlite3.Connection:
