@@ -292,6 +292,33 @@ def test_backup_rejects_a_missing_unique_index(tmp_path) -> None:
     assert not backup_path.exists()
 
 
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+def test_maintenance_rejects_an_altered_unique_index_predicate(
+    operation,
+    tmp_path,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    _repository(source_path)
+    with sqlite3.connect(source_path) as connection:
+        connection.execute("DROP INDEX vendor_invoices_source_external_id_index")
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX vendor_invoices_source_external_id_index
+            ON vendor_invoices(source, external_id)
+            WHERE source IS NOT NULL
+            """
+        )
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_destination = destination_path.read_bytes()
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        operation(source_path, destination_path)
+
+    assert destination_path.read_bytes() == original_destination
+
+
 def test_restore_rejects_a_missing_foreign_key_and_preserves_target(tmp_path) -> None:
     backup_path = tmp_path / "invalid-backup.sqlite"
     _repository(backup_path)
