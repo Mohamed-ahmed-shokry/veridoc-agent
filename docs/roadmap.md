@@ -113,6 +113,11 @@ must follow the repository's smallest independently verified commit protocol.
 
 Status: planned; not approved or implemented.
 
+The proposed design, security decisions, exact atomic commit sequence, and
+approval wording are defined in the
+[Phase 9 approval and implementation plan](phase-9-plan.md). That document is a
+planning artifact and does not approve implementation.
+
 Goal: add an accountable human-review workflow while preserving the current
 processing result as immutable evidence. A `clear` processing verdict remains
 distinct from human approval, and no reviewer action may rewrite extraction,
@@ -471,4 +476,6 @@ provider/model/deployment versions without comparison evidence.
 Phase 8 is complete; no later phase is approved. Before Phase 9 or any later
 phase, inspect the current repository, run the full existing gate, present the
 exact implementation and atomic commit plan, identify data/security decisions,
-and wait for explicit user approval.
+and wait for explicit user approval. Phase 9 approval must identify the
+[Phase 9 approval and implementation plan](phase-9-plan.md); approval does not
+extend to Phase 10 or Phase 11.
