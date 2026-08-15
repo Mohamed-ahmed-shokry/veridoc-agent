@@ -61,7 +61,7 @@ class OpenAIResponsesExtractor:
         except (TypeError, ValidationError, ValueError) as exc:
             raise ExtractionProcessingError from exc
 
-        extracted = response.output_parsed
+        extracted = getattr(response, "output_parsed", None)
         if not isinstance(extracted, InvoiceExtraction):
             raise ExtractionProcessingError
         return extracted.model_copy(
