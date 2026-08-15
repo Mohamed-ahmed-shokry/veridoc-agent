@@ -89,6 +89,45 @@ def test_line_item_occurrence_declares_insufficient_history() -> None:
     assert findings[0].historical_sample_size == 1
 
 
+def test_line_item_history_requires_a_known_invoice_currency() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="10",
+                unit_price="9200.00",
+            )
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number=f"INV-{index}",
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="CONSULTING",
+                    quantity="1",
+                    unit_price="100.00",
+                )
+            ],
+        )
+        for index in range(1, 4)
+    ]
+
+    occurrence_findings = check_line_item_occurrence(invoice, history)
+    statistic_findings = check_line_item_statistics(invoice, history)
+
+    assert [finding.finding_type for finding in occurrence_findings] == [
+        "insufficient_history"
+    ]
+    assert [finding.finding_type for finding in statistic_findings] == [
+        "insufficient_history",
+        "insufficient_history",
+    ]
+    assert all(finding.historical_sample_size == 0 for finding in statistic_findings)
+
+
 def test_line_item_statistics_accepts_established_price_and_quantity() -> None:
     invoice = InvoiceExtraction(
         document_type="invoice",

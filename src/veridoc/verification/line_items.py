@@ -30,7 +30,8 @@ def check_line_item_occurrence(
     comparable_history = [
         historical_invoice
         for historical_invoice in history
-        if historical_invoice.currency == invoice.currency
+        if invoice.currency is not None
+        and historical_invoice.currency == invoice.currency
     ]
     findings: list[VerificationFinding] = []
     for index, line_item in enumerate(invoice.line_items):
@@ -86,7 +87,8 @@ def check_line_item_statistics(
     comparable_history = [
         historical_invoice
         for historical_invoice in history
-        if historical_invoice.currency == invoice.currency
+        if invoice.currency is not None
+        and historical_invoice.currency == invoice.currency
     ]
     findings: list[VerificationFinding] = []
     for index, line_item in enumerate(invoice.line_items):
