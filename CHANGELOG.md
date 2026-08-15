@@ -73,6 +73,8 @@ semantic versions for tagged releases.
   during concurrent administration writes.
 - Administrative pagination offsets are bounded to SQLite's signed 64-bit
   range before query binding.
+- Purchase-order reconciliation consumes matching duplicate line references
+  one-to-one.
 - Online backup preserves the live source and the published snapshot at their
   original schema version while validating a disposable migrated copy.
 - Backup and restore validation copies commit migrations only after the final
