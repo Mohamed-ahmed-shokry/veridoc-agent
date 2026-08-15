@@ -77,6 +77,8 @@ semantic versions for tagged releases.
   one-to-one.
 - Historical-total checks require a known invoice currency before selecting
   same-currency reference data.
+- Line-item occurrence and statistical checks require a known invoice currency
+  before selecting comparable reference data.
 - Online backup preserves the live source and the published snapshot at their
   original schema version while validating a disposable migrated copy.
 - Backup and restore validation copies commit migrations only after the final
