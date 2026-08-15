@@ -76,10 +76,7 @@ def backup_database(
     ) as exc:
         raise ReferenceDataMaintenanceError from exc
     finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
-        if validation_temporary is not None:
-            validation_temporary.unlink(missing_ok=True)
+        _remove_temporary_files(temporary, validation_temporary)
     return destination
 
 
@@ -123,8 +120,7 @@ def restore_database(
     ) as exc:
         raise ReferenceDataMaintenanceError from exc
     finally:
-        if temporary is not None:
-            temporary.unlink(missing_ok=True)
+        _remove_temporary_files(temporary)
     return destination
 
 
@@ -163,6 +159,20 @@ def _temporary_sibling(destination: Path) -> Path:
         delete=False,
     ) as handle:
         return Path(handle.name)
+
+
+def _remove_temporary_files(*paths: Path | None) -> None:
+    cleanup_error: OSError | None = None
+    for path in paths:
+        if path is None:
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as exc:
+            if cleanup_error is None:
+                cleanup_error = exc
+    if cleanup_error is not None:
+        raise ReferenceDataMaintenanceError from cleanup_error
 
 
 def _validate_integrity(connection: sqlite3.Connection) -> None:

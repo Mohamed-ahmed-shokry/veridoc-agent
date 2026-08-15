@@ -507,6 +507,63 @@ def test_maintenance_maps_path_resolution_failures(
 
 
 @pytest.mark.parametrize("operation", [backup_database, restore_database])
+def test_maintenance_maps_temporary_cleanup_failures(
+    operation,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    source_repository = _repository(source_path)
+    _add_invoice(source_repository, "INV-SOURCE")
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_destination = destination_path.read_bytes()
+    temporary_paths = [
+        tmp_path / "temporary.sqlite",
+        tmp_path / "validation-temporary.sqlite",
+    ]
+    temporary_path_iterator = iter(temporary_paths)
+
+    def create_temporary_sibling(destination: Path) -> Path:
+        del destination
+        path = next(temporary_path_iterator)
+        path.touch()
+        return path
+
+    def fail_integrity(connection: sqlite3.Connection) -> None:
+        del connection
+        raise ReferenceDataMaintenanceError
+
+    original_unlink = maintenance.Path.unlink
+
+    def deny_first_temporary_cleanup(path: Path, *, missing_ok: bool = False) -> None:
+        if path == temporary_paths[0]:
+            raise PermissionError("synthetic cleanup failure")
+        original_unlink(path, missing_ok=missing_ok)
+
+    monkeypatch.setattr(
+        maintenance,
+        "_temporary_sibling",
+        create_temporary_sibling,
+    )
+    monkeypatch.setattr(maintenance, "_validate_integrity", fail_integrity)
+    monkeypatch.setattr(
+        maintenance.Path,
+        "unlink",
+        deny_first_temporary_cleanup,
+    )
+
+    with pytest.raises(ReferenceDataMaintenanceError) as error:
+        operation(source_path, destination_path)
+
+    assert isinstance(error.value.__cause__, PermissionError)
+    assert destination_path.read_bytes() == original_destination
+    assert not temporary_paths[1].exists()
+    original_unlink(temporary_paths[0], missing_ok=True)
+
+
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
 def test_maintenance_does_not_recreate_a_source_removed_after_validation(
     operation,
     tmp_path,
