@@ -58,7 +58,7 @@ class OpenAIResponsesExplainer:
         except (TypeError, ValidationError, ValueError) as exc:
             raise ExplanationProcessingError from exc
 
-        drafts = response.output_parsed
+        drafts = getattr(response, "output_parsed", None)
         if not isinstance(drafts, ExplanationDraftResult):
             raise ExplanationProcessingError
         return drafts

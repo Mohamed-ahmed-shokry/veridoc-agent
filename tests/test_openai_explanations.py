@@ -138,10 +138,11 @@ async def test_adapter_maps_provider_failures_to_safe_unavailability() -> None:
 
 
 @pytest.mark.anyio
-async def test_adapter_rejects_missing_structured_output() -> None:
+@pytest.mark.parametrize("response", [SimpleNamespace(output_parsed=None), object()])
+async def test_adapter_rejects_missing_structured_output(response: object) -> None:
     explainer = OpenAIResponsesExplainer(
         _settings(),
-        client=_FakeClient(SimpleNamespace(output_parsed=None)),  # type: ignore[arg-type]
+        client=_FakeClient(response),  # type: ignore[arg-type]
     )
 
     with pytest.raises(ExplanationProcessingError):
