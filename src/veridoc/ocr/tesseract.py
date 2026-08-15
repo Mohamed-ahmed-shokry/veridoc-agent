@@ -81,10 +81,14 @@ def _validated_timeout(configured: float | None) -> float:
     return timeout
 
 
-def _parse_data(data: dict[str, list[Any]]) -> OCRPageResult:
+def _parse_data(data: object) -> OCRPageResult:
+    if not isinstance(data, dict):
+        raise OCRProcessingError
     lines: dict[tuple[int, int, int], list[str]] = defaultdict(list)
     confidences: list[float] = []
-    texts = data.get("text", [])
+    texts = data.get("text")
+    if not isinstance(texts, list):
+        raise OCRProcessingError
     for index, raw_text in enumerate(texts):
         text = str(raw_text).strip()
         if not text:

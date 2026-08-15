@@ -78,12 +78,14 @@ def test_tesseract_timeout_is_reported_safely(
         )
 
 
+@pytest.mark.parametrize("output", [None, {"text": "not-a-list"}])
 def test_tesseract_rejects_malformed_engine_data(
+    output: Any,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def malformed_output(*args: Any, **kwargs: Any) -> Any:
         del args, kwargs
-        return None
+        return output
 
     monkeypatch.setattr(tesseract.pytesseract, "image_to_data", malformed_output)
 
