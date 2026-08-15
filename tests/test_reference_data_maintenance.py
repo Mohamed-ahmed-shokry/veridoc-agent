@@ -537,6 +537,47 @@ def test_maintenance_rejects_destination_sidecars_without_replacement(
     assert sidecar_path.exists()
 
 
+@pytest.mark.parametrize("operation", [backup_database, restore_database])
+@pytest.mark.parametrize("sidecar_suffix", ["-wal", "-shm", "-journal"])
+def test_maintenance_rejects_destination_sidecars_created_before_publication(
+    operation,
+    sidecar_suffix: str,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_path = tmp_path / "source.sqlite"
+    source_repository = _repository(source_path)
+    _add_invoice(source_repository, "INV-SOURCE")
+    destination_path = tmp_path / "destination.sqlite"
+    destination_repository = _repository(destination_path)
+    _add_invoice(destination_repository, "INV-KEEP")
+    original_destination = destination_path.read_bytes()
+    sidecar_path = Path(f"{destination_path}{sidecar_suffix}")
+    original_guard = maintenance._require_no_live_sidecars
+    destination_checks = 0
+
+    def create_sidecar_before_final_destination_guard(path: Path) -> None:
+        nonlocal destination_checks
+        if path == destination_path:
+            destination_checks += 1
+            if destination_checks == 2:
+                sidecar_path.touch()
+        original_guard(path)
+
+    monkeypatch.setattr(
+        maintenance,
+        "_require_no_live_sidecars",
+        create_sidecar_before_final_destination_guard,
+    )
+
+    with pytest.raises(ReferenceDataMaintenanceError):
+        operation(source_path, destination_path)
+
+    assert destination_path.read_bytes() == original_destination
+    assert sidecar_path.exists()
+    assert list(tmp_path.glob(f".{destination_path.name}.*.tmp")) == []
+
+
 @pytest.mark.parametrize("sidecar_suffix", ["-wal", "-shm", "-journal"])
 def test_restore_rejects_source_sidecars_without_replacement(
     sidecar_suffix: str,

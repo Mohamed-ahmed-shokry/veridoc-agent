@@ -65,6 +65,7 @@ def backup_database(
                     validate=_validate_migrated_reference_data,
                 )
                 _validate_integrity(validation_connection)
+        _require_no_live_sidecars(destination)
         os.replace(temporary, destination)
     except (
         OSError,
@@ -111,6 +112,7 @@ def restore_database(
                     validate=_validate_migrated_reference_data,
                 )
                 _validate_integrity(restore_connection)
+        _require_no_live_sidecars(destination)
         os.replace(temporary, destination)
     except (
         OSError,
