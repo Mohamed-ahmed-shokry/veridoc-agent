@@ -78,16 +78,19 @@ def _check_line_items(
     invoice: InvoiceExtraction, purchase_order_line_items: list[ReferenceLineItem]
 ) -> list[VerificationFinding]:
     findings: list[VerificationFinding] = []
+    remaining_purchase_order_line_items = list(purchase_order_line_items)
     for index, invoice_line_item in enumerate(invoice.line_items):
         key = line_item_key(
             invoice_line_item.product_identifier, invoice_line_item.description
         )
         if key is None:
             continue
-        matching_purchase_order_line_item = next(
+        matching_index = next(
             (
-                purchase_order_line_item
-                for purchase_order_line_item in purchase_order_line_items
+                candidate_index
+                for candidate_index, purchase_order_line_item in enumerate(
+                    remaining_purchase_order_line_items
+                )
                 if line_item_key(
                     purchase_order_line_item.product_identifier,
                     purchase_order_line_item.description,
@@ -96,7 +99,7 @@ def _check_line_items(
             ),
             None,
         )
-        if matching_purchase_order_line_item is None:
+        if matching_index is None:
             findings.append(
                 VerificationFinding(
                     finding_type="purchase_order_mismatch",
@@ -110,6 +113,9 @@ def _check_line_items(
                 )
             )
             continue
+        matching_purchase_order_line_item = remaining_purchase_order_line_items.pop(
+            matching_index
+        )
         for field in ("quantity", "unit_price", "total_price"):
             observed_value = getattr(invoice_line_item, field)
             expected_value = getattr(matching_purchase_order_line_item, field)

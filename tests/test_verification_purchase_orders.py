@@ -31,6 +31,25 @@ class PurchaseOrderRepository:
                     )
                 ],
             )
+        if (vendor_key, purchase_order_number) == ("fictional-supplies", "PO-003"):
+            return PurchaseOrder(
+                vendor_key=vendor_key,
+                purchase_order_number=purchase_order_number,
+                line_items=[
+                    ReferenceLineItem(
+                        product_identifier="CONSULTING",
+                        quantity="2",
+                        unit_price="3000.00",
+                        total_price="6000.00",
+                    ),
+                    ReferenceLineItem(
+                        product_identifier="CONSULTING",
+                        quantity="1",
+                        unit_price="1000.00",
+                        total_price="1000.00",
+                    ),
+                ],
+            )
         return None
 
 
@@ -95,3 +114,27 @@ def test_purchase_order_check_reports_line_item_mismatches() -> None:
         "line_item_total_price",
         "line_item",
     ]
+
+
+def test_purchase_order_check_matches_duplicate_line_items_once() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-003",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="2",
+                unit_price="3000.00",
+                total_price="6000.00",
+            ),
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="1",
+                unit_price="1000.00",
+                total_price="1000.00",
+            ),
+        ],
+    )
+
+    assert check_purchase_order(invoice, PurchaseOrderRepository()) == []
