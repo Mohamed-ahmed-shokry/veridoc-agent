@@ -336,6 +336,8 @@ documentation set is:
   rules;
 - `docs/api.md` for implemented endpoints and limitations;
 - `docs/roadmap.md` for approved work and later unapproved phase candidates;
+- `docs/phase-9-plan.md` for the proposed Phase 9 design, exact atomic commit
+  sequence, verification checkpoints, and explicit approval boundary;
 - `docs/release-evidence.md` for local phase-gate results and evidence
   boundaries;
 - `docs/decisions/README.md` for ADR conventions and the decision index.
@@ -429,4 +431,5 @@ following documentation commit.
 
 Do not begin Phase 9. Before Phase 9 or any later phase, inspect the repository,
 run the existing suite, present the implementation and commit plan, identify
-documentation changes, and wait for explicit approval.
+documentation changes, and wait for explicit approval. Phase 9 approval must
+identify `docs/phase-9-plan.md` and does not approve Phase 10 or Phase 11.
