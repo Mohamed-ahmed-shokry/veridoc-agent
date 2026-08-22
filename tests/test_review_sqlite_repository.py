@@ -10,6 +10,7 @@ from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
     CaseAssignmentRequest,
     CaseDetail,
+    CaseEscalationRequest,
     IdempotentRequest,
     ReviewSnapshot,
     build_review_snapshot,
@@ -395,3 +396,89 @@ def test_assign_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
     )
 
     assert first == second
+
+
+def _assign_case(
+    repository: SQLiteReviewRepository, case_id: str, *, actor_id: str = "reviewer-2"
+) -> CaseDetail | None:
+    return repository.assign_case(
+        case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id=actor_id,
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+
+def test_escalate_case_by_the_assignee(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    updated = repository.escalate_case(
+        case.case_id,
+        request=CaseEscalationRequest(expected_version=2, reason="Cannot decide."),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-escalate",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.status == "escalated"
+    assert updated.version == 3
+    assert updated.assignee_id == "reviewer-2"
+    assert updated.events[-1].event_type == "case_escalated"
+    assert updated.events[-1].reason == "Cannot decide."
+
+
+def test_escalate_case_by_review_admin_who_is_not_the_assignee(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    updated = repository.escalate_case(
+        case.case_id,
+        request=CaseEscalationRequest(expected_version=2, reason="Needs review."),
+        actor_id="admin-1",
+        actor_role="review_admin",
+        request_id="request-escalate",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.status == "escalated"
+
+
+def test_escalate_case_rejects_a_non_assignee_reviewer(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with pytest.raises(ReviewAuthorizationError):
+        repository.escalate_case(
+            case.case_id,
+            request=CaseEscalationRequest(expected_version=2, reason="Not mine."),
+            actor_id="reviewer-3",
+            actor_role="reviewer",
+            request_id="request-escalate",
+            idempotent_request=None,
+        )
+
+
+def test_escalate_case_rejects_an_unassigned_case(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with pytest.raises(StaleVersionConflictError):
+        repository.escalate_case(
+            case.case_id,
+            request=CaseEscalationRequest(expected_version=1, reason="Too soon."),
+            actor_id="reviewer-1",
+            actor_role="review_admin",
+            request_id="request-escalate",
+            idempotent_request=None,
+        )
