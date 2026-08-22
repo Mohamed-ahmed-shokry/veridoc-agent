@@ -50,6 +50,7 @@ from veridoc.persistence.protocol import (
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.processing.models import ProcessingResult
 from veridoc.processing.service import ProcessingError, ProcessingService
+from veridoc.review.api import router as review_router
 from veridoc.review.page import render_review_page
 from veridoc.verification.service import VerificationService
 
@@ -196,6 +197,7 @@ app = FastAPI(
     version=__version__,
 )
 app.include_router(administration_router)
+app.include_router(review_router)
 app.add_middleware(RequestBodyLimitMiddleware)
 
 
