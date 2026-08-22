@@ -152,7 +152,9 @@ class SQLiteReviewRepository:
                     ),
                 )
             except sqlite3.IntegrityError as exc:
-                raise IdempotencyConflictError from exc
+                return _resolve_after_idempotency_conflict(
+                    connection, idempotent_request, exc
+                )
 
             row = connection.execute(
                 "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
@@ -474,6 +476,34 @@ def _find_replay(
     return True, (_case_detail_from_row(connection, row) if row is not None else None)
 
 
+def _resolve_after_idempotency_conflict(
+    connection: sqlite3.Connection,
+    idempotent_request: IdempotentRequest,
+    original_exc: sqlite3.IntegrityError,
+) -> CaseDetail:
+    """Recover after losing a concurrent idempotency-key insert race.
+
+    A concurrent writer may commit the same (actor, operation, key) between
+    our precondition read and our own insert. Roll back this attempt's
+    partial writes first, then treat a matching digest as a successful
+    replay of the winner's result; a differing (or now-missing) digest is a
+    genuine conflict.
+    """
+    connection.rollback()
+    resolved = _find_idempotency_key(connection, idempotent_request)
+    if resolved is None:
+        raise IdempotencyConflictError from original_exc
+    stored_digest, case_row_id = resolved
+    if stored_digest != idempotent_request.request_digest:
+        raise IdempotencyConflictError from original_exc
+    row = connection.execute(
+        "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
+    ).fetchone()
+    if row is None:
+        raise IdempotencyConflictError from original_exc
+    return _case_detail_from_row(connection, row)
+
+
 def _apply_transition(
     connection: sqlite3.Connection,
     *,
@@ -555,7 +585,9 @@ def _apply_transition(
                 ),
             )
         except sqlite3.IntegrityError as exc:
-            raise IdempotencyConflictError from exc
+            return _resolve_after_idempotency_conflict(
+                connection, idempotent_request, exc
+            )
 
     updated_row = connection.execute(
         "SELECT * FROM review_cases WHERE id = ?", (row["id"],)
