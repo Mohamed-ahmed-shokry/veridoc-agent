@@ -125,6 +125,14 @@ class SQLiteReviewRepository:
             ).fetchone()
             return _case_detail_from_row(connection, row)
 
+    def get_case(self, case_id: str) -> CaseDetail | None:
+        """Return one case's full snapshot, current state, and ordered events."""
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM review_cases WHERE case_id = ?", (case_id,)
+            ).fetchone()
+            return _case_detail_from_row(connection, row) if row is not None else None
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row

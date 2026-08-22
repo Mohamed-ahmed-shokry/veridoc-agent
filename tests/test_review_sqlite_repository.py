@@ -1,5 +1,6 @@
 """SQLite review-store repository tests."""
 
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -12,7 +13,7 @@ from veridoc.review.models import (
     build_review_snapshot,
 )
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
-from veridoc.review.protocol import IdempotencyConflictError
+from veridoc.review.protocol import IdempotencyConflictError, ReviewDataUnavailableError
 
 
 def _snapshot() -> ReviewSnapshot:
@@ -124,3 +125,45 @@ def test_create_case_allows_distinct_cases_for_distinct_keys(tmp_path: Path) -> 
     )
 
     assert first.case_id != second.case_id
+
+
+def test_get_case_returns_the_stored_snapshot_and_events(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    created = repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-1",
+        idempotent_request=_idempotent_request(),
+    )
+
+    fetched = repository.get_case(created.case_id)
+
+    assert fetched is not None
+    assert fetched.case_id == created.case_id
+    assert fetched.snapshot == created.snapshot
+    assert [event.event_type for event in fetched.events] == ["case_created"]
+
+
+def test_get_case_returns_none_for_an_unknown_case(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    assert repository.get_case("unknown-case") is None
+
+
+def test_get_case_rejects_a_tampered_snapshot_digest(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    created = repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-1",
+        idempotent_request=_idempotent_request(),
+    )
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_cases SET snapshot_digest = ? WHERE case_id = ?",
+            ("0" * 64, created.case_id),
+        )
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(created.case_id)
