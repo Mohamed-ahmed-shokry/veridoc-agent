@@ -136,7 +136,7 @@ class RequestBodyLimitMiddleware:
 
 
 def _request_body_limit(path: str, method: str) -> tuple[int, str, str] | None:
-    if path in {"/ocr", "/extract", "/process"}:
+    if path in {"/ocr", "/extract", "/process", "/review/cases"}:
         return (
             MAX_DOCUMENT_REQUEST_BYTES,
             "upload_too_large",
