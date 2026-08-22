@@ -217,3 +217,13 @@ class CasePage(ReviewModel):
     offset: int = Field(ge=0)
     limit: int = Field(ge=1, le=200)
     total: int = Field(ge=0)
+
+
+class ReviewSession(ReviewModel):
+    """One persisted browser session record; never the raw session token."""
+
+    session_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    actor_id: ActorId
+    created_at: AwareDatetime
+    expires_at: AwareDatetime
+    revoked_at: AwareDatetime | None = None

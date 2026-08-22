@@ -8,13 +8,23 @@ from pydantic import ValidationError
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
+    CaseAssignmentRequest,
+    CaseDecisionRequest,
     CaseDetail,
+    CaseEscalationRequest,
     CasePage,
     CaseSummary,
+    ReviewSession,
     ReviewSnapshot,
     build_review_snapshot,
 )
-from veridoc.review.protocol import ReviewCaseReader
+from veridoc.review.protocol import (
+    IdempotencyConflictError,
+    ReviewCaseReader,
+    ReviewCaseWriter,
+    ReviewSessionStore,
+    StaleVersionConflictError,
+)
 
 _CREATED_AT = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
 
@@ -95,3 +105,96 @@ def test_case_page_bounds_its_limit() -> None:
 def test_case_page_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError):
         CasePage(records=[], offset=0, limit=100, total=0, extra="not-allowed")
+
+
+class _FakeWriter:
+    def create_case(
+        self, *, snapshot, creator_actor_id, request_id, idempotent_request
+    ) -> CaseDetail:
+        del snapshot, creator_actor_id, request_id, idempotent_request
+        return CaseDetail(
+            case_id="case-1",
+            status="unassigned",
+            version=1,
+            creator_actor_id="reviewer-1",
+            created_at=_CREATED_AT,
+            updated_at=_CREATED_AT,
+            snapshot=_snapshot(),
+            events=[],
+        )
+
+    def assign_case(
+        self, case_id, *, request, actor_id, request_id, idempotent_request
+    ) -> CaseDetail | None:
+        del case_id, request, actor_id, request_id, idempotent_request
+        return None
+
+    def escalate_case(
+        self, case_id, *, request, actor_id, request_id, idempotent_request
+    ) -> CaseDetail | None:
+        del case_id, request, actor_id, request_id, idempotent_request
+        return None
+
+    def decide_case(
+        self, case_id, *, request, actor_id, request_id, idempotent_request
+    ) -> CaseDetail | None:
+        del case_id, request, actor_id, request_id, idempotent_request
+        return None
+
+
+class _FakeSessionStore:
+    def create_session(self, *, session_digest, actor_id, expires_at) -> ReviewSession:
+        return ReviewSession(
+            session_digest=session_digest,
+            actor_id=actor_id,
+            created_at=_CREATED_AT,
+            expires_at=expires_at,
+        )
+
+    def resolve_session(self, session_digest: str) -> ReviewSession | None:
+        del session_digest
+        return None
+
+    def revoke_session(self, session_digest: str) -> None:
+        del session_digest
+
+
+def test_fake_writer_satisfies_the_review_case_writer_protocol() -> None:
+    assert isinstance(_FakeWriter(), ReviewCaseWriter)
+
+
+def test_fake_session_store_satisfies_the_review_session_store_protocol() -> None:
+    assert isinstance(_FakeSessionStore(), ReviewSessionStore)
+
+
+def test_review_session_hides_the_raw_token_and_allows_no_revocation() -> None:
+    session = ReviewSession(
+        session_digest="a" * 64,
+        actor_id="reviewer-1",
+        created_at=_CREATED_AT,
+        expires_at=_CREATED_AT,
+    )
+    assert session.revoked_at is None
+
+
+def test_case_assignment_and_escalation_and_decision_requests_carry_expected_version() -> (
+    None
+):
+    assert CaseAssignmentRequest(expected_version=1).expected_version == 1
+    assert CaseEscalationRequest(expected_version=2, reason="x").expected_version == 2
+    assert (
+        CaseDecisionRequest(
+            expected_version=3, decision="accept", reason="x"
+        ).expected_version
+        == 3
+    )
+
+
+def test_conflict_errors_carry_stable_codes_and_safe_messages() -> None:
+    stale = StaleVersionConflictError()
+    assert stale.code == "review_case_version_conflict"
+    assert stale.message
+
+    idempotency = IdempotencyConflictError()
+    assert idempotency.code == "review_idempotency_conflict"
+    assert idempotency.message
