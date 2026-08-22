@@ -3,7 +3,10 @@
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
+from veridoc.extraction.models import InvoiceExtraction
+from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
+    REVIEW_SNAPSHOT_SCHEMA_VERSION,
     ActorId,
     ActorRole,
     CaseId,
@@ -12,7 +15,23 @@ from veridoc.review.models import (
     DecisionValue,
     ReasonText,
     ReviewModel,
+    ReviewSnapshot,
+    build_review_snapshot,
+    compute_content_digest,
+    hydrate_review_snapshot,
 )
+
+
+def _processing_result() -> ProcessingResult:
+    return ProcessingResult(
+        extraction=InvoiceExtraction(document_type="invoice", vendor_name="Fictional"),
+        verdict=ProcessingVerdict(
+            status="clear",
+            summary="No deterministic verification findings require review.",
+            finding_count=0,
+        ),
+    )
+
 
 _actor_id = TypeAdapter(ActorId)
 _case_id = TypeAdapter(CaseId)
@@ -78,6 +97,47 @@ def test_decision_value_allows_only_the_three_defined_outcomes() -> None:
         assert _decision_value.validate_python(decision) == decision
     with pytest.raises(ValidationError):
         _decision_value.validate_python("approved")
+
+
+def test_build_review_snapshot_matches_the_current_schema_version() -> None:
+    snapshot = build_review_snapshot(_processing_result())
+
+    assert snapshot.schema_version == REVIEW_SNAPSHOT_SCHEMA_VERSION
+    assert snapshot.content_digest == compute_content_digest(snapshot.result)
+    assert len(snapshot.content_digest) == 64
+
+
+def test_build_review_snapshot_is_deterministic_for_equal_results() -> None:
+    first = build_review_snapshot(_processing_result())
+    second = build_review_snapshot(_processing_result())
+
+    assert first.content_digest == second.content_digest
+
+
+def test_hydrate_review_snapshot_round_trips_through_json() -> None:
+    snapshot = build_review_snapshot(_processing_result())
+
+    hydrated = hydrate_review_snapshot(snapshot.model_dump_json())
+
+    assert hydrated == snapshot
+
+
+def test_review_snapshot_rejects_a_tampered_digest() -> None:
+    snapshot = build_review_snapshot(_processing_result())
+
+    with pytest.raises(ValidationError):
+        ReviewSnapshot.model_validate(
+            {**snapshot.model_dump(mode="json"), "content_digest": "0" * 64}
+        )
+
+
+def test_review_snapshot_rejects_an_unsupported_schema_version() -> None:
+    snapshot = build_review_snapshot(_processing_result())
+
+    with pytest.raises(ValidationError):
+        ReviewSnapshot.model_validate(
+            {**snapshot.model_dump(mode="json"), "schema_version": 2}
+        )
 
 
 def test_review_model_forbids_extra_fields_and_strips_strings() -> None:
