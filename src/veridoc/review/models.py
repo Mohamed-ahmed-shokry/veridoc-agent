@@ -1,19 +1,30 @@
-"""Typed domain models for Phase 9 review: identifiers and snapshots."""
+"""Typed domain models for Phase 9 review: identifiers, snapshots, and events."""
 
 from __future__ import annotations
 
 import hashlib
 from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from veridoc.processing.models import ProcessingResult
 
 ActorRole = Literal["reviewer", "review_admin"]
 CaseStatus = Literal["unassigned", "assigned", "escalated", "decided"]
 DecisionValue = Literal["accept", "reject", "needs_correction"]
+EventType = Literal[
+    "case_created",
+    "case_assigned",
+    "case_reassigned",
+    "case_escalated",
+    "case_decided",
+]
 
 _IDENTIFIER_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]*$"
+_ASSIGNMENT_EVENT_TYPES = frozenset({"case_assigned", "case_reassigned"})
+_REASON_REQUIRED_EVENT_TYPES = frozenset(
+    {"case_reassigned", "case_escalated", "case_decided"}
+)
 
 ActorId = Annotated[
     str,
@@ -25,6 +36,15 @@ CaseId = Annotated[
 ]
 CaseVersion = Annotated[int, Field(ge=1)]
 ReasonText = Annotated[str, Field(min_length=1, max_length=2000)]
+RequestId = Annotated[
+    str,
+    Field(min_length=1, max_length=128, pattern=_IDENTIFIER_PATTERN),
+]
+IdempotencyKey = Annotated[
+    str,
+    Field(min_length=1, max_length=128, pattern=_IDENTIFIER_PATTERN),
+]
+EventMetadataValue = str | int | bool | None
 
 REVIEW_SNAPSHOT_SCHEMA_VERSION = 1
 
@@ -72,3 +92,45 @@ def build_review_snapshot(result: ProcessingResult) -> ReviewSnapshot:
 def hydrate_review_snapshot(raw_json: str | bytes) -> ReviewSnapshot:
     """Revalidate one persisted canonical snapshot against its schema and digest."""
     return ReviewSnapshot.model_validate_json(raw_json)
+
+
+class ReviewEvent(ReviewModel):
+    """One immutable, ordered audit event appended to a review case."""
+
+    case_id: CaseId
+    case_version: CaseVersion
+    event_type: EventType
+    actor_id: ActorId
+    occurred_at: AwareDatetime
+    request_id: RequestId
+    idempotency_key: IdempotencyKey | None = None
+    prior_status: CaseStatus | None = None
+    resulting_status: CaseStatus
+    reason: ReasonText | None = None
+    decision: DecisionValue | None = None
+    assigned_actor_id: ActorId | None = None
+    metadata: dict[str, EventMetadataValue] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _verify_event_shape(self) -> Self:
+        is_creation = self.event_type == "case_created"
+        if is_creation and self.prior_status is not None:
+            raise ValueError("case_created events must not record a prior status.")
+        if not is_creation and self.prior_status is None:
+            raise ValueError("Transition events must record a prior status.")
+
+        is_decision = self.event_type == "case_decided"
+        if is_decision and self.decision is None:
+            raise ValueError("case_decided events must record a decision value.")
+        if not is_decision and self.decision is not None:
+            raise ValueError("Only case_decided events may record a decision value.")
+
+        is_assignment = self.event_type in _ASSIGNMENT_EVENT_TYPES
+        if is_assignment and self.assigned_actor_id is None:
+            raise ValueError("Assignment events must record the assigned actor.")
+        if not is_assignment and self.assigned_actor_id is not None:
+            raise ValueError("Only assignment events may record an assigned actor.")
+
+        if self.event_type in _REASON_REQUIRED_EVENT_TYPES and not self.reason:
+            raise ValueError(f"{self.event_type} events must include a reason.")
+        return self

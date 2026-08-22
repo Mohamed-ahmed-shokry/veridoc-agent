@@ -1,5 +1,8 @@
 """Validation tests for bounded review identifier, role, and status types."""
 
+from datetime import UTC, datetime
+from typing import Any
+
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
@@ -14,12 +17,29 @@ from veridoc.review.models import (
     CaseVersion,
     DecisionValue,
     ReasonText,
+    ReviewEvent,
     ReviewModel,
     ReviewSnapshot,
     build_review_snapshot,
     compute_content_digest,
     hydrate_review_snapshot,
 )
+
+_OCCURRED_AT = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+
+
+def _event(**overrides: Any) -> ReviewEvent:
+    fields: dict[str, Any] = {
+        "case_id": "case-1",
+        "case_version": 1,
+        "event_type": "case_created",
+        "actor_id": "reviewer-1",
+        "occurred_at": _OCCURRED_AT,
+        "request_id": "request-1",
+        "resulting_status": "unassigned",
+    }
+    fields.update(overrides)
+    return ReviewEvent(**fields)
 
 
 def _processing_result() -> ProcessingResult:
@@ -137,6 +157,87 @@ def test_review_snapshot_rejects_an_unsupported_schema_version() -> None:
     with pytest.raises(ValidationError):
         ReviewSnapshot.model_validate(
             {**snapshot.model_dump(mode="json"), "schema_version": 2}
+        )
+
+
+def test_case_created_event_accepts_no_prior_status_or_decision() -> None:
+    event = _event()
+    assert event.prior_status is None
+    assert event.decision is None
+    assert event.assigned_actor_id is None
+
+
+def test_case_created_event_rejects_a_prior_status() -> None:
+    with pytest.raises(ValidationError):
+        _event(prior_status="unassigned")
+
+
+def test_transition_events_require_a_prior_status() -> None:
+    with pytest.raises(ValidationError):
+        _event(
+            event_type="case_assigned",
+            resulting_status="assigned",
+            assigned_actor_id="reviewer-2",
+        )
+
+
+def test_assignment_events_require_and_only_accept_an_assigned_actor() -> None:
+    event = _event(
+        event_type="case_assigned",
+        prior_status="unassigned",
+        resulting_status="assigned",
+        assigned_actor_id="reviewer-2",
+    )
+    assert event.assigned_actor_id == "reviewer-2"
+
+    with pytest.raises(ValidationError):
+        _event(
+            event_type="case_assigned",
+            prior_status="unassigned",
+            resulting_status="assigned",
+        )
+    with pytest.raises(ValidationError):
+        _event(
+            event_type="case_escalated",
+            prior_status="assigned",
+            resulting_status="escalated",
+            reason="Cannot decide.",
+            assigned_actor_id="reviewer-2",
+        )
+
+
+def test_reassignment_escalation_and_decision_events_require_a_reason() -> None:
+    for event_type, resulting_status, extra in (
+        ("case_reassigned", "assigned", {"assigned_actor_id": "reviewer-2"}),
+        ("case_escalated", "escalated", {}),
+        ("case_decided", "decided", {"decision": "accept"}),
+    ):
+        with pytest.raises(ValidationError):
+            _event(
+                event_type=event_type,
+                prior_status="assigned",
+                resulting_status=resulting_status,
+                **extra,
+            )
+
+
+def test_case_decided_event_requires_and_only_accepts_a_decision() -> None:
+    event = _event(
+        event_type="case_decided",
+        prior_status="assigned",
+        resulting_status="decided",
+        reason="Amounts reconcile.",
+        decision="accept",
+    )
+    assert event.decision == "accept"
+
+    with pytest.raises(ValidationError):
+        _event(
+            event_type="case_escalated",
+            prior_status="assigned",
+            resulting_status="escalated",
+            reason="Cannot decide.",
+            decision="accept",
         )
 
 
