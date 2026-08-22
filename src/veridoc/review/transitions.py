@@ -1,10 +1,16 @@
-"""Deterministic Phase 9 case state transition rules."""
+"""Deterministic Phase 9 case state transition and authorization rules."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from veridoc.review.models import CaseStatus, EventType, MutationOperation
+from veridoc.review.models import (
+    ActorId,
+    ActorRole,
+    CaseStatus,
+    EventType,
+    MutationOperation,
+)
 
 
 class InvalidTransitionError(ValueError):
@@ -44,3 +50,30 @@ def next_transition(
 def is_terminal(status: CaseStatus) -> bool:
     """Return whether a case status accepts no further transitions."""
     return status == "decided"
+
+
+def authorize_operation(
+    *,
+    operation: MutationOperation,
+    current_status: CaseStatus | None,
+    actor_role: ActorRole,
+    actor_id: ActorId,
+    assignee_id: ActorId | None,
+    target_actor_id: ActorId | None,
+) -> bool:
+    """Return whether one actor may perform one operation on one case.
+
+    This answers only "is this actor allowed", independent of whether the
+    operation is a legal transition from ``current_status``; callers must
+    still consult :func:`next_transition` before applying an operation.
+    """
+    if actor_role == "review_admin":
+        return True
+    if operation == "create_case":
+        return True
+    if operation == "assign_case":
+        is_self_claim = target_actor_id is None or target_actor_id == actor_id
+        return current_status == "unassigned" and is_self_claim
+    if operation in ("escalate_case", "decide_case"):
+        return assignee_id is not None and assignee_id == actor_id
+    return False
