@@ -7,6 +7,7 @@ from typing import Protocol, runtime_checkable
 
 from veridoc.review.models import (
     ActorId,
+    ActorRole,
     CaseAssignmentRequest,
     CaseDecisionRequest,
     CaseDetail,
@@ -45,6 +46,16 @@ class IdempotencyConflictError(RuntimeError):
 
     code = "review_idempotency_conflict"
     message = "The idempotency key was already used with a different request."
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
+
+class ReviewAuthorizationError(RuntimeError):
+    """Raised when an authenticated actor lacks authority for one operation."""
+
+    code = "review_authorization_denied"
+    message = "The actor is not authorized to perform this review operation."
 
     def __init__(self) -> None:
         super().__init__(self.message)
@@ -93,12 +104,15 @@ class ReviewCaseWriter(Protocol):
         *,
         request: CaseAssignmentRequest,
         actor_id: ActorId,
+        actor_role: ActorRole,
         request_id: RequestId,
         idempotent_request: IdempotentRequest | None,
     ) -> CaseDetail | None:
         """Claim, assign, or reassign one case, appending its event atomically.
 
         Returns ``None`` when the case does not exist, raises
+        :class:`ReviewAuthorizationError` when the actor's role and
+        relationship to the case do not permit this operation, raises
         :class:`StaleVersionConflictError` when ``request.expected_version``
         does not match the current version, and raises
         :class:`IdempotencyConflictError` for an idempotency-key replay with a
@@ -111,6 +125,7 @@ class ReviewCaseWriter(Protocol):
         *,
         request: CaseEscalationRequest,
         actor_id: ActorId,
+        actor_role: ActorRole,
         request_id: RequestId,
         idempotent_request: IdempotentRequest | None,
     ) -> CaseDetail | None:
@@ -122,6 +137,7 @@ class ReviewCaseWriter(Protocol):
         *,
         request: CaseDecisionRequest,
         actor_id: ActorId,
+        actor_role: ActorRole,
         request_id: RequestId,
         idempotent_request: IdempotentRequest | None,
     ) -> CaseDetail | None:

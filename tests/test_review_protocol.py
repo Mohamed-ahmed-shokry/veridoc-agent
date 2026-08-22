@@ -124,21 +124,21 @@ class _FakeWriter:
         )
 
     def assign_case(
-        self, case_id, *, request, actor_id, request_id, idempotent_request
+        self, case_id, *, request, actor_id, actor_role, request_id, idempotent_request
     ) -> CaseDetail | None:
-        del case_id, request, actor_id, request_id, idempotent_request
+        del case_id, request, actor_id, actor_role, request_id, idempotent_request
         return None
 
     def escalate_case(
-        self, case_id, *, request, actor_id, request_id, idempotent_request
+        self, case_id, *, request, actor_id, actor_role, request_id, idempotent_request
     ) -> CaseDetail | None:
-        del case_id, request, actor_id, request_id, idempotent_request
+        del case_id, request, actor_id, actor_role, request_id, idempotent_request
         return None
 
     def decide_case(
-        self, case_id, *, request, actor_id, request_id, idempotent_request
+        self, case_id, *, request, actor_id, actor_role, request_id, idempotent_request
     ) -> CaseDetail | None:
-        del case_id, request, actor_id, request_id, idempotent_request
+        del case_id, request, actor_id, actor_role, request_id, idempotent_request
         return None
 
 

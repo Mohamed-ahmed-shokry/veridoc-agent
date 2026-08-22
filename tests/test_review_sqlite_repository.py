@@ -8,12 +8,19 @@ import pytest
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
+    CaseAssignmentRequest,
+    CaseDetail,
     IdempotentRequest,
     ReviewSnapshot,
     build_review_snapshot,
 )
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
-from veridoc.review.protocol import IdempotencyConflictError, ReviewDataUnavailableError
+from veridoc.review.protocol import (
+    IdempotencyConflictError,
+    ReviewAuthorizationError,
+    ReviewDataUnavailableError,
+    StaleVersionConflictError,
+)
 
 
 def _snapshot() -> ReviewSnapshot:
@@ -238,3 +245,153 @@ def test_list_cases_filters_by_assignee_id(tmp_path: Path) -> None:
 
     assert [record.case_id for record in assigned_page.records] == [case_ids[0]]
     assert unassigned_filter_page.total == 0
+
+
+def _create_case(
+    repository: SQLiteReviewRepository, *, key: str = "create-key"
+) -> CaseDetail:
+    return repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-create",
+        idempotent_request=_idempotent_request(idempotency_key=key),
+    )
+
+
+def test_assign_case_self_claim_by_a_reviewer(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    updated = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.status == "assigned"
+    assert updated.version == 2
+    assert updated.assignee_id == "reviewer-2"
+    assert updated.events[-1].event_type == "case_assigned"
+    assert updated.events[-1].assigned_actor_id == "reviewer-2"
+
+
+def test_assign_case_by_review_admin_to_another_actor(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    updated = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1, actor_id="reviewer-2"),
+        actor_id="admin-1",
+        actor_role="review_admin",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.assignee_id == "reviewer-2"
+
+
+def test_assign_case_rejects_a_reviewer_assigning_someone_else(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with pytest.raises(ReviewAuthorizationError):
+        repository.assign_case(
+            case.case_id,
+            request=CaseAssignmentRequest(expected_version=1, actor_id="reviewer-3"),
+            actor_id="reviewer-2",
+            actor_role="reviewer",
+            request_id="request-assign",
+            idempotent_request=None,
+        )
+
+
+def test_assign_case_rejects_reassignment_by_a_reviewer(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    with pytest.raises(ReviewAuthorizationError):
+        repository.assign_case(
+            case.case_id,
+            request=CaseAssignmentRequest(expected_version=2, actor_id="reviewer-3"),
+            actor_id="reviewer-2",
+            actor_role="reviewer",
+            request_id="request-reassign",
+            idempotent_request=None,
+        )
+
+
+def test_assign_case_rejects_a_stale_expected_version(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    with pytest.raises(StaleVersionConflictError):
+        repository.assign_case(
+            case.case_id,
+            request=CaseAssignmentRequest(expected_version=1, actor_id="reviewer-2"),
+            actor_id="admin-1",
+            actor_role="review_admin",
+            request_id="request-retry",
+            idempotent_request=None,
+        )
+
+
+def test_assign_case_returns_none_for_an_unknown_case(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+
+    result = repository.assign_case(
+        "unknown-case",
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-1",
+        actor_role="reviewer",
+        request_id="request-1",
+        idempotent_request=None,
+    )
+
+    assert result is None
+
+
+def test_assign_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    request = _idempotent_request(idempotency_key="assign-key")
+
+    first = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-1",
+        idempotent_request=request,
+    )
+    second = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-2",
+        idempotent_request=request,
+    )
+
+    assert first == second

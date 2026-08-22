@@ -13,6 +13,8 @@ from uuid import uuid4
 
 from veridoc.review.models import (
     ActorId,
+    ActorRole,
+    CaseAssignmentRequest,
     CaseDetail,
     CasePage,
     CaseStatus,
@@ -31,7 +33,18 @@ from veridoc.review.persistence.schema import (
     InvalidReviewSchemaError,
     validate_current_schema,
 )
-from veridoc.review.protocol import IdempotencyConflictError, ReviewDataUnavailableError
+from veridoc.review.protocol import (
+    IdempotencyConflictError,
+    ReviewAuthorizationError,
+    ReviewDataUnavailableError,
+    StaleVersionConflictError,
+)
+from veridoc.review.transitions import (
+    InvalidTransitionError,
+    Transition,
+    authorize_operation,
+    next_transition,
+)
 
 
 class InvalidPersistedReviewDataError(RuntimeError):
@@ -177,6 +190,56 @@ class SQLiteReviewRepository:
                 total=total,
             )
 
+    def assign_case(
+        self,
+        case_id: str,
+        *,
+        request: CaseAssignmentRequest,
+        actor_id: ActorId,
+        actor_role: ActorRole,
+        request_id: RequestId,
+        idempotent_request: IdempotentRequest | None,
+    ) -> CaseDetail | None:
+        """Claim, assign, or reassign one case, appending its event atomically."""
+        with self._connection() as connection:
+            found, replay = _find_replay(connection, idempotent_request)
+            if found:
+                return replay
+
+            row = connection.execute(
+                "SELECT * FROM review_cases WHERE case_id = ?", (case_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            if int(row["version"]) != request.expected_version:
+                raise StaleVersionConflictError
+
+            target_actor_id = request.actor_id or actor_id
+            if not authorize_operation(
+                operation="assign_case",
+                current_status=row["status"],
+                actor_role=actor_role,
+                actor_id=actor_id,
+                assignee_id=row["assignee_id"],
+                target_actor_id=target_actor_id,
+            ):
+                raise ReviewAuthorizationError
+
+            try:
+                transition = next_transition(row["status"], "assign_case")
+            except InvalidTransitionError as exc:
+                raise StaleVersionConflictError from exc
+
+            return _apply_transition(
+                connection,
+                row=row,
+                transition=transition,
+                actor_id=actor_id,
+                request_id=request_id,
+                assigned_actor_id=target_actor_id,
+                idempotent_request=idempotent_request,
+            )
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
@@ -218,6 +281,113 @@ def _find_idempotency_key(
     if row is None:
         return None
     return str(row["request_digest"]), int(row["case_row_id"])
+
+
+def _find_replay(
+    connection: sqlite3.Connection, idempotent_request: IdempotentRequest | None
+) -> tuple[bool, CaseDetail | None]:
+    """Return ``(True, detail)`` for a valid replay, else ``(False, None)``."""
+    if idempotent_request is None:
+        return False, None
+    existing = _find_idempotency_key(connection, idempotent_request)
+    if existing is None:
+        return False, None
+    stored_digest, case_row_id = existing
+    if stored_digest != idempotent_request.request_digest:
+        raise IdempotencyConflictError
+    row = connection.execute(
+        "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
+    ).fetchone()
+    return True, (_case_detail_from_row(connection, row) if row is not None else None)
+
+
+def _apply_transition(
+    connection: sqlite3.Connection,
+    *,
+    row: sqlite3.Row,
+    transition: Transition,
+    actor_id: ActorId,
+    request_id: RequestId,
+    assigned_actor_id: str | None,
+    reason: str | None = None,
+    decision: str | None = None,
+    idempotent_request: IdempotentRequest | None,
+) -> CaseDetail:
+    """Apply one guarded transition: update, append its event, and record
+    idempotency, atomically within the caller's open transaction.
+    """
+    new_version = int(row["version"]) + 1
+    timestamp = _timestamp()
+    resolved_assignee = (
+        assigned_actor_id if assigned_actor_id is not None else row["assignee_id"]
+    )
+
+    cursor = connection.execute(
+        """
+        UPDATE review_cases
+        SET status = ?, version = ?, assignee_id = ?, updated_at = ?
+        WHERE id = ? AND version = ?
+        """,
+        (
+            transition.resulting_status,
+            new_version,
+            resolved_assignee,
+            timestamp,
+            row["id"],
+            row["version"],
+        ),
+    )
+    if cursor.rowcount == 0:
+        raise StaleVersionConflictError
+
+    connection.execute(
+        """
+        INSERT INTO review_events (
+            case_row_id, case_version, event_type, actor_id, occurred_at,
+            request_id, prior_status, resulting_status, reason, decision,
+            assigned_actor_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            row["id"],
+            new_version,
+            transition.event_type,
+            actor_id,
+            timestamp,
+            request_id,
+            row["status"],
+            transition.resulting_status,
+            reason,
+            decision,
+            assigned_actor_id,
+        ),
+    )
+    if idempotent_request is not None:
+        try:
+            connection.execute(
+                """
+                INSERT INTO review_idempotency_keys (
+                    actor_id, operation, idempotency_key, request_digest,
+                    case_row_id, result_case_version, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    idempotent_request.actor_id,
+                    idempotent_request.operation,
+                    idempotent_request.idempotency_key,
+                    idempotent_request.request_digest,
+                    row["id"],
+                    new_version,
+                    timestamp,
+                ),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise IdempotencyConflictError from exc
+
+    updated_row = connection.execute(
+        "SELECT * FROM review_cases WHERE id = ?", (row["id"],)
+    ).fetchone()
+    return _case_detail_from_row(connection, updated_row)
 
 
 def _case_summary_from_row(row: sqlite3.Row) -> CaseSummary:
