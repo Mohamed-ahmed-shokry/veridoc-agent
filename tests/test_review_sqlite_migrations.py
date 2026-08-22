@@ -194,6 +194,41 @@ def test_review_events_cascade_delete_with_their_case(tmp_path: Path) -> None:
     assert remaining == 0
 
 
+def _insert_idempotency_key(
+    connection: sqlite3.Connection,
+    *,
+    actor_id: str = "reviewer-1",
+    operation: str = "create_case",
+    idempotency_key: str = "key-1",
+    request_digest: str = "a" * 64,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO review_idempotency_keys (
+            actor_id, operation, idempotency_key, request_digest, created_at
+        ) VALUES (?, ?, ?, ?, '2026-08-22T00:00:00Z')
+        """,
+        (actor_id, operation, idempotency_key, request_digest),
+    )
+
+
+def test_migrate_creates_review_idempotency_keys_unique_per_actor_operation_key(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "review.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        migrate(connection)
+
+        _insert_idempotency_key(connection)
+        # Different actor, operation, or key is fine.
+        _insert_idempotency_key(connection, actor_id="reviewer-2")
+        _insert_idempotency_key(connection, operation="assign_case")
+        _insert_idempotency_key(connection, idempotency_key="key-2")
+
+        with pytest.raises(sqlite3.IntegrityError):
+            _insert_idempotency_key(connection, request_digest="b" * 64)
+
+
 def test_migrate_requires_the_not_null_review_case_columns(tmp_path: Path) -> None:
     database_path = tmp_path / "review.sqlite"
     with sqlite3.connect(database_path) as connection:

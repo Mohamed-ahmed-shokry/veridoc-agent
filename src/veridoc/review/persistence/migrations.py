@@ -91,7 +91,31 @@ _EVENTS = Migration(
     ),
 )
 
-MIGRATIONS: tuple[Migration, ...] = (_CASES_AND_SNAPSHOTS, _EVENTS)
+_IDEMPOTENCY_KEYS = Migration(
+    version=3,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS review_idempotency_keys (
+            id INTEGER PRIMARY KEY,
+            actor_id TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            idempotency_key TEXT NOT NULL,
+            request_digest TEXT NOT NULL,
+            case_row_id INTEGER
+                REFERENCES review_cases(id) ON DELETE CASCADE,
+            result_case_version INTEGER,
+            created_at TEXT NOT NULL,
+            UNIQUE(actor_id, operation, idempotency_key)
+        )
+        """,
+    ),
+)
+
+MIGRATIONS: tuple[Migration, ...] = (
+    _CASES_AND_SNAPSHOTS,
+    _EVENTS,
+    _IDEMPOTENCY_KEYS,
+)
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 
