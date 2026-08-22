@@ -83,7 +83,8 @@ tests/
 ├── test_review_transitions.py       Phase 9 exhaustive case transition policy
 ├── test_review_authorization.py     Phase 9 complete role/assignee permission matrix
 ├── test_review_protocol.py          Phase 9 review-store read/write boundary contracts
-├── test_review_config.py            Phase 9 dedicated review database path validation
+├── test_review_config.py            Phase 9 review database and actor-file validation
+├── test_review_auth.py              Phase 9 constant-time actor authentication
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -86,6 +86,10 @@ class ReviewActorDirectory:
     def get(self, actor_id: str) -> ReviewActor | None:
         """Return one configured actor by ID, or ``None`` when unknown."""
         return self._actors_by_id.get(actor_id)
+
+    def actors(self) -> Iterable[ReviewActor]:
+        """Return every configured actor for constant-time credential scans."""
+        return self._actors_by_id.values()
 
 
 def _parse_actors(entries: object) -> dict[str, ReviewActor]:
