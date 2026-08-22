@@ -12,6 +12,7 @@ from veridoc.review.models import ReviewSession
 
 SESSION_TOKEN_BYTES = 32
 SESSION_TTL = timedelta(hours=12)
+CSRF_TOKEN_BYTES = 32
 
 
 class InvalidReviewCredentialsError(RuntimeError):
@@ -81,3 +82,8 @@ def is_session_active(session: ReviewSession, *, now: datetime) -> bool:
     if session.revoked_at is not None:
         return False
     return now < session.expires_at
+
+
+def generate_csrf_token() -> str:
+    """Return one new high-entropy opaque CSRF double-submit token."""
+    return secrets.token_urlsafe(CSRF_TOKEN_BYTES)

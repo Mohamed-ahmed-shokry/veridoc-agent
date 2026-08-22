@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
@@ -13,6 +14,7 @@ from veridoc.review.auth import (
     SESSION_TTL,
     InvalidReviewCredentialsError,
     authenticate_actor,
+    generate_csrf_token,
     hash_session_token,
     is_session_active,
     issue_session,
@@ -30,6 +32,8 @@ from veridoc.review.protocol import ReviewDataUnavailableError
 router = APIRouter(prefix="/review", tags=["review"])
 
 SESSION_COOKIE_NAME = "veridoc_review_session"
+CSRF_COOKIE_NAME = "veridoc_review_csrf"
+CSRF_HEADER_NAME = "X-CSRF-Token"
 
 
 class SessionResponse(BaseModel):
@@ -76,6 +80,32 @@ def get_review_origin_settings() -> ReviewOriginSettings:
         raise _service_unavailable(exc.code, exc.message) from exc
 
 
+def require_origin_match(
+    request: Request,
+    origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
+) -> None:
+    """Require the request's ``Origin`` header to exactly match the configured
+    review origin, before any state-changing work is reachable.
+    """
+    if request.headers.get("origin") != origin.origin:
+        raise _csrf_rejected()
+
+
+def require_csrf_protection(
+    request: Request,
+    _origin_match: Annotated[None, Depends(require_origin_match)],
+) -> None:
+    """Require exact-origin validation plus a matching double-submit CSRF token."""
+    cookie_token = request.cookies.get(CSRF_COOKIE_NAME)
+    header_token = request.headers.get(CSRF_HEADER_NAME)
+    if (
+        not cookie_token
+        or not header_token
+        or not secrets.compare_digest(cookie_token, header_token)
+    ):
+        raise _csrf_rejected()
+
+
 @router.post(
     "/session",
     response_model=SessionResponse,
@@ -84,7 +114,7 @@ def get_review_origin_settings() -> ReviewOriginSettings:
 def create_review_session(
     request: Request,
     response: Response,
-    _origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
+    _origin_match: Annotated[None, Depends(require_origin_match)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
     directory: Annotated[ReviewActorDirectory, Depends(get_review_actor_directory)],
 ) -> SessionResponse:
@@ -104,13 +134,23 @@ def create_review_session(
         actor_id=actor.actor_id,
         expires_at=issued.expires_at,
     )
+    max_age = int(SESSION_TTL.total_seconds())
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=issued.token,
-        max_age=int(SESSION_TTL.total_seconds()),
+        max_age=max_age,
         path=router.prefix,
         secure=True,
         httponly=True,
+        samesite="strict",
+    )
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=generate_csrf_token(),
+        max_age=max_age,
+        path=router.prefix,
+        secure=True,
+        httponly=False,
         samesite="strict",
     )
     return SessionResponse(actor_id=actor.actor_id, role=actor.role)
@@ -123,7 +163,7 @@ def create_review_session(
 )
 def revoke_review_session(
     request: Request,
-    _origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
+    _csrf: Annotated[None, Depends(require_csrf_protection)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
 ) -> Response:
     """Revoke the current browser session; a repeat logout is a safe no-op."""
@@ -132,6 +172,7 @@ def revoke_review_session(
         repository.revoke_session(hash_session_token(token))
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(key=SESSION_COOKIE_NAME, path=router.prefix)
+    response.delete_cookie(key=CSRF_COOKIE_NAME, path=router.prefix)
     return response
 
 
@@ -170,4 +211,14 @@ def _service_unavailable(code: str, message: str) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
         detail={"code": code, "message": message},
+    )
+
+
+def _csrf_rejected() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail={
+            "code": "review_csrf_rejected",
+            "message": "The request origin or CSRF token is invalid.",
+        },
     )

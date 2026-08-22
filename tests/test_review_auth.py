@@ -9,6 +9,7 @@ from veridoc.review.auth import (
     SESSION_TTL,
     InvalidReviewCredentialsError,
     authenticate_actor,
+    generate_csrf_token,
     hash_session_token,
     is_session_active,
     issue_session,
@@ -155,3 +156,11 @@ def test_is_session_active_false_at_or_after_expiry() -> None:
 def test_is_session_active_false_once_revoked_even_before_expiry() -> None:
     session = _session(revoked_at=_NOW)
     assert not is_session_active(session, now=_NOW)
+
+
+def test_generate_csrf_token_returns_distinct_high_entropy_values() -> None:
+    first = generate_csrf_token()
+    second = generate_csrf_token()
+
+    assert first != second
+    assert len(first) >= 32
