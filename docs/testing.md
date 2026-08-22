@@ -87,6 +87,7 @@ tests/
 ├── test_review_auth.py              Phase 9 constant-time actor authentication
 ├── test_review_sqlite_migrations.py Phase 9 dedicated review-store ledger engine
 ├── test_review_schema.py            Phase 9 review-store structural schema validation
+├── test_review_sqlite_repository.py Phase 9 review-store repository CRUD and concurrency
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
