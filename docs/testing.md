@@ -79,6 +79,7 @@ tests/
 ├── test_processing_integration.py   complete FastAPI dependency composition
 ├── test_request_context.py          safe correlation header and request logs
 ├── test_review_page.py              local review-interface route
+├── test_review_models.py            Phase 9 actor/case/role/status/decision types
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
