@@ -7,6 +7,7 @@ import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import cast
 from uuid import uuid4
@@ -52,6 +53,20 @@ from veridoc.review.transitions import (
 
 class InvalidPersistedReviewDataError(RuntimeError):
     """Raised when stored review rows violate the repository's semantic contract."""
+
+
+def validate_persisted_review_data(connection: sqlite3.Connection) -> None:
+    """Validate every managed case, its snapshot, and its event chain."""
+    original_row_factory = connection.row_factory
+    try:
+        connection.row_factory = sqlite3.Row
+        case_rows = connection.execute(
+            "SELECT * FROM review_cases ORDER BY id"
+        ).fetchall()
+        for row in case_rows:
+            _case_detail_from_row(connection, row)
+    finally:
+        connection.row_factory = original_row_factory
 
 
 class SQLiteReviewRepository:
@@ -580,6 +595,7 @@ def _case_detail_from_row(
                 (row["id"],),
             ).fetchall()
         ]
+        _verify_event_sequence(row, events)
         return CaseDetail(
             case_id=row["case_id"],
             status=row["status"],
@@ -593,6 +609,26 @@ def _case_detail_from_row(
         )
     except ValueError as exc:
         raise InvalidPersistedReviewDataError from exc
+
+
+def _verify_event_sequence(row: sqlite3.Row, events: list[ReviewEvent]) -> None:
+    """Require a gap-free, chained, current event history for one case row."""
+    if not events:
+        raise InvalidPersistedReviewDataError
+    if events[0].event_type != "case_created" or events[0].case_version != 1:
+        raise InvalidPersistedReviewDataError
+    for expected_version, event in enumerate(events, start=1):
+        if event.case_version != expected_version:
+            raise InvalidPersistedReviewDataError
+    for previous, current in pairwise(events):
+        if current.prior_status != previous.resulting_status:
+            raise InvalidPersistedReviewDataError
+    last_event = events[-1]
+    if (
+        last_event.resulting_status != row["status"]
+        or last_event.case_version != row["version"]
+    ):
+        raise InvalidPersistedReviewDataError
 
 
 def _event_from_row(row: sqlite3.Row, *, case_id: str) -> ReviewEvent:

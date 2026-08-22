@@ -17,7 +17,10 @@ from veridoc.review.models import (
     ReviewSnapshot,
     build_review_snapshot,
 )
-from veridoc.review.persistence.sqlite import SQLiteReviewRepository
+from veridoc.review.persistence.sqlite import (
+    SQLiteReviewRepository,
+    validate_persisted_review_data,
+)
 from veridoc.review.protocol import (
     IdempotencyConflictError,
     ReviewAuthorizationError,
@@ -655,3 +658,74 @@ def test_revoke_session_sets_revoked_at_once(tmp_path: Path) -> None:
 def test_revoke_session_is_a_safe_no_op_for_an_unknown_digest(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     repository.revoke_session("f" * 64)
+
+
+def test_validate_persisted_review_data_accepts_a_healthy_history(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        validate_persisted_review_data(connection)
+
+
+def test_get_case_rejects_a_case_with_no_events(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute("DELETE FROM review_events")
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_a_gap_in_the_event_version_sequence(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_events SET case_version = 5 WHERE case_version = 2"
+        )
+        connection.execute("UPDATE review_cases SET version = 5")
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_a_broken_prior_status_chain(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_events SET prior_status = 'escalated' WHERE case_version = 2"
+        )
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_a_status_that_disagrees_with_the_last_event(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute("UPDATE review_cases SET status = 'escalated'")
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
