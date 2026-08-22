@@ -1,11 +1,20 @@
-"""Review-store database configuration tests."""
+"""Review-store and review-actor configuration tests."""
 
+import json
 from pathlib import Path
 
 import pytest
 
-from veridoc.review.config import DEFAULT_REVIEW_DATABASE, ReviewStoreSettings
+from veridoc.review.config import (
+    DEFAULT_REVIEW_DATABASE,
+    ReviewActorDirectory,
+    ReviewAuthenticationUnavailableError,
+    ReviewStoreSettings,
+)
 from veridoc.review.protocol import ReviewDataUnavailableError
+
+_SECRET_DIGEST = "a" * 64
+_OTHER_SECRET_DIGEST = "b" * 64
 
 
 def test_settings_default_to_a_dedicated_review_database_path() -> None:
@@ -56,3 +65,148 @@ def test_settings_allow_distinct_configured_paths() -> None:
         }
     )
     assert settings.database_path == "review.sqlite3"
+
+
+def _write_actors(tmp_path: Path, entries: object) -> str:
+    path = tmp_path / "actors.json"
+    path.write_text(json.dumps(entries), encoding="utf-8")
+    return str(path)
+
+
+def test_actor_directory_loads_valid_reviewer_and_admin_entries(
+    tmp_path: Path,
+) -> None:
+    actors_path = _write_actors(
+        tmp_path,
+        [
+            {
+                "actor_id": "reviewer-1",
+                "role": "reviewer",
+                "secret_digest": _SECRET_DIGEST,
+            },
+            {
+                "actor_id": "admin-1",
+                "role": "review_admin",
+                "secret_digest": _OTHER_SECRET_DIGEST,
+            },
+        ],
+    )
+
+    directory = ReviewActorDirectory.from_environment(
+        {"VERIDOC_REVIEW_ACTORS_FILE": actors_path}
+    )
+
+    reviewer = directory.get("reviewer-1")
+    assert reviewer is not None
+    assert reviewer.role == "reviewer"
+    assert reviewer.secret_digest == _SECRET_DIGEST
+    assert directory.get("unknown-actor") is None
+
+
+def test_actor_directory_requires_a_configured_file_path() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewActorDirectory.from_environment({})
+
+
+def test_actor_directory_rejects_a_missing_file(tmp_path: Path) -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewActorDirectory.from_environment(
+            {"VERIDOC_REVIEW_ACTORS_FILE": str(tmp_path / "missing.json")}
+        )
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        "not json",
+        "{}",
+        "[]",
+        "[1]",
+        json.dumps([{"actor_id": "reviewer-1", "role": "reviewer"}]),
+        json.dumps(
+            [{"actor_id": "-bad-id", "role": "reviewer", "secret_digest": "a" * 64}]
+        ),
+        json.dumps(
+            [{"actor_id": "reviewer-1", "role": "owner", "secret_digest": "a" * 64}]
+        ),
+        json.dumps(
+            [{"actor_id": "reviewer-1", "role": "reviewer", "secret_digest": "short"}]
+        ),
+        json.dumps(
+            [{"actor_id": "reviewer-1", "role": "reviewer", "secret_digest": "A" * 64}]
+        ),
+    ],
+)
+def test_actor_directory_rejects_malformed_content(
+    tmp_path: Path, contents: str
+) -> None:
+    path = tmp_path / "actors.json"
+    path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewActorDirectory.from_environment({"VERIDOC_REVIEW_ACTORS_FILE": str(path)})
+
+
+def test_actor_directory_rejects_duplicate_actor_ids(tmp_path: Path) -> None:
+    actors_path = _write_actors(
+        tmp_path,
+        [
+            {
+                "actor_id": "reviewer-1",
+                "role": "reviewer",
+                "secret_digest": _SECRET_DIGEST,
+            },
+            {
+                "actor_id": "reviewer-1",
+                "role": "review_admin",
+                "secret_digest": _OTHER_SECRET_DIGEST,
+            },
+        ],
+    )
+
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewActorDirectory.from_environment(
+            {"VERIDOC_REVIEW_ACTORS_FILE": actors_path}
+        )
+
+
+def test_actor_directory_rejects_duplicate_secret_digests(tmp_path: Path) -> None:
+    actors_path = _write_actors(
+        tmp_path,
+        [
+            {
+                "actor_id": "reviewer-1",
+                "role": "reviewer",
+                "secret_digest": _SECRET_DIGEST,
+            },
+            {
+                "actor_id": "reviewer-2",
+                "role": "reviewer",
+                "secret_digest": _SECRET_DIGEST,
+            },
+        ],
+    )
+
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewActorDirectory.from_environment(
+            {"VERIDOC_REVIEW_ACTORS_FILE": actors_path}
+        )
+
+
+def test_actor_directory_repr_hides_secret_digests(tmp_path: Path) -> None:
+    actors_path = _write_actors(
+        tmp_path,
+        [
+            {
+                "actor_id": "reviewer-1",
+                "role": "reviewer",
+                "secret_digest": _SECRET_DIGEST,
+            }
+        ],
+    )
+
+    directory = ReviewActorDirectory.from_environment(
+        {"VERIDOC_REVIEW_ACTORS_FILE": actors_path}
+    )
+
+    assert _SECRET_DIGEST not in repr(directory.get("reviewer-1"))
