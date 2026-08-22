@@ -24,6 +24,11 @@ _REQUIRED_RUNTIME_FILES = {
     "persistence/migrations.py",
     "persistence/schema.py",
     "review/page.py",
+    "review/persistence/cli.py",
+    "review/persistence/maintenance.py",
+    "review/persistence/migrations.py",
+    "review/persistence/schema.py",
+    "review/persistence/sqlite.py",
 }
 
 
@@ -122,6 +127,7 @@ def _check_console_scripts(contents: bytes, archive: Path) -> None:
     expected = {
         "veridoc": "veridoc.__main__:main",
         "veridoc-reference": "veridoc.administration.cli:main",
+        "veridoc-review": "veridoc.review.persistence.cli:main",
     }
     actual = (
         dict(parser.items("console_scripts"))

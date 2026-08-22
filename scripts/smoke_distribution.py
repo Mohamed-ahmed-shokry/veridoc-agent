@@ -6,10 +6,12 @@ import veridoc
 from veridoc.__main__ import main as api_main
 from veridoc.administration.cli import main as reference_main
 from veridoc.app import app
+from veridoc.review.persistence.cli import main as review_main
 
 _EXPECTED_SCRIPTS = {
     "veridoc": "veridoc.__main__:main",
     "veridoc-reference": "veridoc.administration.cli:main",
+    "veridoc-review": "veridoc.review.persistence.cli:main",
 }
 _REQUIRED_SCHEMA_PATHS = {
     "/health",
@@ -39,6 +41,7 @@ def main() -> None:
     assert scripts == _EXPECTED_SCRIPTS
     assert callable(api_main)
     assert callable(reference_main)
+    assert callable(review_main)
     assert _REQUIRED_SCHEMA_PATHS <= schema_paths
     assert "/review" in runtime_paths
 

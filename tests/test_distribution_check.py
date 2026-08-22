@@ -99,8 +99,23 @@ def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:
     assert "veridoc/persistence/schema.py" in required
 
 
-def test_distribution_check_requires_both_console_scripts() -> None:
-    valid = b"""[console_scripts]\nveridoc = veridoc.__main__:main\nveridoc-reference = veridoc.administration.cli:main\n"""
+def test_distribution_check_requires_phase_9_runtime_boundaries() -> None:
+    required = _required_package_members("veridoc")
+
+    assert "veridoc/review/persistence/cli.py" in required
+    assert "veridoc/review/persistence/maintenance.py" in required
+    assert "veridoc/review/persistence/migrations.py" in required
+    assert "veridoc/review/persistence/schema.py" in required
+    assert "veridoc/review/persistence/sqlite.py" in required
+
+
+def test_distribution_check_requires_all_console_scripts() -> None:
+    valid = (
+        b"[console_scripts]\n"
+        b"veridoc = veridoc.__main__:main\n"
+        b"veridoc-reference = veridoc.administration.cli:main\n"
+        b"veridoc-review = veridoc.review.persistence.cli:main\n"
+    )
 
     _check_console_scripts(valid, Path("dist/veridoc.whl"))
 

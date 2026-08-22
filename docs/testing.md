@@ -89,7 +89,8 @@ tests/
 ├── test_review_schema.py            Phase 9 review-store structural schema validation
 ├── test_review_sqlite_repository.py Phase 9 review-store repository CRUD and validation
 ├── test_review_persistence_concurrency.py  Phase 9 review-store concurrent mutation races
-├── test_review_data_maintenance.py  Phase 9 review-store backup safety
+├── test_review_data_maintenance.py  Phase 9 review-store backup/restore safety
+├── test_review_cli.py               Phase 9 review maintenance CLI
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
