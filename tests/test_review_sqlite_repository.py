@@ -9,6 +9,7 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
     CaseAssignmentRequest,
+    CaseDecisionRequest,
     CaseDetail,
     CaseEscalationRequest,
     IdempotentRequest,
@@ -480,5 +481,114 @@ def test_escalate_case_rejects_an_unassigned_case(tmp_path: Path) -> None:
             actor_id="reviewer-1",
             actor_role="review_admin",
             request_id="request-escalate",
+            idempotent_request=None,
+        )
+
+
+def test_decide_case_by_the_assignee_is_terminal(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    updated = repository.decide_case(
+        case.case_id,
+        request=CaseDecisionRequest(
+            expected_version=2, decision="accept", reason="Amounts reconcile."
+        ),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-decide",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.status == "decided"
+    assert updated.version == 3
+    assert updated.events[-1].event_type == "case_decided"
+    assert updated.events[-1].decision == "accept"
+    assert updated.events[-1].reason == "Amounts reconcile."
+
+
+def test_decide_case_by_review_admin_who_is_not_the_assignee(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    updated = repository.decide_case(
+        case.case_id,
+        request=CaseDecisionRequest(
+            expected_version=2, decision="reject", reason="Mismatch."
+        ),
+        actor_id="admin-1",
+        actor_role="review_admin",
+        request_id="request-decide",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.status == "decided"
+
+
+def test_decide_case_rejects_a_non_assignee_reviewer(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with pytest.raises(ReviewAuthorizationError):
+        repository.decide_case(
+            case.case_id,
+            request=CaseDecisionRequest(
+                expected_version=2, decision="accept", reason="Not mine."
+            ),
+            actor_id="reviewer-3",
+            actor_role="reviewer",
+            request_id="request-decide",
+            idempotent_request=None,
+        )
+
+
+def test_decide_case_is_terminal_and_rejects_a_second_decision(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+    repository.decide_case(
+        case.case_id,
+        request=CaseDecisionRequest(
+            expected_version=2, decision="accept", reason="Amounts reconcile."
+        ),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-decide",
+        idempotent_request=None,
+    )
+
+    with pytest.raises(StaleVersionConflictError):
+        repository.decide_case(
+            case.case_id,
+            request=CaseDecisionRequest(
+                expected_version=3, decision="reject", reason="Changed my mind."
+            ),
+            actor_id="reviewer-2",
+            actor_role="reviewer",
+            request_id="request-redecide",
+            idempotent_request=None,
+        )
+
+
+def test_decide_case_rejects_deciding_an_unassigned_case(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with pytest.raises(StaleVersionConflictError):
+        repository.decide_case(
+            case.case_id,
+            request=CaseDecisionRequest(
+                expected_version=1, decision="accept", reason="Too soon."
+            ),
+            actor_id="reviewer-1",
+            actor_role="review_admin",
+            request_id="request-decide",
             idempotent_request=None,
         )

@@ -15,6 +15,7 @@ from veridoc.review.models import (
     ActorId,
     ActorRole,
     CaseAssignmentRequest,
+    CaseDecisionRequest,
     CaseDetail,
     CaseEscalationRequest,
     CasePage,
@@ -288,6 +289,57 @@ class SQLiteReviewRepository:
                 request_id=request_id,
                 assigned_actor_id=None,
                 reason=request.reason,
+                idempotent_request=idempotent_request,
+            )
+
+    def decide_case(
+        self,
+        case_id: str,
+        *,
+        request: CaseDecisionRequest,
+        actor_id: ActorId,
+        actor_role: ActorRole,
+        request_id: RequestId,
+        idempotent_request: IdempotentRequest | None,
+    ) -> CaseDetail | None:
+        """Record one terminal decision, appending its event atomically."""
+        with self._connection() as connection:
+            found, replay = _find_replay(connection, idempotent_request)
+            if found:
+                return replay
+
+            row = connection.execute(
+                "SELECT * FROM review_cases WHERE case_id = ?", (case_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            if int(row["version"]) != request.expected_version:
+                raise StaleVersionConflictError
+
+            if not authorize_operation(
+                operation="decide_case",
+                current_status=row["status"],
+                actor_role=actor_role,
+                actor_id=actor_id,
+                assignee_id=row["assignee_id"],
+                target_actor_id=None,
+            ):
+                raise ReviewAuthorizationError
+
+            try:
+                transition = next_transition(row["status"], "decide_case")
+            except InvalidTransitionError as exc:
+                raise StaleVersionConflictError from exc
+
+            return _apply_transition(
+                connection,
+                row=row,
+                transition=transition,
+                actor_id=actor_id,
+                request_id=request_id,
+                assigned_actor_id=None,
+                reason=request.reason,
+                decision=request.decision,
                 idempotent_request=idempotent_request,
             )
 
