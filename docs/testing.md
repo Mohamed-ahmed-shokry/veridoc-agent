@@ -91,6 +91,7 @@ tests/
 ├── test_review_persistence_concurrency.py  Phase 9 review-store concurrent mutation races
 ├── test_review_data_maintenance.py  Phase 9 review-store backup/restore safety
 ├── test_review_cli.py               Phase 9 review maintenance CLI
+├── test_review_api.py               Phase 9 review session-cookie authentication
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

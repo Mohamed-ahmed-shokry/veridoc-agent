@@ -122,3 +122,25 @@ def _parse_actor(entry: object) -> ReviewActor:
     ):
         raise ReviewAuthenticationUnavailableError
     return ReviewActor(actor_id=actor_id, role=role, secret_digest=secret_digest)
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewOriginSettings:
+    """Validated HTTPS origin required before the review UI is available."""
+
+    origin: str
+
+    @classmethod
+    def from_environment(
+        cls, environment: Mapping[str, str] | None = None
+    ) -> ReviewOriginSettings:
+        """Require a configured HTTPS review origin with no path or query."""
+        values = os.environ if environment is None else environment
+        origin = values.get("VERIDOC_REVIEW_ORIGIN", "").strip()
+        if not origin.startswith("https://"):
+            raise ReviewAuthenticationUnavailableError
+        remainder = origin[len("https://") :]
+        host = remainder.split("/", 1)[0]
+        if not host or remainder != host:
+            raise ReviewAuthenticationUnavailableError
+        return cls(origin=origin)
