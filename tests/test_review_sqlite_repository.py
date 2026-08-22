@@ -167,3 +167,74 @@ def test_get_case_rejects_a_tampered_snapshot_digest(tmp_path: Path) -> None:
 
     with pytest.raises(ReviewDataUnavailableError):
         repository.get_case(created.case_id)
+
+
+def _create_cases(repository: SQLiteReviewRepository, count: int) -> list[str]:
+    return [
+        repository.create_case(
+            snapshot=_snapshot(),
+            creator_actor_id="reviewer-1",
+            request_id=f"request-{index}",
+            idempotent_request=_idempotent_request(idempotency_key=f"key-{index}"),
+        ).case_id
+        for index in range(count)
+    ]
+
+
+def test_list_cases_returns_pages_in_stable_creation_order(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case_ids = _create_cases(repository, 3)
+
+    page = repository.list_cases(status=None, assignee_id=None, offset=0, limit=200)
+
+    assert page.total == 3
+    assert [record.case_id for record in page.records] == case_ids
+
+
+def test_list_cases_bounds_offset_and_limit(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case_ids = _create_cases(repository, 3)
+
+    page = repository.list_cases(status=None, assignee_id=None, offset=1, limit=1)
+
+    assert page.total == 3
+    assert page.offset == 1
+    assert page.limit == 1
+    assert [record.case_id for record in page.records] == [case_ids[1]]
+
+
+def test_list_cases_filters_by_status(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    _create_cases(repository, 2)
+
+    unassigned_page = repository.list_cases(
+        status="unassigned", assignee_id=None, offset=0, limit=200
+    )
+    decided_page = repository.list_cases(
+        status="decided", assignee_id=None, offset=0, limit=200
+    )
+
+    assert unassigned_page.total == 2
+    assert decided_page.total == 0
+
+
+def test_list_cases_filters_by_assignee_id(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case_ids = _create_cases(repository, 2)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_cases SET assignee_id = 'reviewer-2' WHERE case_id = ?",
+            (case_ids[0],),
+        )
+        connection.commit()
+
+    assigned_page = repository.list_cases(
+        status=None, assignee_id="reviewer-2", offset=0, limit=200
+    )
+    unassigned_filter_page = repository.list_cases(
+        status=None, assignee_id="reviewer-3", offset=0, limit=200
+    )
+
+    assert [record.case_id for record in assigned_page.records] == [case_ids[0]]
+    assert unassigned_filter_page.total == 0

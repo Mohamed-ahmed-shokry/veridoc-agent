@@ -14,6 +14,9 @@ from uuid import uuid4
 from veridoc.review.models import (
     ActorId,
     CaseDetail,
+    CasePage,
+    CaseStatus,
+    CaseSummary,
     IdempotentRequest,
     RequestId,
     ReviewEvent,
@@ -133,6 +136,47 @@ class SQLiteReviewRepository:
             ).fetchone()
             return _case_detail_from_row(connection, row) if row is not None else None
 
+    def list_cases(
+        self,
+        *,
+        status: CaseStatus | None,
+        assignee_id: ActorId | None,
+        offset: int,
+        limit: int,
+    ) -> CasePage:
+        """Return one bounded, filtered page of case summaries."""
+        conditions: list[str] = []
+        parameters: list[object] = []
+        if status is not None:
+            conditions.append("status = ?")
+            parameters.append(status)
+        if assignee_id is not None:
+            conditions.append("assignee_id = ?")
+            parameters.append(assignee_id)
+        where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        with self._read_connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM review_cases{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM review_cases{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return CasePage(
+                records=[_case_summary_from_row(row) for row in rows],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
@@ -174,6 +218,21 @@ def _find_idempotency_key(
     if row is None:
         return None
     return str(row["request_digest"]), int(row["case_row_id"])
+
+
+def _case_summary_from_row(row: sqlite3.Row) -> CaseSummary:
+    try:
+        return CaseSummary(
+            case_id=row["case_id"],
+            status=row["status"],
+            version=row["version"],
+            creator_actor_id=row["creator_actor_id"],
+            assignee_id=row["assignee_id"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
+        )
+    except ValueError as exc:
+        raise InvalidPersistedReviewDataError from exc
 
 
 def _case_detail_from_row(
