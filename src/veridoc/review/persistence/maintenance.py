@@ -1,0 +1,187 @@
+"""Safe local backup and restore operations for the dedicated review store.
+
+This mirrors ``veridoc.persistence.maintenance`` deliberately: ADR 0009
+requires the review store to have its own maintenance surface, independent
+of reference-data backup/restore.
+"""
+
+from __future__ import annotations
+
+import os
+import sqlite3
+import tempfile
+from contextlib import closing
+from pathlib import Path
+
+from veridoc.review.persistence.migrations import (
+    UnsupportedReviewSchemaVersionError,
+    migrate,
+)
+from veridoc.review.persistence.schema import (
+    InvalidReviewSchemaError,
+    validate_current_schema,
+)
+from veridoc.review.persistence.sqlite import (
+    InvalidPersistedReviewDataError,
+    validate_persisted_review_data,
+)
+
+_SIDECAR_SUFFIXES = ("-wal", "-shm", "-journal")
+
+
+class ReviewDataMaintenanceError(RuntimeError):
+    """Raised when backup or restore cannot complete without data risk."""
+
+    code = "review_data_maintenance_failed"
+    message = "Review-data maintenance could not be completed safely."
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
+
+def backup_database(
+    database_path: str | Path,
+    destination_path: str | Path,
+) -> Path:
+    """Create an integrity-checked online backup using atomic replacement."""
+    source = _resolve_maintenance_path(database_path)
+    destination = _resolve_maintenance_path(destination_path)
+    temporary: Path | None = None
+    validation_temporary: Path | None = None
+    try:
+        _require_distinct_existing_source(source, destination)
+        _require_destination_not_source_sidecar(source, destination)
+        _require_no_live_sidecars(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = _temporary_sibling(destination)
+        validation_temporary = _temporary_sibling(destination)
+        with (
+            closing(_connect_existing(source)) as source_connection,
+            closing(sqlite3.connect(temporary)) as backup_connection,
+        ):
+            source_connection.backup(backup_connection)
+            _validate_integrity(backup_connection)
+            with closing(
+                sqlite3.connect(validation_temporary)
+            ) as validation_connection:
+                backup_connection.backup(validation_connection)
+                migrate(
+                    validation_connection,
+                    validate=_validate_migrated_review_data,
+                )
+                _validate_integrity(validation_connection)
+        _require_no_live_sidecars(destination)
+        os.replace(temporary, destination)
+    except (
+        OSError,
+        sqlite3.Error,
+        InvalidPersistedReviewDataError,
+        InvalidReviewSchemaError,
+        UnsupportedReviewSchemaVersionError,
+    ) as exc:
+        raise ReviewDataMaintenanceError from exc
+    finally:
+        _remove_temporary_files(temporary, validation_temporary)
+    return destination
+
+
+def _validate_migrated_review_data(connection: sqlite3.Connection) -> None:
+    validate_current_schema(connection)
+    validate_persisted_review_data(connection)
+
+
+def restore_database(
+    backup_path: str | Path,
+    database_path: str | Path,
+) -> Path:
+    """Validate, migrate, and atomically restore one stopped local database."""
+    source = _resolve_maintenance_path(backup_path)
+    destination = _resolve_maintenance_path(database_path)
+    temporary: Path | None = None
+    try:
+        _require_distinct_existing_source(source, destination)
+        _require_destination_not_source_sidecar(source, destination)
+        _require_no_live_sidecars(source)
+        _require_no_live_sidecars(destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        temporary = _temporary_sibling(destination)
+        with closing(_connect_existing(source)) as source_connection:
+            _validate_integrity(source_connection)
+            with closing(sqlite3.connect(temporary)) as restore_connection:
+                source_connection.backup(restore_connection)
+                migrate(
+                    restore_connection,
+                    validate=_validate_migrated_review_data,
+                )
+                _validate_integrity(restore_connection)
+        _require_no_live_sidecars(destination)
+        os.replace(temporary, destination)
+    except (
+        OSError,
+        sqlite3.Error,
+        InvalidPersistedReviewDataError,
+        InvalidReviewSchemaError,
+        UnsupportedReviewSchemaVersionError,
+    ) as exc:
+        raise ReviewDataMaintenanceError from exc
+    finally:
+        _remove_temporary_files(temporary)
+    return destination
+
+
+def _require_distinct_existing_source(source: Path, destination: Path) -> None:
+    if source == destination or not source.is_file():
+        raise ReviewDataMaintenanceError
+
+
+def _resolve_maintenance_path(path: str | Path) -> Path:
+    try:
+        return Path(path).resolve()
+    except (OSError, RuntimeError) as exc:
+        raise ReviewDataMaintenanceError from exc
+
+
+def _connect_existing(database_path: Path) -> sqlite3.Connection:
+    return sqlite3.connect(f"{database_path.as_uri()}?mode=rw", uri=True)
+
+
+def _require_destination_not_source_sidecar(source: Path, destination: Path) -> None:
+    if destination in {Path(f"{source}{suffix}") for suffix in _SIDECAR_SUFFIXES}:
+        raise ReviewDataMaintenanceError
+
+
+def _require_no_live_sidecars(database_path: Path) -> None:
+    for suffix in _SIDECAR_SUFFIXES:
+        if Path(f"{database_path}{suffix}").exists():
+            raise ReviewDataMaintenanceError
+
+
+def _temporary_sibling(destination: Path) -> Path:
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    ) as handle:
+        return Path(handle.name)
+
+
+def _remove_temporary_files(*paths: Path | None) -> None:
+    cleanup_error: OSError | None = None
+    for path in paths:
+        if path is None:
+            continue
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as exc:
+            if cleanup_error is None:
+                cleanup_error = exc
+    if cleanup_error is not None:
+        raise ReviewDataMaintenanceError from cleanup_error
+
+
+def _validate_integrity(connection: sqlite3.Connection) -> None:
+    result = connection.execute("PRAGMA integrity_check").fetchone()
+    foreign_key_violation = connection.execute("PRAGMA foreign_key_check").fetchone()
+    if result != ("ok",) or foreign_key_violation is not None:
+        raise ReviewDataMaintenanceError
