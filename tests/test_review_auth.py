@@ -1,14 +1,25 @@
-"""Constant-time review actor authentication tests."""
+"""Constant-time review actor authentication and session-policy tests."""
 
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 
 import pytest
 
-from veridoc.review.auth import InvalidReviewCredentialsError, authenticate_actor
+from veridoc.review.auth import (
+    SESSION_TTL,
+    InvalidReviewCredentialsError,
+    authenticate_actor,
+    hash_session_token,
+    is_session_active,
+    issue_session,
+    verify_session_token,
+)
 from veridoc.review.config import ReviewActor, ReviewActorDirectory
+from veridoc.review.models import ReviewSession
 
 _REVIEWER_SECRET = "reviewer-secret-value"
 _ADMIN_SECRET = "admin-secret-value"
+_NOW = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
 
 
 def _digest(secret: str) -> str:
@@ -96,3 +107,51 @@ def test_authenticate_actor_is_case_sensitive_only_on_the_scheme_value() -> None
 
     with pytest.raises(InvalidReviewCredentialsError):
         authenticate_actor(f"BEARER {_REVIEWER_SECRET.upper()}", directory)
+
+
+def _session(**overrides: object) -> ReviewSession:
+    issued = issue_session(now=_NOW)
+    fields: dict[str, object] = {
+        "session_digest": issued.digest,
+        "actor_id": "reviewer-1",
+        "created_at": _NOW,
+        "expires_at": issued.expires_at,
+        "revoked_at": None,
+    }
+    fields.update(overrides)
+    return ReviewSession(**fields)
+
+
+def test_issue_session_generates_a_high_entropy_token_and_fixed_expiry() -> None:
+    first = issue_session(now=_NOW)
+    second = issue_session(now=_NOW)
+
+    assert first.token != second.token
+    assert len(first.token) >= 32
+    assert first.digest == hash_session_token(first.token)
+    assert first.expires_at == _NOW + SESSION_TTL
+
+
+def test_verify_session_token_accepts_only_the_matching_token() -> None:
+    issued = issue_session(now=_NOW)
+    session = _session(session_digest=issued.digest)
+
+    assert verify_session_token(issued.token, session)
+    assert not verify_session_token("wrong-token", session)
+
+
+def test_is_session_active_true_before_expiry_and_without_revocation() -> None:
+    session = _session()
+    assert is_session_active(session, now=_NOW)
+    assert is_session_active(session, now=session.expires_at - timedelta(seconds=1))
+
+
+def test_is_session_active_false_at_or_after_expiry() -> None:
+    session = _session()
+    assert not is_session_active(session, now=session.expires_at)
+    assert not is_session_active(session, now=session.expires_at + timedelta(seconds=1))
+
+
+def test_is_session_active_false_once_revoked_even_before_expiry() -> None:
+    session = _session(revoked_at=_NOW)
+    assert not is_session_active(session, now=_NOW)
