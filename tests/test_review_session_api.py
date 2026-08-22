@@ -170,3 +170,61 @@ async def test_create_session_persists_a_resolvable_session(tmp_path: Path) -> N
     resolved = repository.resolve_session(sha256(cookie_value.encode()).hexdigest())
     assert resolved is not None
     assert resolved.actor_id == "reviewer-1"
+
+
+@pytest.mark.anyio
+async def test_revoke_session_clears_the_cookie_and_the_stored_session(
+    tmp_path: Path,
+) -> None:
+    async with _client(tmp_path) as (client, repository):
+        login = await client.post(
+            "/review/session",
+            headers={"Authorization": f"Bearer {_REVIEWER_SECRET}"},
+        )
+        cookie_value = login.cookies["veridoc_review_session"]
+        digest = sha256(cookie_value.encode()).hexdigest()
+
+        # httpx's cookie jar correctly refuses to resend a Secure cookie over
+        # this test transport's plain http:// base_url, mirroring real browser
+        # behavior, so the cookie must be attached explicitly here.
+        client.cookies.set("veridoc_review_session", cookie_value)
+        response = await client.delete("/review/session")
+
+    assert response.status_code == 204
+    revoked = repository.resolve_session(digest)
+    assert revoked is not None
+    assert revoked.revoked_at is not None
+    set_cookie = response.headers.get("set-cookie", "")
+    assert 'veridoc_review_session=""' in set_cookie or "Max-Age=0" in set_cookie
+
+
+@pytest.mark.anyio
+async def test_revoke_session_is_a_safe_no_op_without_a_cookie(
+    tmp_path: Path,
+) -> None:
+    async with _client(tmp_path) as (client, _repository):
+        response = await client.delete("/review/session")
+
+    assert response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_revoke_session_repeated_logout_is_a_safe_no_op(tmp_path: Path) -> None:
+    async with _client(tmp_path) as (client, repository):
+        login = await client.post(
+            "/review/session",
+            headers={"Authorization": f"Bearer {_REVIEWER_SECRET}"},
+        )
+        cookie_value = login.cookies["veridoc_review_session"]
+        digest = sha256(cookie_value.encode()).hexdigest()
+        client.cookies.set("veridoc_review_session", cookie_value)
+
+        first = await client.delete("/review/session")
+        client.cookies.set("veridoc_review_session", cookie_value)
+        second = await client.delete("/review/session")
+
+    assert first.status_code == 204
+    assert second.status_code == 204
+    revoked = repository.resolve_session(digest)
+    assert revoked is not None
+    assert revoked.revoked_at is not None

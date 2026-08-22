@@ -116,6 +116,25 @@ def create_review_session(
     return SessionResponse(actor_id=actor.actor_id, role=actor.role)
 
 
+@router.delete(
+    "/session",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def revoke_review_session(
+    request: Request,
+    _origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> Response:
+    """Revoke the current browser session; a repeat logout is a safe no-op."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+    if token:
+        repository.revoke_session(hash_session_token(token))
+    response = Response(status_code=status.HTTP_204_NO_CONTENT)
+    response.delete_cookie(key=SESSION_COOKIE_NAME, path=router.prefix)
+    return response
+
+
 def require_review_actor(
     request: Request,
     _origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
