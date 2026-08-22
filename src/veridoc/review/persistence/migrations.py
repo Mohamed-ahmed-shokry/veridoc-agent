@@ -111,10 +111,36 @@ _IDEMPOTENCY_KEYS = Migration(
     ),
 )
 
+_SESSIONS = Migration(
+    version=4,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS review_sessions (
+            id INTEGER PRIMARY KEY,
+            session_digest TEXT NOT NULL,
+            actor_id TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            expires_at TEXT NOT NULL,
+            revoked_at TEXT,
+            UNIQUE(session_digest)
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS review_sessions_expires_at_index
+        ON review_sessions(expires_at)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS review_sessions_actor_index
+        ON review_sessions(actor_id)
+        """,
+    ),
+)
+
 MIGRATIONS: tuple[Migration, ...] = (
     _CASES_AND_SNAPSHOTS,
     _EVENTS,
     _IDEMPOTENCY_KEYS,
+    _SESSIONS,
 )
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 

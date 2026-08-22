@@ -229,6 +229,29 @@ def test_migrate_creates_review_idempotency_keys_unique_per_actor_operation_key(
             _insert_idempotency_key(connection, request_digest="b" * 64)
 
 
+def _insert_session(
+    connection: sqlite3.Connection, session_digest: str = "a" * 64
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO review_sessions (
+            session_digest, actor_id, created_at, expires_at
+        ) VALUES (?, 'reviewer-1', '2026-08-22T00:00:00Z', '2026-08-23T00:00:00Z')
+        """,
+        (session_digest,),
+    )
+
+
+def test_migrate_creates_review_sessions_unique_by_digest(tmp_path: Path) -> None:
+    database_path = tmp_path / "review.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        migrate(connection)
+
+        _insert_session(connection)
+        with pytest.raises(sqlite3.IntegrityError):
+            _insert_session(connection)
+
+
 def test_migrate_requires_the_not_null_review_case_columns(tmp_path: Path) -> None:
     database_path = tmp_path / "review.sqlite"
     with sqlite3.connect(database_path) as connection:
