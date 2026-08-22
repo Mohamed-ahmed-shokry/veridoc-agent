@@ -1,6 +1,7 @@
 """SQLite review-store repository tests."""
 
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -592,3 +593,65 @@ def test_decide_case_rejects_deciding_an_unassigned_case(tmp_path: Path) -> None
             request_id="request-decide",
             idempotent_request=None,
         )
+
+
+def test_create_session_persists_the_hashed_digest_only(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    expires_at = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+
+    session = repository.create_session(
+        session_digest="a" * 64, actor_id="reviewer-1", expires_at=expires_at
+    )
+
+    assert session.session_digest == "a" * 64
+    assert session.actor_id == "reviewer-1"
+    assert session.revoked_at is None
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        columns = {
+            row[0]
+            for row in connection.execute("SELECT * FROM review_sessions").description
+        }
+    assert "raw_token" not in columns
+
+
+def test_resolve_session_returns_the_stored_record(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    expires_at = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+    repository.create_session(
+        session_digest="a" * 64, actor_id="reviewer-1", expires_at=expires_at
+    )
+
+    resolved = repository.resolve_session("a" * 64)
+
+    assert resolved is not None
+    assert resolved.actor_id == "reviewer-1"
+
+
+def test_resolve_session_returns_none_for_an_unknown_digest(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    assert repository.resolve_session("f" * 64) is None
+
+
+def test_revoke_session_sets_revoked_at_once(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    expires_at = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+    repository.create_session(
+        session_digest="a" * 64, actor_id="reviewer-1", expires_at=expires_at
+    )
+
+    repository.revoke_session("a" * 64)
+    first_revocation = repository.resolve_session("a" * 64)
+    assert first_revocation is not None
+    assert first_revocation.revoked_at is not None
+
+    repository.revoke_session("a" * 64)
+    second_revocation = repository.resolve_session("a" * 64)
+
+    assert second_revocation is not None
+    assert second_revocation.revoked_at == first_revocation.revoked_at
+
+
+def test_revoke_session_is_a_safe_no_op_for_an_unknown_digest(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    repository.revoke_session("f" * 64)

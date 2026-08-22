@@ -154,7 +154,11 @@ class ReviewSessionStore(Protocol):
         """Persist one new session for an authenticated actor."""
 
     def resolve_session(self, session_digest: str) -> ReviewSession | None:
-        """Return one active, unexpired, unrevoked session, if any."""
+        """Return one session record by digest, or ``None`` when unknown.
+
+        Callers must separately check whether the session is still active
+        (unexpired and unrevoked); this lookup does not filter by state.
+        """
 
     def revoke_session(self, session_digest: str) -> None:
         """Mark one session revoked; revoking an already-revoked session is a

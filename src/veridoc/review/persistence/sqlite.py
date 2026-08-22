@@ -24,6 +24,7 @@ from veridoc.review.models import (
     IdempotentRequest,
     RequestId,
     ReviewEvent,
+    ReviewSession,
     ReviewSnapshot,
     hydrate_review_snapshot,
 )
@@ -343,6 +344,60 @@ class SQLiteReviewRepository:
                 idempotent_request=idempotent_request,
             )
 
+    def create_session(
+        self, *, session_digest: str, actor_id: ActorId, expires_at: datetime
+    ) -> ReviewSession:
+        """Persist one new session for an authenticated actor."""
+        with self._connection() as connection:
+            created_at = datetime.now(UTC)
+            connection.execute(
+                """
+                INSERT INTO review_sessions (
+                    session_digest, actor_id, created_at, expires_at
+                ) VALUES (?, ?, ?, ?)
+                """,
+                (
+                    session_digest,
+                    actor_id,
+                    _format_datetime(created_at),
+                    _format_datetime(expires_at),
+                ),
+            )
+            return ReviewSession(
+                session_digest=session_digest,
+                actor_id=actor_id,
+                created_at=created_at,
+                expires_at=expires_at,
+            )
+
+    def resolve_session(self, session_digest: str) -> ReviewSession | None:
+        """Return one session record by digest, or ``None`` when unknown.
+
+        Callers must separately consult
+        :func:`veridoc.review.auth.is_session_active` to decide whether the
+        returned session is still usable.
+        """
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM review_sessions WHERE session_digest = ?",
+                (session_digest,),
+            ).fetchone()
+            return _session_from_row(row) if row is not None else None
+
+    def revoke_session(self, session_digest: str) -> None:
+        """Mark one session revoked; revoking an already-revoked session is a
+        safe no-op.
+        """
+        with self._connection() as connection:
+            connection.execute(
+                """
+                UPDATE review_sessions
+                SET revoked_at = COALESCE(revoked_at, ?)
+                WHERE session_digest = ?
+                """,
+                (_timestamp(), session_digest),
+            )
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
@@ -556,6 +611,23 @@ def _event_from_row(row: sqlite3.Row, *, case_id: str) -> ReviewEvent:
         assigned_actor_id=row["assigned_actor_id"],
         metadata=json.loads(row["metadata_json"]),
     )
+
+
+def _session_from_row(row: sqlite3.Row) -> ReviewSession:
+    try:
+        return ReviewSession(
+            session_digest=row["session_digest"],
+            actor_id=row["actor_id"],
+            created_at=row["created_at"],
+            expires_at=row["expires_at"],
+            revoked_at=row["revoked_at"],
+        )
+    except ValueError as exc:
+        raise InvalidPersistedReviewDataError from exc
+
+
+def _format_datetime(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _timestamp() -> str:
