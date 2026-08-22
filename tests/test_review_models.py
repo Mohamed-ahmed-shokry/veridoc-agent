@@ -12,16 +12,21 @@ from veridoc.review.models import (
     REVIEW_SNAPSHOT_SCHEMA_VERSION,
     ActorId,
     ActorRole,
+    CaseAssignmentRequest,
+    CaseDecisionRequest,
+    CaseEscalationRequest,
     CaseId,
     CaseStatus,
     CaseVersion,
     DecisionValue,
+    IdempotentRequest,
     ReasonText,
     ReviewEvent,
     ReviewModel,
     ReviewSnapshot,
     build_review_snapshot,
     compute_content_digest,
+    compute_request_digest,
     hydrate_review_snapshot,
 )
 
@@ -239,6 +244,63 @@ def test_case_decided_event_requires_and_only_accepts_a_decision() -> None:
             reason="Cannot decide.",
             decision="accept",
         )
+
+
+def test_case_assignment_request_allows_self_claim_or_a_target_actor() -> None:
+    claim = CaseAssignmentRequest(expected_version=1)
+    assert claim.actor_id is None
+
+    assign = CaseAssignmentRequest(expected_version=1, actor_id="reviewer-2")
+    assert assign.actor_id == "reviewer-2"
+
+
+def test_case_escalation_request_requires_a_nonblank_reason() -> None:
+    request = CaseEscalationRequest(expected_version=2, reason="Cannot decide.")
+    assert request.reason == "Cannot decide."
+
+    with pytest.raises(ValidationError):
+        CaseEscalationRequest(expected_version=2, reason="")
+
+
+def test_case_decision_request_requires_decision_and_reason() -> None:
+    request = CaseDecisionRequest(
+        expected_version=3, decision="reject", reason="Amounts do not reconcile."
+    )
+    assert request.decision == "reject"
+
+    with pytest.raises(ValidationError):
+        CaseDecisionRequest(expected_version=3, decision="reject", reason="")
+
+
+def test_idempotent_request_bounds_its_scoping_fields() -> None:
+    digest = compute_request_digest(
+        CaseDecisionRequest(expected_version=1, decision="accept", reason="OK.")
+    )
+    request = IdempotentRequest(
+        actor_id="reviewer-1",
+        operation="decide_case",
+        idempotency_key="decision-1",
+        request_digest=digest,
+    )
+    assert request.request_digest == digest
+    assert len(request.request_digest) == 64
+
+    with pytest.raises(ValidationError):
+        IdempotentRequest(
+            actor_id="reviewer-1",
+            operation="unknown_operation",
+            idempotency_key="decision-1",
+            request_digest=digest,
+        )
+
+
+def test_compute_request_digest_is_deterministic_and_input_sensitive() -> None:
+    first = CaseEscalationRequest(expected_version=1, reason="Cannot decide.")
+    second = CaseEscalationRequest(expected_version=1, reason="Cannot decide.")
+    third = CaseEscalationRequest(expected_version=1, reason="Different reason.")
+
+    assert compute_request_digest(first) == compute_request_digest(second)
+    assert compute_request_digest(first) != compute_request_digest(third)
 
 
 def test_review_model_forbids_extra_fields_and_strips_strings() -> None:

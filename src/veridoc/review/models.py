@@ -1,4 +1,4 @@
-"""Typed domain models for Phase 9 review: identifiers, snapshots, and events."""
+"""Typed domain models for Phase 9 review identifiers, snapshots, and events."""
 
 from __future__ import annotations
 
@@ -59,9 +59,13 @@ class ReviewModel(BaseModel):
     )
 
 
+def _model_digest(payload: BaseModel) -> str:
+    return hashlib.sha256(payload.model_dump_json().encode("utf-8")).hexdigest()
+
+
 def compute_content_digest(result: ProcessingResult) -> str:
     """Return the SHA-256 hex digest of one canonical processing-result JSON."""
-    return hashlib.sha256(result.model_dump_json().encode("utf-8")).hexdigest()
+    return _model_digest(result)
 
 
 class ReviewSnapshot(ReviewModel):
@@ -134,3 +138,47 @@ class ReviewEvent(ReviewModel):
         if self.event_type in _REASON_REQUIRED_EVENT_TYPES and not self.reason:
             raise ValueError(f"{self.event_type} events must include a reason.")
         return self
+
+
+MutationOperation = Literal[
+    "create_case",
+    "assign_case",
+    "escalate_case",
+    "decide_case",
+]
+
+
+class CaseAssignmentRequest(ReviewModel):
+    """Request to claim (self), assign, or reassign a case to an actor."""
+
+    expected_version: CaseVersion
+    actor_id: ActorId | None = None
+
+
+class CaseEscalationRequest(ReviewModel):
+    """Request to escalate an assigned case with a required reason."""
+
+    expected_version: CaseVersion
+    reason: ReasonText
+
+
+class CaseDecisionRequest(ReviewModel):
+    """Request to record a terminal decision with a required reason."""
+
+    expected_version: CaseVersion
+    decision: DecisionValue
+    reason: ReasonText
+
+
+class IdempotentRequest(ReviewModel):
+    """One idempotency-scoped mutation request identity."""
+
+    actor_id: ActorId
+    operation: MutationOperation
+    idempotency_key: IdempotencyKey
+    request_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+def compute_request_digest(payload: BaseModel) -> str:
+    """Return the SHA-256 hex digest of one canonical mutation request body."""
+    return _model_digest(payload)
