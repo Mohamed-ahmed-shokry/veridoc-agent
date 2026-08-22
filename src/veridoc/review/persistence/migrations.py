@@ -26,8 +26,40 @@ class Migration:
     statements: tuple[str, ...]
 
 
-MIGRATIONS: tuple[Migration, ...] = ()
-LATEST_SCHEMA_VERSION = 0
+_CASES_AND_SNAPSHOTS = Migration(
+    version=1,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS review_cases (
+            id INTEGER PRIMARY KEY,
+            case_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            version INTEGER NOT NULL,
+            creator_actor_id TEXT NOT NULL,
+            assignee_id TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            snapshot_schema_version INTEGER NOT NULL,
+            snapshot_digest TEXT NOT NULL,
+            snapshot_json TEXT NOT NULL,
+            retention_until TEXT,
+            legal_hold_reason TEXT,
+            UNIQUE(case_id)
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS review_cases_status_index
+        ON review_cases(status)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS review_cases_assignee_index
+        ON review_cases(assignee_id)
+        """,
+    ),
+)
+
+MIGRATIONS: tuple[Migration, ...] = (_CASES_AND_SNAPSHOTS,)
+LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 
 def migrate(
