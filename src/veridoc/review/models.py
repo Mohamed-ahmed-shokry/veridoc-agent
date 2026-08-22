@@ -182,3 +182,38 @@ class IdempotentRequest(ReviewModel):
 def compute_request_digest(payload: BaseModel) -> str:
     """Return the SHA-256 hex digest of one canonical mutation request body."""
     return _model_digest(payload)
+
+
+class CaseSummary(ReviewModel):
+    """One bounded case-listing row without the snapshot or event history."""
+
+    case_id: CaseId
+    status: CaseStatus
+    version: CaseVersion
+    creator_actor_id: ActorId
+    assignee_id: ActorId | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+
+
+class CaseDetail(ReviewModel):
+    """One case's immutable snapshot, current state, and ordered events."""
+
+    case_id: CaseId
+    status: CaseStatus
+    version: CaseVersion
+    creator_actor_id: ActorId
+    assignee_id: ActorId | None = None
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
+    snapshot: ReviewSnapshot
+    events: list[ReviewEvent] = Field(default_factory=list)
+
+
+class CasePage(ReviewModel):
+    """One bounded page of case summaries."""
+
+    records: list[CaseSummary]
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=200)
+    total: int = Field(ge=0)
