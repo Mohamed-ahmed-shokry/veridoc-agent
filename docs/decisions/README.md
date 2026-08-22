@@ -26,3 +26,4 @@ Accepted decisions:
 - [0007: Use forward-only SQLite migrations](0007-use-forward-only-sqlite-migrations.md)
 - [0008: Use a local actor file and HttpOnly sessions for Phase 9 review](0008-use-local-actor-file-and-http-only-sessions-for-review.md)
 - [0009: Use immutable versioned review records in a dedicated store](0009-use-immutable-versioned-review-records.md)
+- [0010: Defer automated review retention and purge](0010-defer-automated-review-retention-and-purge.md)
