@@ -1,4 +1,4 @@
-"""SQLite backup safety tests for the dedicated review store."""
+"""SQLite backup and restore safety tests for the dedicated review store."""
 
 import sqlite3
 from pathlib import Path
@@ -11,7 +11,9 @@ from veridoc.review.models import IdempotentRequest, build_review_snapshot
 from veridoc.review.persistence.maintenance import (
     ReviewDataMaintenanceError,
     backup_database,
+    restore_database,
 )
+from veridoc.review.persistence.migrations import LATEST_SCHEMA_VERSION
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
 
 
@@ -133,3 +135,77 @@ def test_backup_rejects_foreign_key_corruption(tmp_path: Path) -> None:
 
     with pytest.raises(ReviewDataMaintenanceError):
         backup_database(database_path, backup_path)
+
+
+def test_restore_atomically_replaces_the_target_database(tmp_path: Path) -> None:
+    source_path = tmp_path / "review.sqlite"
+    backup_path = tmp_path / "review.backup.sqlite"
+    destination_path = tmp_path / "restored.sqlite"
+    repository = _repository(source_path)
+    backup_case_id = _create_case(repository, "backup-key")
+    backup_database(source_path, backup_path)
+
+    target_repository = _repository(destination_path)
+    _create_case(target_repository, "replaced-key")
+
+    result = restore_database(backup_path, destination_path)
+    restored_repository = _repository(destination_path)
+
+    assert result == destination_path.resolve()
+    page = restored_repository.list_cases(
+        status=None, assignee_id=None, offset=0, limit=200
+    )
+    assert [record.case_id for record in page.records] == [backup_case_id]
+    with sqlite3.connect(destination_path) as connection:
+        latest = connection.execute(
+            "SELECT MAX(version) FROM schema_migrations"
+        ).fetchone()[0]
+    assert latest == LATEST_SCHEMA_VERSION
+
+
+def test_restore_rejects_a_missing_backup_source(tmp_path: Path) -> None:
+    with pytest.raises(ReviewDataMaintenanceError):
+        restore_database(tmp_path / "missing.sqlite", tmp_path / "review.sqlite")
+
+
+def test_restore_rejects_the_same_source_and_destination(tmp_path: Path) -> None:
+    database_path = tmp_path / "review.sqlite"
+    _repository(database_path)
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        restore_database(database_path, database_path)
+
+
+def test_restore_rejects_live_source_sidecars(tmp_path: Path) -> None:
+    backup_path = tmp_path / "review.backup.sqlite"
+    _repository(backup_path)
+    (tmp_path / "review.backup.sqlite-wal").write_bytes(b"")
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        restore_database(backup_path, tmp_path / "review.sqlite")
+
+
+def test_restore_rejects_live_destination_sidecars(tmp_path: Path) -> None:
+    backup_path = tmp_path / "review.backup.sqlite"
+    destination_path = tmp_path / "review.sqlite"
+    _repository(backup_path)
+    (tmp_path / "review.sqlite-shm").write_bytes(b"")
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        restore_database(backup_path, destination_path)
+
+
+def test_restore_preserves_the_destination_on_a_corrupt_backup(tmp_path: Path) -> None:
+    backup_path = tmp_path / "review.backup.sqlite"
+    destination_path = tmp_path / "review.sqlite"
+    backup_path.write_bytes(b"not a sqlite database")
+    _repository(destination_path)
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        restore_database(backup_path, destination_path)
+
+    restored_repository = _repository(destination_path)
+    page = restored_repository.list_cases(
+        status=None, assignee_id=None, offset=0, limit=200
+    )
+    assert page.total == 0
