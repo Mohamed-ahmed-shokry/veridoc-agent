@@ -58,7 +58,40 @@ _CASES_AND_SNAPSHOTS = Migration(
     ),
 )
 
-MIGRATIONS: tuple[Migration, ...] = (_CASES_AND_SNAPSHOTS,)
+_EVENTS = Migration(
+    version=2,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS review_events (
+            id INTEGER PRIMARY KEY,
+            case_row_id INTEGER NOT NULL
+                REFERENCES review_cases(id) ON DELETE CASCADE,
+            case_version INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
+            actor_id TEXT NOT NULL,
+            occurred_at TEXT NOT NULL,
+            request_id TEXT NOT NULL,
+            idempotency_key TEXT,
+            prior_status TEXT,
+            resulting_status TEXT NOT NULL,
+            reason TEXT,
+            decision TEXT,
+            assigned_actor_id TEXT,
+            metadata_json TEXT NOT NULL DEFAULT '{}'
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS review_events_case_version_index
+        ON review_events(case_row_id, case_version)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS review_events_case_order_index
+        ON review_events(case_row_id, id)
+        """,
+    ),
+)
+
+MIGRATIONS: tuple[Migration, ...] = (_CASES_AND_SNAPSHOTS, _EVENTS)
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
 
