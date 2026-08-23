@@ -1,11 +1,9 @@
 """FastAPI application setup for Veridoc."""
 
 import logging
-import os
 import re
 import time
 from asyncio import to_thread
-from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from uuid import uuid4
 
@@ -19,13 +17,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from veridoc import __version__
 from veridoc.administration.api import router as administration_router
 from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
-from veridoc.explanation.config import OpenAIExplanationSettings
-from veridoc.explanation.openai_responses import OpenAIResponsesExplainer
-from veridoc.explanation.protocol import ExplanationUnavailableError
-from veridoc.explanation.service import ExplanationService
-from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.extraction.models import InvoiceExtraction
-from veridoc.extraction.openai_responses import OpenAIResponsesExtractor
 from veridoc.extraction.protocol import (
     ExtractionProcessingError,
     ExtractionUnavailableError,
@@ -38,12 +30,12 @@ from veridoc.ingestion.validation import MAX_UPLOAD_BYTES
 from veridoc.ocr.models import OCRPage, OCRResponse
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 from veridoc.ocr.service import OCRService
-from veridoc.ocr.tesseract import TesseractEngine
-from veridoc.persistence.protocol import (
-    InvoiceRepository,
-    ReferenceDataUnavailableError,
+from veridoc.persistence.protocol import ReferenceDataUnavailableError
+from veridoc.processing.dependencies import (
+    get_ocr_engine,
+    get_processing_service,
+    get_structured_extractor,
 )
-from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.processing.models import ProcessingResult
 from veridoc.processing.service import ProcessingError, ProcessingService
 from veridoc.review.api import router as review_router
@@ -55,7 +47,6 @@ from veridoc.review.protocol import (
     ReviewDataUnavailableError,
     StaleVersionConflictError,
 )
-from veridoc.verification.service import VerificationService
 
 _REQUEST_LOGGER = logging.getLogger("veridoc.request")
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -400,72 +391,6 @@ def health_check() -> HealthResponse:
 def review_page() -> HTMLResponse:
     """Serve the intentionally small local invoice-review interface."""
     return HTMLResponse(render_review_page())
-
-
-def get_ocr_engine() -> OCREngine:
-    """Build the configured OCR engine for one request."""
-    return TesseractEngine()
-
-
-async def get_structured_extractor() -> AsyncIterator[StructuredExtractor]:
-    """Yield one configured extraction adapter and close its provider client."""
-    settings = OpenAIExtractionSettings.from_environment()
-    extractor = OpenAIResponsesExtractor(settings)
-    try:
-        yield extractor
-    finally:
-        await extractor.aclose()
-
-
-def get_invoice_repository() -> InvoiceRepository:
-    """Open and initialize the configured local reference-data repository."""
-    database_path = os.environ.get(
-        "VERIDOC_REFERENCE_DATABASE", "veridoc-reference.sqlite3"
-    ).strip()
-    repository = SQLiteInvoiceRepository(database_path or "veridoc-reference.sqlite3")
-    repository.initialize()
-    return repository
-
-
-def get_verification_service(
-    repository: Annotated[InvoiceRepository, Depends(get_invoice_repository)],
-) -> VerificationService:
-    """Build the deterministic verification service for one processing request."""
-    return VerificationService(repository)
-
-
-async def get_explanation_service() -> AsyncIterator[ExplanationService]:
-    """Yield optional provider guidance and close any configured client."""
-    try:
-        settings = OpenAIExplanationSettings.from_environment()
-    except ExplanationUnavailableError:
-        yield ExplanationService()
-        return
-
-    explainer = OpenAIResponsesExplainer(settings)
-    try:
-        yield ExplanationService(explainer)
-    finally:
-        await explainer.aclose()
-
-
-def get_processing_service(
-    ocr_engine: Annotated[OCREngine, Depends(get_ocr_engine)],
-    extractor: Annotated[StructuredExtractor, Depends(get_structured_extractor)],
-    verification_service: Annotated[
-        VerificationService, Depends(get_verification_service)
-    ],
-    explanation_service: Annotated[
-        ExplanationService, Depends(get_explanation_service)
-    ],
-) -> ProcessingService:
-    """Compose the complete typed processing graph for one API request."""
-    return ProcessingService(
-        ocr_engine,
-        extractor,
-        verification_service,
-        explanation_service,
-    )
 
 
 @app.post("/ocr", response_model=OCRResponse, tags=["ocr"])

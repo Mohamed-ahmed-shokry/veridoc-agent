@@ -101,6 +101,7 @@ tests/
 ├── test_review_case_decision_api.py Phase 9 review case terminal decisions
 ├── test_review_api_error_contracts.py  Phase 9 review API cross-route error contracts
 ├── test_review_console_page.py      Phase 9 review console login/logout shell
+├── test_review_case_creation_integration.py  Phase 9 review case creation through the real processing graph
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
