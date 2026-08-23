@@ -23,6 +23,7 @@ from veridoc.review.persistence.sqlite import (
 )
 from veridoc.review.protocol import (
     IdempotencyConflictError,
+    ReassignmentReasonRequiredError,
     ReviewAuthorizationError,
     ReviewDataUnavailableError,
     StaleVersionConflictError,
@@ -300,6 +301,49 @@ def test_assign_case_by_review_admin_to_another_actor(tmp_path: Path) -> None:
 
     assert updated is not None
     assert updated.assignee_id == "reviewer-2"
+
+
+def test_assign_case_reassignment_by_review_admin_requires_a_reason(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    with pytest.raises(ReassignmentReasonRequiredError):
+        repository.assign_case(
+            case.case_id,
+            request=CaseAssignmentRequest(expected_version=2, actor_id="reviewer-3"),
+            actor_id="admin-1",
+            actor_role="review_admin",
+            request_id="request-reassign",
+            idempotent_request=None,
+        )
+
+    updated = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(
+            expected_version=2,
+            actor_id="reviewer-3",
+            reason="Reviewer-2 is on leave.",
+        ),
+        actor_id="admin-1",
+        actor_role="review_admin",
+        request_id="request-reassign-2",
+        idempotent_request=None,
+    )
+
+    assert updated is not None
+    assert updated.assignee_id == "reviewer-3"
+    assert updated.events[-1].event_type == "case_reassigned"
+    assert updated.events[-1].reason == "Reviewer-2 is on leave."
 
 
 def test_assign_case_rejects_a_reviewer_assigning_someone_else(tmp_path: Path) -> None:

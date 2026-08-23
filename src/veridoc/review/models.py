@@ -149,10 +149,15 @@ MutationOperation = Literal[
 
 
 class CaseAssignmentRequest(ReviewModel):
-    """Request to claim (self), assign, or reassign a case to an actor."""
+    """Request to claim (self), assign, or reassign a case to an actor.
+
+    ``reason`` is required only when the case is already assigned to a
+    different actor (a reassignment); it is optional for a first claim.
+    """
 
     expected_version: CaseVersion
     actor_id: ActorId | None = None
+    reason: ReasonText | None = None
 
 
 class CaseEscalationRequest(ReviewModel):

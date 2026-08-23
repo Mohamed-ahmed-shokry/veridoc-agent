@@ -34,12 +34,14 @@ from veridoc.review.config import (
 from veridoc.review.models import (
     ActorId,
     ActorRole,
+    CaseAssignmentRequest,
     CaseDetail,
     CasePage,
     CaseStatus,
     IdempotencyKey,
     IdempotentRequest,
     build_review_snapshot,
+    compute_request_digest,
 )
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
 from veridoc.review.protocol import ReviewDataUnavailableError
@@ -305,14 +307,47 @@ def read_review_case(
     """Return one case's canonical snapshot, current state, and ordered events."""
     detail = repository.get_case(case_id)
     if detail is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail={
-                "code": "review_case_not_found",
-                "message": "No review case exists with the given case_id.",
-            },
-        )
+        raise _case_not_found()
     return detail
+
+
+@router.put("/cases/{case_id}/assignment", response_model=CaseDetail)
+def assign_review_case(
+    case_id: str,
+    body: CaseAssignmentRequest,
+    request: Request,
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _csrf: Annotated[None, Depends(require_csrf_protection)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> CaseDetail:
+    """Claim, assign, or reassign one case under an expected-version guard."""
+    idempotency_key = _require_idempotency_key(request)
+    detail = repository.assign_case(
+        case_id,
+        request=body,
+        actor_id=actor.actor_id,
+        actor_role=actor.role,
+        request_id=request.state.request_id,
+        idempotent_request=IdempotentRequest(
+            actor_id=actor.actor_id,
+            operation="assign_case",
+            idempotency_key=idempotency_key,
+            request_digest=compute_request_digest(body),
+        ),
+    )
+    if detail is None:
+        raise _case_not_found()
+    return detail
+
+
+def _case_not_found() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail={
+            "code": "review_case_not_found",
+            "message": "No review case exists with the given case_id.",
+        },
+    )
 
 
 def _invalid_session() -> HTTPException:

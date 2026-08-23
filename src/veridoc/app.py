@@ -48,6 +48,13 @@ from veridoc.processing.models import ProcessingResult
 from veridoc.processing.service import ProcessingError, ProcessingService
 from veridoc.review.api import router as review_router
 from veridoc.review.page import render_review_page
+from veridoc.review.protocol import (
+    IdempotencyConflictError,
+    ReassignmentReasonRequiredError,
+    ReviewAuthorizationError,
+    ReviewDataUnavailableError,
+    StaleVersionConflictError,
+)
 from veridoc.verification.service import VerificationService
 
 _REQUEST_LOGGER = logging.getLogger("veridoc.request")
@@ -299,6 +306,66 @@ async def handle_processing_error(
     request: Request, exc: ProcessingError
 ) -> JSONResponse:
     """Return a safe failure when orchestration lacks a typed result."""
+    del request
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ReviewDataUnavailableError)
+async def handle_review_data_unavailable(
+    request: Request, exc: ReviewDataUnavailableError
+) -> JSONResponse:
+    """Return a safe review-store availability error."""
+    del request
+    return JSONResponse(
+        status_code=503,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(StaleVersionConflictError)
+async def handle_stale_version_conflict(
+    request: Request, exc: StaleVersionConflictError
+) -> JSONResponse:
+    """Return a safe conflict when a review case changed since it was read."""
+    del request
+    return JSONResponse(
+        status_code=409,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(IdempotencyConflictError)
+async def handle_idempotency_conflict(
+    request: Request, exc: IdempotencyConflictError
+) -> JSONResponse:
+    """Return a safe conflict when an idempotency key is reused with new input."""
+    del request
+    return JSONResponse(
+        status_code=409,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ReviewAuthorizationError)
+async def handle_review_authorization_denied(
+    request: Request, exc: ReviewAuthorizationError
+) -> JSONResponse:
+    """Return a safe denial when an actor lacks authority for the operation."""
+    del request
+    return JSONResponse(
+        status_code=403,
+        content={"detail": {"code": exc.code, "message": exc.message}},
+    )
+
+
+@app.exception_handler(ReassignmentReasonRequiredError)
+async def handle_reassignment_reason_required(
+    request: Request, exc: ReassignmentReasonRequiredError
+) -> JSONResponse:
+    """Return a safe validation error when a reassignment omits its reason."""
     del request
     return JSONResponse(
         status_code=422,

@@ -61,6 +61,16 @@ class ReviewAuthorizationError(RuntimeError):
         super().__init__(self.message)
 
 
+class ReassignmentReasonRequiredError(RuntimeError):
+    """Raised when a case reassignment omits the required audit reason."""
+
+    code = "review_reassignment_reason_required"
+    message = "A reason is required when reassigning an already-assigned case."
+
+    def __init__(self) -> None:
+        super().__init__(self.message)
+
+
 @runtime_checkable
 class ReviewCaseReader(Protocol):
     """Read bounded case summaries and one case's full detail."""

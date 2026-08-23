@@ -39,6 +39,7 @@ from veridoc.review.persistence.schema import (
 )
 from veridoc.review.protocol import (
     IdempotencyConflictError,
+    ReassignmentReasonRequiredError,
     ReviewAuthorizationError,
     ReviewDataUnavailableError,
     StaleVersionConflictError,
@@ -250,6 +251,9 @@ class SQLiteReviewRepository:
             except InvalidTransitionError as exc:
                 raise StaleVersionConflictError from exc
 
+            if transition.event_type == "case_reassigned" and not request.reason:
+                raise ReassignmentReasonRequiredError
+
             return _apply_transition(
                 connection,
                 row=row,
@@ -257,6 +261,7 @@ class SQLiteReviewRepository:
                 actor_id=actor_id,
                 request_id=request_id,
                 assigned_actor_id=target_actor_id,
+                reason=request.reason,
                 idempotent_request=idempotent_request,
             )
 
