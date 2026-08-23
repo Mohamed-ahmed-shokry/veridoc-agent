@@ -56,6 +56,16 @@ def render_review_console_page() -> str:
       <h2>Case detail</h2>
       <p id="detail-status" aria-live="polite"></p>
       <div id="case-detail"></div>
+
+      <h3>Claim or assign</h3>
+      <form id="assign-form">
+        <label for="assign-actor-id">Assign to actor ID (blank claims for yourself)</label>
+        <input id="assign-actor-id" name="assign-actor-id" type="text" autocomplete="off">
+        <label for="assign-reason">Reason (required when reassigning)</label>
+        <input id="assign-reason" name="assign-reason" type="text" autocomplete="off">
+        <button type="submit">Claim / assign</button>
+      </form>
+      <p id="assign-status" aria-live="polite"></p>
     </section>
   </main>
   <script>
@@ -74,6 +84,13 @@ def render_review_console_page() -> str:
     const detailSection = document.getElementById("detail-section");
     const detailStatus = document.getElementById("detail-status");
     const caseDetail = document.getElementById("case-detail");
+    const assignForm = document.getElementById("assign-form");
+    const assignActorId = document.getElementById("assign-actor-id");
+    const assignReason = document.getElementById("assign-reason");
+    const assignStatus = document.getElementById("assign-status");
+
+    let currentCaseId = null;
+    let currentVersion = null;
 
     function readCookie(name) {
       const prefix = name + "=";
@@ -98,6 +115,9 @@ def render_review_console_page() -> str:
       caseListStatus.textContent = "";
       caseDetail.replaceChildren();
       detailStatus.textContent = "";
+      currentCaseId = null;
+      currentVersion = null;
+      assignStatus.textContent = "";
       credentialInput.value = "";
     }
 
@@ -237,6 +257,11 @@ def render_review_console_page() -> str:
           throw new Error(data.detail?.message || "Case detail could not be loaded.");
         }
         detailStatus.textContent = "";
+        currentCaseId = data.case_id;
+        currentVersion = data.version;
+        assignStatus.textContent = "";
+        assignActorId.value = "";
+        assignReason.value = "";
         const summary = document.createElement("section");
         summary.append(
           textRow("Case", data.case_id),
@@ -330,6 +355,50 @@ def render_review_console_page() -> str:
     });
 
     refreshCasesButton.addEventListener("click", loadCases);
+
+    assignForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (currentCaseId === null) {
+        return;
+      }
+      assignStatus.textContent = "Submitting…";
+      assignStatus.className = "";
+      const body = { expected_version: currentVersion };
+      if (assignActorId.value) {
+        body.actor_id = assignActorId.value;
+      }
+      if (assignReason.value) {
+        body.reason = assignReason.value;
+      }
+      try {
+        const response = await fetch(
+          "/review/cases/" + encodeURIComponent(currentCaseId) + "/assignment",
+          {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              "Idempotency-Key": crypto.randomUUID(),
+              "X-CSRF-Token": readCookie("veridoc_review_csrf") || "",
+            },
+            body: JSON.stringify(body),
+          },
+        );
+        if (response.status === 401) {
+          showSignedOut();
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail?.message || "The assignment could not be submitted.");
+        }
+        assignStatus.textContent = "";
+        loadCases();
+        loadCaseDetail(currentCaseId);
+      } catch (error) {
+        assignStatus.textContent = error.message;
+        assignStatus.className = "error";
+      }
+    });
 
     refreshSessionState();
   </script>

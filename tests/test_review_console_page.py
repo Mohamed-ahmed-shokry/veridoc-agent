@@ -30,5 +30,8 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'fetch("/review/cases' in body
     assert 'id="case-detail"' in body
     assert "loadCaseDetail" in body
+    assert 'id="assign-form"' in body
+    assert "/assignment" in body
+    assert "Idempotency-Key" in body
     assert "innerHTML" not in body
     assert "textContent" in body
