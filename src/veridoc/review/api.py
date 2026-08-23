@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from veridoc.ingestion.dependencies import get_validated_upload
@@ -31,6 +32,7 @@ from veridoc.review.config import (
     ReviewOriginSettings,
     ReviewStoreSettings,
 )
+from veridoc.review.console_page import render_review_console_page
 from veridoc.review.models import (
     ActorId,
     ActorRole,
@@ -53,6 +55,14 @@ router = APIRouter(prefix="/review", tags=["review"])
 SESSION_COOKIE_NAME = "veridoc_review_session"
 CSRF_COOKIE_NAME = "veridoc_review_csrf"
 CSRF_HEADER_NAME = "X-CSRF-Token"
+
+
+@router.get("/console", response_class=HTMLResponse, include_in_schema=False)
+def review_console_page() -> HTMLResponse:
+    """Serve the authenticated review console's static browser shell."""
+    return HTMLResponse(render_review_console_page())
+
+
 _MAX_SQLITE_INTEGER = 2**63 - 1
 
 
@@ -215,6 +225,14 @@ def require_review_actor(
     if actor is None:
         raise _invalid_session()
     return AuthenticatedActor(actor_id=actor.actor_id, role=actor.role)
+
+
+@router.get("/session", response_model=SessionResponse)
+def read_review_session(
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+) -> SessionResponse:
+    """Return the identity of the actor authenticated by the current session."""
+    return SessionResponse(actor_id=actor.actor_id, role=actor.role)
 
 
 IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"

@@ -286,6 +286,69 @@ async def test_revoke_session_rejects_a_mismatched_origin(tmp_path: Path) -> Non
 
 
 @pytest.mark.anyio
+async def test_read_session_returns_the_current_actor(tmp_path: Path) -> None:
+    async with _client(tmp_path) as (client, _repository):
+        login = await _login(client)
+        _attach_session_cookies(client, login)
+
+        response = await client.get("/review/session")
+
+    assert response.status_code == 200
+    assert response.json() == {"actor_id": "reviewer-1", "role": "reviewer"}
+
+
+@pytest.mark.anyio
+async def test_read_session_rejects_a_missing_session(tmp_path: Path) -> None:
+    async with _client(tmp_path) as (client, _repository):
+        response = await client.get("/review/session")
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_review_session"
+
+
+@pytest.mark.anyio
+async def test_read_session_rejects_an_expired_session(tmp_path: Path) -> None:
+    async with _client(tmp_path) as (client, repository):
+        login = await _login(client)
+        _attach_session_cookies(client, login)
+        digest = sha256(login.cookies[SESSION_COOKIE_NAME].encode()).hexdigest()
+        resolved = repository.resolve_session(digest)
+        assert resolved is not None
+        with repository._connection() as connection:
+            connection.execute(
+                "UPDATE review_sessions SET expires_at = ? WHERE session_digest = ?",
+                ("2000-01-01T00:00:00+00:00", digest),
+            )
+
+        response = await client.get("/review/session")
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_review_session"
+
+
+@pytest.mark.anyio
+async def test_read_session_rejects_a_session_revoked_by_logout(
+    tmp_path: Path,
+) -> None:
+    async with _client(tmp_path) as (client, _repository):
+        login = await _login(client)
+        _attach_session_cookies(client, login)
+        await client.delete(
+            "/review/session",
+            headers={
+                "Origin": _ORIGIN,
+                CSRF_HEADER_NAME: login.cookies[CSRF_COOKIE_NAME],
+            },
+        )
+        _attach_session_cookies(client, login)
+
+        response = await client.get("/review/session")
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_review_session"
+
+
+@pytest.mark.anyio
 async def test_revoke_session_repeated_logout_is_a_safe_no_op(tmp_path: Path) -> None:
     async with _client(tmp_path) as (client, repository):
         login = await _login(client)
