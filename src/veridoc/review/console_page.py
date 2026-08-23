@@ -19,6 +19,9 @@ def render_review_console_page() -> str:
     .hidden { display: none; }
     .case-row { border: 1px solid #e5e7eb; border-radius: .4rem; padding: .6rem; margin: .5rem 0; }
     .case-row p { margin: .2rem 0; }
+    .finding, .event-row { background: #f9fafb; border-radius: .4rem; padding: .6rem; margin: .5rem 0; }
+    .review_required { border-left: .4rem solid #b45309; }
+    .clear { border-left: .4rem solid #15803d; }
   </style>
 </head>
 <body>
@@ -48,6 +51,12 @@ def render_review_console_page() -> str:
       <p id="case-list-status" aria-live="polite"></p>
       <div id="case-list"></div>
     </section>
+
+    <section id="detail-section" class="hidden">
+      <h2>Case detail</h2>
+      <p id="detail-status" aria-live="polite"></p>
+      <div id="case-detail"></div>
+    </section>
   </main>
   <script>
     const loginSection = document.getElementById("login-section");
@@ -62,6 +71,9 @@ def render_review_console_page() -> str:
     const caseList = document.getElementById("case-list");
     const caseListStatus = document.getElementById("case-list-status");
     const refreshCasesButton = document.getElementById("refresh-cases-button");
+    const detailSection = document.getElementById("detail-section");
+    const detailStatus = document.getElementById("detail-status");
+    const caseDetail = document.getElementById("case-detail");
 
     function readCookie(name) {
       const prefix = name + "=";
@@ -81,8 +93,11 @@ def render_review_console_page() -> str:
       loginSection.classList.remove("hidden");
       sessionSection.classList.add("hidden");
       casesSection.classList.add("hidden");
+      detailSection.classList.add("hidden");
       caseList.replaceChildren();
       caseListStatus.textContent = "";
+      caseDetail.replaceChildren();
+      detailStatus.textContent = "";
       credentialInput.value = "";
     }
 
@@ -115,8 +130,127 @@ def render_review_console_page() -> str:
           textRow("Version", String(record.version)),
           textRow("Updated", record.updated_at),
         );
+        const viewButton = document.createElement("button");
+        viewButton.type = "button";
+        viewButton.textContent = "View";
+        viewButton.addEventListener("click", () => loadCaseDetail(record.case_id));
+        row.append(viewButton);
         caseList.append(row);
       });
+    }
+
+    function renderSnapshot(container, result) {
+      const verdict = document.createElement("section");
+      verdict.className = result.verdict.status;
+      const verdictHeading = document.createElement("h3");
+      verdictHeading.textContent = "Verdict: " + result.verdict.status.replace(/_/g, " ");
+      verdict.append(
+        verdictHeading,
+        textRow("Summary", result.verdict.summary),
+        textRow("Findings", String(result.verdict.finding_count)),
+        textRow("Highest severity", result.verdict.highest_severity ?? "None"),
+      );
+      container.append(verdict);
+
+      const extraction = document.createElement("section");
+      const extractionHeading = document.createElement("h3");
+      extractionHeading.textContent = "Extraction";
+      extraction.append(
+        extractionHeading,
+        textRow("Document type", result.extraction.document_type ?? "Unknown"),
+        textRow("Invoice number", result.extraction.invoice_number ?? "Not provided"),
+        textRow("Vendor", result.extraction.vendor_name ?? "Not provided"),
+        textRow(
+          "Total",
+          result.extraction.total != null ? String(result.extraction.total) : "Not provided",
+        ),
+      );
+      container.append(extraction);
+
+      const findings = document.createElement("section");
+      const findingsHeading = document.createElement("h3");
+      findingsHeading.textContent = "Findings";
+      findings.append(findingsHeading);
+      if (!result.findings.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "No deterministic findings were returned.";
+        findings.append(empty);
+      }
+      result.findings.forEach((finding, index) => {
+        const item = document.createElement("div");
+        item.className = "finding";
+        const title = document.createElement("h4");
+        title.textContent = finding.finding_type + " (" + finding.severity + ")";
+        item.append(title, textRow("Evidence", finding.explanation));
+        const explanation = result.explanations[index];
+        if (explanation) {
+          item.append(textRow("Review guidance", explanation.narrative));
+          item.append(textRow("Numerical context", explanation.numerical_context));
+        }
+        findings.append(item);
+      });
+      container.append(findings);
+    }
+
+    function renderEvents(container, events) {
+      const section = document.createElement("section");
+      const heading = document.createElement("h3");
+      heading.textContent = "Event timeline";
+      section.append(heading);
+      events.forEach(event => {
+        const row = document.createElement("div");
+        row.className = "event-row";
+        row.append(
+          textRow("Event", event.event_type),
+          textRow("Actor", event.actor_id),
+          textRow("Occurred", event.occurred_at),
+          textRow("Status", (event.prior_status ?? "—") + " → " + event.resulting_status),
+        );
+        if (event.reason) row.append(textRow("Reason", event.reason));
+        if (event.decision) row.append(textRow("Decision", event.decision));
+        if (event.assigned_actor_id) row.append(textRow("Assigned to", event.assigned_actor_id));
+        section.append(row);
+      });
+      container.append(section);
+    }
+
+    async function loadCaseDetail(caseId) {
+      detailSection.classList.remove("hidden");
+      detailStatus.textContent = "Loading case detail…";
+      detailStatus.className = "";
+      caseDetail.replaceChildren();
+      try {
+        const response = await fetch("/review/cases/" + encodeURIComponent(caseId));
+        if (response.status === 401) {
+          showSignedOut();
+          return;
+        }
+        if (response.status === 404) {
+          detailStatus.textContent = "";
+          const notFound = document.createElement("p");
+          notFound.textContent = "Case not found.";
+          caseDetail.append(notFound);
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail?.message || "Case detail could not be loaded.");
+        }
+        detailStatus.textContent = "";
+        const summary = document.createElement("section");
+        summary.append(
+          textRow("Case", data.case_id),
+          textRow("Status", data.status),
+          textRow("Assignee", data.assignee_id ?? "Unassigned"),
+          textRow("Version", String(data.version)),
+        );
+        caseDetail.append(summary);
+        renderSnapshot(caseDetail, data.snapshot.result);
+        renderEvents(caseDetail, data.events);
+      } catch (error) {
+        detailStatus.textContent = error.message;
+        detailStatus.className = "error";
+      }
     }
 
     async function loadCases() {
