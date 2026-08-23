@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator
 from typing import Annotated, Literal
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel
@@ -32,13 +32,9 @@ from veridoc.extraction.protocol import (
     StructuredExtractor,
 )
 from veridoc.extraction.service import ExtractionService
+from veridoc.ingestion.dependencies import get_validated_upload
 from veridoc.ingestion.models import ValidatedUpload
-from veridoc.ingestion.validation import (
-    MAX_UPLOAD_BYTES,
-    UploadValidationError,
-    read_bounded_upload,
-    validate_upload,
-)
+from veridoc.ingestion.validation import MAX_UPLOAD_BYTES
 from veridoc.ocr.models import OCRPage, OCRResponse
 from veridoc.ocr.protocol import OCREngine, OCRProcessingError, OCRUnavailableError
 from veridoc.ocr.service import OCRService
@@ -342,27 +338,6 @@ def review_page() -> HTMLResponse:
 def get_ocr_engine() -> OCREngine:
     """Build the configured OCR engine for one request."""
     return TesseractEngine()
-
-
-async def get_validated_upload(
-    file: Annotated[UploadFile, File(description="A PDF, PNG, or JPEG invoice.")],
-) -> ValidatedUpload:
-    """Read, validate, and close one upload before external dependencies resolve."""
-    try:
-        data = await read_bounded_upload(file)
-        return await to_thread(
-            validate_upload,
-            data,
-            filename=file.filename,
-            declared_content_type=file.content_type,
-        )
-    except UploadValidationError as exc:
-        raise HTTPException(
-            status_code=exc.status_code,
-            detail={"code": exc.code, "message": exc.message},
-        ) from exc
-    finally:
-        await file.close()
 
 
 async def get_structured_extractor() -> AsyncIterator[StructuredExtractor]:

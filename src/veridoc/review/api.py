@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
+from veridoc.ingestion.dependencies import get_validated_upload
+from veridoc.ingestion.models import ValidatedUpload
+from veridoc.ocr.protocol import OCRProcessingError, OCRUnavailableError
+from veridoc.processing.dependencies import get_processing_service
+from veridoc.processing.service import ProcessingService
 from veridoc.review.auth import (
     SESSION_TTL,
     InvalidReviewCredentialsError,
@@ -25,7 +31,14 @@ from veridoc.review.config import (
     ReviewOriginSettings,
     ReviewStoreSettings,
 )
-from veridoc.review.models import ActorId, ActorRole
+from veridoc.review.models import (
+    ActorId,
+    ActorRole,
+    CaseDetail,
+    IdempotencyKey,
+    IdempotentRequest,
+    build_review_snapshot,
+)
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
 from veridoc.review.protocol import ReviewDataUnavailableError
 
@@ -195,6 +208,71 @@ def require_review_actor(
     if actor is None:
         raise _invalid_session()
     return AuthenticatedActor(actor_id=actor.actor_id, role=actor.role)
+
+
+IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
+_idempotency_key_adapter: TypeAdapter[str] = TypeAdapter(IdempotencyKey)
+
+
+def _require_idempotency_key(request: Request) -> str:
+    try:
+        return _idempotency_key_adapter.validate_python(
+            request.headers.get(IDEMPOTENCY_KEY_HEADER)
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "code": "missing_idempotency_key",
+                "message": "A valid Idempotency-Key header is required.",
+            },
+        ) from exc
+
+
+@router.post(
+    "/cases",
+    response_model=CaseDetail,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_review_case(
+    request: Request,
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _csrf: Annotated[None, Depends(require_csrf_protection)],
+    upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
+    service: Annotated[ProcessingService, Depends(get_processing_service)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> CaseDetail:
+    """Process a bounded document and atomically create a case.
+
+    A retry with the same ``Idempotency-Key`` and document returns the
+    original case; reuse with a different document conflicts.
+    """
+    idempotency_key = _require_idempotency_key(request)
+    try:
+        result = await service.process(upload)
+    except OCRUnavailableError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+    except OCRProcessingError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": exc.code, "message": exc.message},
+        ) from exc
+
+    snapshot = build_review_snapshot(result)
+    return repository.create_case(
+        snapshot=snapshot,
+        creator_actor_id=actor.actor_id,
+        request_id=request.state.request_id,
+        idempotent_request=IdempotentRequest(
+            actor_id=actor.actor_id,
+            operation="create_case",
+            idempotency_key=idempotency_key,
+            request_digest=hashlib.sha256(upload.data).hexdigest(),
+        ),
+    )
 
 
 def _invalid_session() -> HTTPException:

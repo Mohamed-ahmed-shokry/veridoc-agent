@@ -92,7 +92,8 @@ tests/
 ├── test_review_data_maintenance.py  Phase 9 review-store backup/restore safety
 ├── test_review_cli.py               Phase 9 review maintenance CLI
 ├── test_review_api.py               Phase 9 review session-cookie authentication
-├── test_review_session_api.py       Phase 9 review browser-session creation endpoint
+├── test_review_session_api.py       Phase 9 review browser-session and CSRF endpoints
+├── test_review_case_creation_api.py Phase 9 review case creation through processing
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

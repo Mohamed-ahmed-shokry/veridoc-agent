@@ -2,14 +2,14 @@
 
 import pytest
 
-from veridoc import app as app_module
-from veridoc.app import (
+from veridoc.explanation.config import OpenAIExplanationSettings
+from veridoc.extraction.config import OpenAIExtractionSettings
+from veridoc.processing import dependencies as dependencies_module
+from veridoc.processing.dependencies import (
     get_explanation_service,
     get_invoice_repository,
     get_structured_extractor,
 )
-from veridoc.explanation.config import OpenAIExplanationSettings
-from veridoc.extraction.config import OpenAIExtractionSettings
 from veridoc.verification.models import VerificationFinding, VerificationResult
 
 
@@ -39,7 +39,9 @@ async def test_extraction_dependency_closes_its_request_client(
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("VERIDOC_LLM_MODEL", "test-model")
-    monkeypatch.setattr(app_module, "OpenAIResponsesExtractor", ClosableExtractor)
+    monkeypatch.setattr(
+        dependencies_module, "OpenAIResponsesExtractor", ClosableExtractor
+    )
     dependency = get_structured_extractor()
 
     extractor = await anext(dependency)
@@ -95,7 +97,9 @@ async def test_explanation_dependency_closes_its_request_client(
 
     monkeypatch.setenv("OPENAI_API_KEY", "test-key")
     monkeypatch.setenv("VERIDOC_LLM_MODEL", "test-model")
-    monkeypatch.setattr(app_module, "OpenAIResponsesExplainer", ClosableExplainer)
+    monkeypatch.setattr(
+        dependencies_module, "OpenAIResponsesExplainer", ClosableExplainer
+    )
     dependency = get_explanation_service()
 
     service = await anext(dependency)

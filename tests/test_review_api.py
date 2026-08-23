@@ -25,7 +25,15 @@ from veridoc.review.config import (
 )
 from veridoc.review.models import ReviewSession
 
-_NOW = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+
+def _now() -> datetime:
+    """Compute the reference instant at call time.
+
+    A hardcoded calendar date would eventually fall behind real wall-clock
+    time (which is what ``require_review_actor`` actually compares against),
+    silently turning an "active session" fixture into an expired one.
+    """
+    return datetime.now(UTC)
 
 
 @pytest.fixture
@@ -99,11 +107,12 @@ async def _get(test_app: FastAPI, *, cookie: str | None) -> httpx.Response:
 
 @pytest.mark.anyio
 async def test_require_review_actor_accepts_a_valid_active_session() -> None:
-    issued = issue_session(now=_NOW)
+    now = _now()
+    issued = issue_session(now=now)
     session = ReviewSession(
         session_digest=issued.digest,
         actor_id="reviewer-1",
-        created_at=_NOW,
+        created_at=now,
         expires_at=issued.expires_at,
     )
     test_app = _test_app(sessions={issued.digest: session})
@@ -135,12 +144,13 @@ async def test_require_review_actor_rejects_an_unknown_token() -> None:
 
 @pytest.mark.anyio
 async def test_require_review_actor_rejects_an_expired_session() -> None:
-    issued = issue_session(now=_NOW)
+    now = _now()
+    issued = issue_session(now=now)
     session = ReviewSession(
         session_digest=issued.digest,
         actor_id="reviewer-1",
-        created_at=_NOW - timedelta(hours=13),
-        expires_at=_NOW - timedelta(hours=1),
+        created_at=now - timedelta(hours=13),
+        expires_at=now - timedelta(hours=1),
     )
     test_app = _test_app(sessions={issued.digest: session})
 
@@ -151,13 +161,14 @@ async def test_require_review_actor_rejects_an_expired_session() -> None:
 
 @pytest.mark.anyio
 async def test_require_review_actor_rejects_a_revoked_session() -> None:
-    issued = issue_session(now=_NOW)
+    now = _now()
+    issued = issue_session(now=now)
     session = ReviewSession(
         session_digest=issued.digest,
         actor_id="reviewer-1",
-        created_at=_NOW,
+        created_at=now,
         expires_at=issued.expires_at,
-        revoked_at=_NOW,
+        revoked_at=now,
     )
     test_app = _test_app(sessions={issued.digest: session})
 
@@ -168,11 +179,12 @@ async def test_require_review_actor_rejects_a_revoked_session() -> None:
 
 @pytest.mark.anyio
 async def test_require_review_actor_rejects_a_session_for_a_removed_actor() -> None:
-    issued = issue_session(now=_NOW)
+    now = _now()
+    issued = issue_session(now=now)
     session = ReviewSession(
         session_digest=issued.digest,
         actor_id="reviewer-removed",
-        created_at=_NOW,
+        created_at=now,
         expires_at=issued.expires_at,
     )
     test_app = _test_app(sessions={issued.digest: session})

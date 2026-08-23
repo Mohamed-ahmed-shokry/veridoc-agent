@@ -59,7 +59,7 @@ async def test_upload_validation_runs_off_loop_and_closes_the_file(
             status_code=415,
         )
 
-    monkeypatch.setattr("veridoc.app.validate_upload", reject_upload)
+    monkeypatch.setattr("veridoc.ingestion.dependencies.validate_upload", reject_upload)
     backing_file = BytesIO(payload)
     upload = UploadFile(
         backing_file,

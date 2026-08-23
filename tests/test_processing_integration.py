@@ -8,17 +8,13 @@ import httpx
 import pytest
 from PIL import Image
 
-from veridoc.app import (
-    app,
-    get_explanation_service,
-    get_ocr_engine,
-    get_structured_extractor,
-)
+from veridoc.app import app, get_ocr_engine, get_structured_extractor
 from veridoc.explanation.service import ExplanationService
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.protocol import ExtractionRequest
 from veridoc.ocr.models import OCRPageResult
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+from veridoc.processing.dependencies import get_explanation_service
 from veridoc.verification.references import HistoricalInvoice
 
 
