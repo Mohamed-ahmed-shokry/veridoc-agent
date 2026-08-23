@@ -17,6 +17,8 @@ def render_review_console_page() -> str:
     input { width: 100%; box-sizing: border-box; padding: .4rem; }
     .error { color: #b91c1c; }
     .hidden { display: none; }
+    .case-row { border: 1px solid #e5e7eb; border-radius: .4rem; padding: .6rem; margin: .5rem 0; }
+    .case-row p { margin: .2rem 0; }
   </style>
 </head>
 <body>
@@ -39,6 +41,13 @@ def render_review_console_page() -> str:
       <button id="logout-button" type="button">Sign out</button>
       <p id="session-status" aria-live="polite"></p>
     </section>
+
+    <section id="cases-section" class="hidden">
+      <h2>Review cases</h2>
+      <button id="refresh-cases-button" type="button">Refresh</button>
+      <p id="case-list-status" aria-live="polite"></p>
+      <div id="case-list"></div>
+    </section>
   </main>
   <script>
     const loginSection = document.getElementById("login-section");
@@ -49,6 +58,10 @@ def render_review_console_page() -> str:
     const sessionSummary = document.getElementById("session-summary");
     const sessionStatus = document.getElementById("session-status");
     const logoutButton = document.getElementById("logout-button");
+    const casesSection = document.getElementById("cases-section");
+    const caseList = document.getElementById("case-list");
+    const caseListStatus = document.getElementById("case-list-status");
+    const refreshCasesButton = document.getElementById("refresh-cases-button");
 
     function readCookie(name) {
       const prefix = name + "=";
@@ -56,19 +69,75 @@ def render_review_console_page() -> str:
       return cookie ? cookie.slice(prefix.length) : null;
     }
 
+    function textRow(label, value) {
+      const row = document.createElement("p");
+      const name = document.createElement("strong");
+      name.textContent = label + ": ";
+      row.append(name, document.createTextNode(value));
+      return row;
+    }
+
     function showSignedOut() {
       loginSection.classList.remove("hidden");
       sessionSection.classList.add("hidden");
+      casesSection.classList.add("hidden");
+      caseList.replaceChildren();
+      caseListStatus.textContent = "";
       credentialInput.value = "";
     }
 
     function showSignedIn(actor) {
       loginSection.classList.add("hidden");
       sessionSection.classList.remove("hidden");
+      casesSection.classList.remove("hidden");
       sessionSummary.replaceChildren();
       const label = document.createElement("strong");
       label.textContent = "Signed in as: ";
       sessionSummary.append(label, document.createTextNode(actor.actor_id + " (" + actor.role + ")"));
+      loadCases();
+    }
+
+    function renderCases(page) {
+      caseList.replaceChildren();
+      if (!page.records.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "No review cases yet.";
+        caseList.append(empty);
+        return;
+      }
+      page.records.forEach(record => {
+        const row = document.createElement("div");
+        row.className = "case-row";
+        row.append(
+          textRow("Case", record.case_id),
+          textRow("Status", record.status),
+          textRow("Assignee", record.assignee_id ?? "Unassigned"),
+          textRow("Version", String(record.version)),
+          textRow("Updated", record.updated_at),
+        );
+        caseList.append(row);
+      });
+    }
+
+    async function loadCases() {
+      caseListStatus.textContent = "Loading review cases…";
+      caseListStatus.className = "";
+      try {
+        const response = await fetch("/review/cases?limit=50");
+        if (response.status === 401) {
+          showSignedOut();
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail?.message || "Review cases could not be loaded.");
+        }
+        caseListStatus.textContent = "";
+        renderCases(data);
+      } catch (error) {
+        caseListStatus.textContent = error.message;
+        caseListStatus.className = "error";
+      }
     }
 
     async function refreshSessionState() {
@@ -125,6 +194,8 @@ def render_review_console_page() -> str:
       sessionStatus.textContent = "";
       showSignedOut();
     });
+
+    refreshCasesButton.addEventListener("click", loadCases);
 
     refreshSessionState();
   </script>

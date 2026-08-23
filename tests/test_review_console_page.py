@@ -26,5 +26,7 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'type="password"' in body
     assert 'id="logout-button"' in body
     assert 'fetch("/review/session"' in body
+    assert 'id="case-list"' in body
+    assert 'fetch("/review/cases' in body
     assert "innerHTML" not in body
     assert "textContent" in body
