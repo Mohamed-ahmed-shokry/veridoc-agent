@@ -95,6 +95,7 @@ tests/
 ├── test_review_session_api.py       Phase 9 review browser-session and CSRF endpoints
 ├── test_review_case_creation_api.py Phase 9 review case creation through processing
 ├── test_review_case_listing_api.py  Phase 9 bounded, filtered review case listing
+├── test_review_case_detail_api.py   Phase 9 review case snapshot and event detail
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

@@ -296,6 +296,25 @@ def list_review_cases(
     )
 
 
+@router.get("/cases/{case_id}", response_model=CaseDetail)
+def read_review_case(
+    case_id: str,
+    _actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> CaseDetail:
+    """Return one case's canonical snapshot, current state, and ordered events."""
+    detail = repository.get_case(case_id)
+    if detail is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "review_case_not_found",
+                "message": "No review case exists with the given case_id.",
+            },
+        )
+    return detail
+
+
 def _invalid_session() -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
