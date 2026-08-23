@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from pydantic import BaseModel, ConfigDict, TypeAdapter, ValidationError
 
 from veridoc.ingestion.dependencies import get_validated_upload
@@ -35,6 +35,8 @@ from veridoc.review.models import (
     ActorId,
     ActorRole,
     CaseDetail,
+    CasePage,
+    CaseStatus,
     IdempotencyKey,
     IdempotentRequest,
     build_review_snapshot,
@@ -47,6 +49,7 @@ router = APIRouter(prefix="/review", tags=["review"])
 SESSION_COOKIE_NAME = "veridoc_review_session"
 CSRF_COOKIE_NAME = "veridoc_review_csrf"
 CSRF_HEADER_NAME = "X-CSRF-Token"
+_MAX_SQLITE_INTEGER = 2**63 - 1
 
 
 class SessionResponse(BaseModel):
@@ -272,6 +275,24 @@ async def create_review_case(
             idempotency_key=idempotency_key,
             request_digest=hashlib.sha256(upload.data).hexdigest(),
         ),
+    )
+
+
+@router.get("/cases", response_model=CasePage)
+def list_review_cases(
+    _actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+    status_filter: Annotated[CaseStatus | None, Query(alias="status")] = None,
+    assignee_id: Annotated[ActorId | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0, le=_MAX_SQLITE_INTEGER)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> CasePage:
+    """Return one bounded, optionally filtered page of case summaries."""
+    return repository.list_cases(
+        status=status_filter,
+        assignee_id=assignee_id,
+        offset=offset,
+        limit=limit,
     )
 
 
