@@ -33,5 +33,10 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'id="assign-form"' in body
     assert "/assignment" in body
     assert "Idempotency-Key" in body
+    assert 'id="escalate-form"' in body
+    assert "/escalations" in body
+    assert 'id="decide-form"' in body
+    assert "/decisions" in body
+    assert 'value="needs_correction"' in body
     assert "innerHTML" not in body
     assert "textContent" in body

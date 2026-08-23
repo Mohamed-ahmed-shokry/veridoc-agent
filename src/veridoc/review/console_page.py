@@ -66,6 +66,28 @@ def render_review_console_page() -> str:
         <button type="submit">Claim / assign</button>
       </form>
       <p id="assign-status" aria-live="polite"></p>
+
+      <h3>Escalate</h3>
+      <form id="escalate-form">
+        <label for="escalate-reason">Reason</label>
+        <input id="escalate-reason" name="escalate-reason" type="text" autocomplete="off" required>
+        <button type="submit">Escalate</button>
+      </form>
+      <p id="escalate-status" aria-live="polite"></p>
+
+      <h3>Decide</h3>
+      <form id="decide-form">
+        <label for="decide-value">Decision</label>
+        <select id="decide-value" name="decide-value">
+          <option value="accept">Accept</option>
+          <option value="reject">Reject</option>
+          <option value="needs_correction">Needs correction</option>
+        </select>
+        <label for="decide-reason">Reason</label>
+        <input id="decide-reason" name="decide-reason" type="text" autocomplete="off" required>
+        <button type="submit">Record decision</button>
+      </form>
+      <p id="decide-status" aria-live="polite"></p>
     </section>
   </main>
   <script>
@@ -88,6 +110,13 @@ def render_review_console_page() -> str:
     const assignActorId = document.getElementById("assign-actor-id");
     const assignReason = document.getElementById("assign-reason");
     const assignStatus = document.getElementById("assign-status");
+    const escalateForm = document.getElementById("escalate-form");
+    const escalateReason = document.getElementById("escalate-reason");
+    const escalateStatus = document.getElementById("escalate-status");
+    const decideForm = document.getElementById("decide-form");
+    const decideValue = document.getElementById("decide-value");
+    const decideReason = document.getElementById("decide-reason");
+    const decideStatus = document.getElementById("decide-status");
 
     let currentCaseId = null;
     let currentVersion = null;
@@ -118,6 +147,8 @@ def render_review_console_page() -> str:
       currentCaseId = null;
       currentVersion = null;
       assignStatus.textContent = "";
+      escalateStatus.textContent = "";
+      decideStatus.textContent = "";
       credentialInput.value = "";
     }
 
@@ -262,6 +293,10 @@ def render_review_console_page() -> str:
         assignStatus.textContent = "";
         assignActorId.value = "";
         assignReason.value = "";
+        escalateStatus.textContent = "";
+        escalateReason.value = "";
+        decideStatus.textContent = "";
+        decideReason.value = "";
         const summary = document.createElement("section");
         summary.append(
           textRow("Case", data.case_id),
@@ -356,13 +391,41 @@ def render_review_console_page() -> str:
 
     refreshCasesButton.addEventListener("click", loadCases);
 
+    async function submitCaseAction(method, path, body, statusElement) {
+      statusElement.textContent = "Submitting…";
+      statusElement.className = "";
+      try {
+        const response = await fetch(path, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+            "Idempotency-Key": crypto.randomUUID(),
+            "X-CSRF-Token": readCookie("veridoc_review_csrf") || "",
+          },
+          body: JSON.stringify(body),
+        });
+        if (response.status === 401) {
+          showSignedOut();
+          return false;
+        }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail?.message || "The request could not be submitted.");
+        }
+        statusElement.textContent = "";
+        return true;
+      } catch (error) {
+        statusElement.textContent = error.message;
+        statusElement.className = "error";
+        return false;
+      }
+    }
+
     assignForm.addEventListener("submit", async event => {
       event.preventDefault();
       if (currentCaseId === null) {
         return;
       }
-      assignStatus.textContent = "Submitting…";
-      assignStatus.className = "";
       const body = { expected_version: currentVersion };
       if (assignActorId.value) {
         body.actor_id = assignActorId.value;
@@ -370,33 +433,43 @@ def render_review_console_page() -> str:
       if (assignReason.value) {
         body.reason = assignReason.value;
       }
-      try {
-        const response = await fetch(
-          "/review/cases/" + encodeURIComponent(currentCaseId) + "/assignment",
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              "Idempotency-Key": crypto.randomUUID(),
-              "X-CSRF-Token": readCookie("veridoc_review_csrf") || "",
-            },
-            body: JSON.stringify(body),
-          },
-        );
-        if (response.status === 401) {
-          showSignedOut();
-          return;
-        }
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.detail?.message || "The assignment could not be submitted.");
-        }
-        assignStatus.textContent = "";
+      const path = "/review/cases/" + encodeURIComponent(currentCaseId) + "/assignment";
+      const succeeded = await submitCaseAction("PUT", path, body, assignStatus);
+      if (succeeded) {
         loadCases();
         loadCaseDetail(currentCaseId);
-      } catch (error) {
-        assignStatus.textContent = error.message;
-        assignStatus.className = "error";
+      }
+    });
+
+    escalateForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (currentCaseId === null) {
+        return;
+      }
+      const body = { expected_version: currentVersion, reason: escalateReason.value };
+      const path = "/review/cases/" + encodeURIComponent(currentCaseId) + "/escalations";
+      const succeeded = await submitCaseAction("POST", path, body, escalateStatus);
+      if (succeeded) {
+        loadCases();
+        loadCaseDetail(currentCaseId);
+      }
+    });
+
+    decideForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      if (currentCaseId === null) {
+        return;
+      }
+      const body = {
+        expected_version: currentVersion,
+        decision: decideValue.value,
+        reason: decideReason.value,
+      };
+      const path = "/review/cases/" + encodeURIComponent(currentCaseId) + "/decisions";
+      const succeeded = await submitCaseAction("POST", path, body, decideStatus);
+      if (succeeded) {
+        loadCases();
+        loadCaseDetail(currentCaseId);
       }
     });
 
