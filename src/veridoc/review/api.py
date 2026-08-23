@@ -36,6 +36,7 @@ from veridoc.review.models import (
     ActorRole,
     CaseAssignmentRequest,
     CaseDetail,
+    CaseEscalationRequest,
     CasePage,
     CaseStatus,
     IdempotencyKey,
@@ -331,6 +332,35 @@ def assign_review_case(
         idempotent_request=IdempotentRequest(
             actor_id=actor.actor_id,
             operation="assign_case",
+            idempotency_key=idempotency_key,
+            request_digest=compute_request_digest(body),
+        ),
+    )
+    if detail is None:
+        raise _case_not_found()
+    return detail
+
+
+@router.post("/cases/{case_id}/escalations", response_model=CaseDetail)
+def escalate_review_case(
+    case_id: str,
+    body: CaseEscalationRequest,
+    request: Request,
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _csrf: Annotated[None, Depends(require_csrf_protection)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> CaseDetail:
+    """Escalate one assigned case under an expected-version guard."""
+    idempotency_key = _require_idempotency_key(request)
+    detail = repository.escalate_case(
+        case_id,
+        request=body,
+        actor_id=actor.actor_id,
+        actor_role=actor.role,
+        request_id=request.state.request_id,
+        idempotent_request=IdempotentRequest(
+            actor_id=actor.actor_id,
+            operation="escalate_case",
             idempotency_key=idempotency_key,
             request_digest=compute_request_digest(body),
         ),

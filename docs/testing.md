@@ -97,6 +97,7 @@ tests/
 ├── test_review_case_listing_api.py  Phase 9 bounded, filtered review case listing
 ├── test_review_case_detail_api.py   Phase 9 review case snapshot and event detail
 ├── test_review_case_assignment_api.py  Phase 9 review case claim/assign/reassign
+├── test_review_case_escalation_api.py  Phase 9 review case escalation
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
