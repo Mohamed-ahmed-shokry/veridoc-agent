@@ -23,7 +23,37 @@ _REQUIRED_SCHEMA_PATHS = {
     "/admin/reference-data/purchase-orders",
     "/admin/reference-data/purchase-orders/{record_id}",
     "/admin/reference-data/import",
+    "/review/session",
+    "/review/cases",
+    "/review/cases/{case_id}",
+    "/review/cases/{case_id}/assignment",
+    "/review/cases/{case_id}/escalations",
+    "/review/cases/{case_id}/decisions",
 }
+
+
+def _collect_route_paths(routes: object) -> set[str]:
+    """Return every route path reachable from ``routes``, however nested.
+
+    ``app.include_router(...)`` does not always flatten sub-routes directly
+    into ``app.routes``: depending on the installed Starlette version, an
+    included router can appear as an opaque wrapper exposing its routes only
+    through ``original_router.routes`` rather than as top-level ``APIRoute``
+    entries. Walking both ``route.routes`` and ``route.original_router.routes``
+    keeps this correct across that representation difference.
+    """
+    paths: set[str] = set()
+    for route in routes:  # type: ignore[attr-defined]
+        path = getattr(route, "path", None)
+        if path:
+            paths.add(path)
+        nested = getattr(route, "routes", None)
+        if nested:
+            paths |= _collect_route_paths(nested)
+        original_router = getattr(route, "original_router", None)
+        if original_router is not None:
+            paths |= _collect_route_paths(getattr(original_router, "routes", []))
+    return paths
 
 
 def main() -> None:
@@ -35,7 +65,7 @@ def main() -> None:
         if entry_point.group == "console_scripts"
     }
     schema_paths = set(app.openapi()["paths"])
-    runtime_paths = {getattr(route, "path", None) for route in app.routes}
+    runtime_paths = _collect_route_paths(app.routes)
 
     assert installed.version == veridoc.__version__ == app.version
     assert scripts == _EXPECTED_SCRIPTS
@@ -44,6 +74,7 @@ def main() -> None:
     assert callable(review_main)
     assert _REQUIRED_SCHEMA_PATHS <= schema_paths
     assert "/review" in runtime_paths
+    assert "/review/console" in runtime_paths
 
 
 if __name__ == "__main__":

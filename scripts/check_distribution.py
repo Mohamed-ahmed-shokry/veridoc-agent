@@ -23,6 +23,8 @@ _REQUIRED_RUNTIME_FILES = {
     "persistence/maintenance.py",
     "persistence/migrations.py",
     "persistence/schema.py",
+    "review/api.py",
+    "review/console_page.py",
     "review/page.py",
     "review/persistence/cli.py",
     "review/persistence/maintenance.py",

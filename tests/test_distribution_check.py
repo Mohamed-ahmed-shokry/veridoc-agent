@@ -4,6 +4,7 @@ import stat
 import tarfile
 import zipfile
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,7 +17,13 @@ from scripts.check_distribution import (
     _require_members,
     _required_package_members,
 )
-from scripts.smoke_distribution import _REQUIRED_SCHEMA_PATHS, api_main, reference_main
+from scripts.smoke_distribution import (
+    _REQUIRED_SCHEMA_PATHS,
+    _collect_route_paths,
+    api_main,
+    reference_main,
+    review_main,
+)
 
 
 @pytest.mark.parametrize(
@@ -102,6 +109,8 @@ def test_distribution_check_requires_phase_8_runtime_boundaries() -> None:
 def test_distribution_check_requires_phase_9_runtime_boundaries() -> None:
     required = _required_package_members("veridoc")
 
+    assert "veridoc/review/api.py" in required
+    assert "veridoc/review/console_page.py" in required
     assert "veridoc/review/persistence/cli.py" in required
     assert "veridoc/review/persistence/maintenance.py" in required
     assert "veridoc/review/persistence/migrations.py" in required
@@ -136,6 +145,49 @@ def test_distribution_smoke_requires_all_administration_route_families() -> None
     } <= _REQUIRED_SCHEMA_PATHS
 
 
-def test_distribution_smoke_imports_both_console_targets() -> None:
+def test_collect_route_paths_finds_routes_behind_an_included_router_wrapper() -> None:
+    # Depending on the installed Starlette version, app.include_router(...)
+    # can appear in app.routes either as a flattened APIRoute, a Mount-style
+    # object exposing .routes, or an opaque wrapper exposing its routes only
+    # through .original_router.routes (observed with starlette 1.6.0) — all
+    # three must be discoverable.
+    routes = [
+        SimpleNamespace(path="/health", routes=None, original_router=None),
+        SimpleNamespace(
+            path=None,
+            routes=[
+                SimpleNamespace(path="/admin/x", routes=None, original_router=None)
+            ],
+            original_router=None,
+        ),
+        SimpleNamespace(
+            path=None,
+            routes=None,
+            original_router=SimpleNamespace(
+                routes=[
+                    SimpleNamespace(
+                        path="/review/console", routes=None, original_router=None
+                    )
+                ]
+            ),
+        ),
+    ]
+
+    assert _collect_route_paths(routes) == {"/health", "/admin/x", "/review/console"}
+
+
+def test_distribution_smoke_requires_all_review_route_families() -> None:
+    assert {
+        "/review/session",
+        "/review/cases",
+        "/review/cases/{case_id}",
+        "/review/cases/{case_id}/assignment",
+        "/review/cases/{case_id}/escalations",
+        "/review/cases/{case_id}/decisions",
+    } <= _REQUIRED_SCHEMA_PATHS
+
+
+def test_distribution_smoke_imports_all_console_targets() -> None:
     assert callable(api_main)
     assert callable(reference_main)
+    assert callable(review_main)
