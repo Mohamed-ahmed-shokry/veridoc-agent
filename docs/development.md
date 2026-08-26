@@ -1,8 +1,9 @@
 # Development
 
 This guide covers product behavior implemented through Phase 6, completed
-Phase 7 release engineering, and Phase 8 local reference-data administration.
-User accounts, approval workflows, and persistent review records remain
+Phase 7 release engineering, Phase 8 local reference-data administration, and
+Phase 9's per-actor authenticated review workflow. Remote identity providers,
+production deployment controls, and automated review retention/purge remain
 unimplemented.
 
 ## Prerequisites
@@ -15,6 +16,9 @@ unimplemented.
   `POST /extract`, `POST /process`, and optional explanation-provider guidance
 - a randomly generated 32-256 character token when using local reference-data
   administration routes
+- an operator-managed actor file, an HTTPS review origin, and (for a real
+  browser session) an HTTPS-serving reverse proxy when using the Phase 9
+  review workflow — its `Secure` session cookie never travels over plain HTTP
 
 The repository pins Python 3.12 in `.python-version`. Let uv install it when it
 is not already available:
@@ -142,16 +146,48 @@ Open `http://127.0.0.1:8000/review` for the small local form that submits to
 `/process` and renders its result. It is stateless: it creates no review record
 or approval action.
 
+Configure the Phase 9 review workflow separately before using `/review/*` or
+`/review/console`:
+
+```powershell
+$env:VERIDOC_REVIEW_ACTORS_FILE = "C:\secure\veridoc-review-actors.json"
+$env:VERIDOC_REVIEW_ORIGIN = "https://review.example"
+$env:VERIDOC_REVIEW_DATABASE = "veridoc-review.sqlite3"
+```
+
+The actor file is a JSON array of `{"actor_id", "role", "secret_digest"}`
+entries, where `secret_digest` is the SHA-256 hex digest of the actor's raw
+secret and `role` is `reviewer` or `review_admin`. Generate one locally:
+
+```python
+import hashlib
+
+secret = "replace-with-a-generated-secret"
+print(hashlib.sha256(secret.encode()).hexdigest())
+```
+
+`VERIDOC_REVIEW_ORIGIN` must be an `https://` origin with no path or query —
+the review workflow returns `503 review_authentication_unavailable` on every
+route until it is configured, because the session cookie is `Secure` and
+never travels over plain HTTP. A real browser session therefore needs an
+HTTPS-serving reverse proxy in front of the local Uvicorn process; the
+automated test suite exercises the same routes directly over the in-process
+ASGI transport instead, which does not enforce that browser-level
+requirement. Open `http://127.0.0.1:8000/review/console` for the
+authenticated login, case list, evidence, and action console once the above
+is configured.
+
 The installed console entry point starts the same application without reload:
 
 ```bash
 uv run veridoc
 ```
 
-Only `/admin/reference-data/*` routes use `VERIDOC_ADMIN_TOKEN`. The processing
-and review routes remain separate local boundaries. The shared token is not a
-user account or production authorization system; keep it out of command history,
-URLs, source files, and logs.
+Only `/admin/reference-data/*` routes use `VERIDOC_ADMIN_TOKEN`. The
+processing, review, and administration routes remain separate local
+boundaries. Neither the shared administration token nor a review actor
+credential is a production authorization system; keep both out of command
+history, URLs, source files, and logs.
 
 Stop either process with `Ctrl+C`.
 
@@ -171,7 +207,16 @@ Stop either process with `Ctrl+C`.
 │   ├── verification/         deterministic rules, service, and graph
 │   ├── explanation/          fallback, provider boundary, service, and graph
 │   ├── processing/           complete graph, service, final result, and verdict
-│   ├── review/               no-build local review page
+│   ├── review/                Phase 9 review workflow
+│   │   ├── page.py            no-build local /review demo page
+│   │   ├── console_page.py    no-build authenticated review console
+│   │   ├── models.py          strict case/event/snapshot/request schemas
+│   │   ├── transitions.py     status transitions and authorization rules
+│   │   ├── protocol.py        reader/writer/session-store boundaries and errors
+│   │   ├── auth.py            credential/session/CSRF token handling
+│   │   ├── config.py          actor file, origin, and store settings
+│   │   ├── api.py             authenticated FastAPI router
+│   │   └── persistence/       dedicated review SQLite store, migrations, CLI
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
@@ -187,7 +232,9 @@ Stop either process with `Ctrl+C`.
 │   ├── test_processing_*.py  complete graph, API, model, and service tests
 │   ├── test_processing_integration.py complete dependency-composition test
 │   ├── test_request_context.py correlation header and safe-log tests
-│   ├── test_review_page.py   local review-interface route test
+│   ├── test_review_page.py   local /review demo-page route test
+│   ├── test_review_*.py      Phase 9 domain, persistence, auth, and API tests
+│   │                          (see the testing guide for the complete list)
 │   └── test_health.py         health behavior and schema tests
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
@@ -205,9 +252,11 @@ uv add --dev PACKAGE
 
 Phase 8 runtime dependencies are FastAPI, python-multipart, Pillow, PyMuPDF,
 pytesseract, Uvicorn, LangGraph, and the OpenAI Python SDK. SQLite uses Python's
-standard library, and Phase 8 adds no package. Do not add a second OCR engine,
-extraction/explanation provider, database dependency, or frontend build system
-without approval.
+standard library, and neither Phase 8 nor Phase 9 adds a package — the review
+workflow's session/CSRF handling uses only `secrets` and `hashlib` from the
+standard library, and its console page is build-free vanilla JavaScript. Do
+not add a second OCR engine, extraction/explanation provider, database
+dependency, or frontend build system without approval.
 
 After a dependency change, verify resolution and the complete suite:
 
@@ -264,10 +313,11 @@ Ubuntu job checks the complete tracked snapshot for whitespace errors and
 conflict markers, synchronizes the committed lockfile, validates the lock, runs
 Ruff, mypy, the full coverage gate, builds both distributions, and installs the
 wheel and source distribution in separate isolated environments. The shared
-smoke script checks package/API version parity, both console entry points, and
-the health, OCR, extraction, processing, review, and administration route
-families. The suite uses deterministic fakes, so CI requires no OpenAI credential
-or installed Tesseract executable. The same pytest step also validates local
+smoke script checks package/API version parity, all three console entry
+points, and the health, OCR, extraction, processing, administration, and
+Phase 9 review route families (including the `/review/console` page). The
+suite uses deterministic fakes, so CI requires no OpenAI credential or
+installed Tesseract executable. The same pytest step also validates local
 Markdown links and the exact test-module inventory documented in the testing
 guide.
 
@@ -286,8 +336,9 @@ uv run twine check dist/*
 uv run python scripts/check_distribution.py
 ```
 
-The content validator requires both console entry points, the Phase 8
-administration/maintenance modules, and package metadata. It rejects unsafe
+The content validator requires all three console entry points, the Phase 8
+administration/maintenance modules, the Phase 9 review router/console-page
+and persistence/maintenance modules, and package metadata. It rejects unsafe
 or colliding archive paths, links and special archive members, plus environment,
 database, and private-key artifacts. On PowerShell, smoke-test the built wheel
 and source distribution outside the project environment with:
@@ -318,10 +369,13 @@ The application has these process environment variables:
 | `VERIDOC_LLM_MODEL` | none | Required Responses API model for `/extract` and `/process`, plus optional explanation guidance |
 | `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path used by processing and reference-data administration |
 | `VERIDOC_ADMIN_TOKEN` | none | Required 32-256 character Bearer token for `/admin/reference-data/*` only |
+| `VERIDOC_REVIEW_ACTORS_FILE` | none | Required path to the operator-managed review actor file; never commit it |
+| `VERIDOC_REVIEW_ORIGIN` | none | Required exact HTTPS browser origin allowed to authenticate to `/review/*` |
+| `VERIDOC_REVIEW_DATABASE` | `veridoc-review.sqlite3` | Local SQLite path for the dedicated review store; must differ from the reference database |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
-safe and non-secret. Never log or commit either credential.
+safe and non-secret. Never log or commit a credential, token, or actor file.
 
 ## Local reference persistence
 
@@ -398,6 +452,71 @@ sidecars; stop the source service cleanly before taking or restoring a backup.
 A failed restore leaves the existing database unchanged.
 Keep backups outside the repository and protect them as reference data.
 
+## Review persistence
+
+The Phase 9 review router opens `SQLiteReviewRepository` at
+`VERIDOC_REVIEW_DATABASE`, independent of `VERIDOC_REFERENCE_DATABASE`
+(ADR 0009 — the two stores never share tables or a migration ledger).
+Initialization applies its own forward-only migrations and validates
+required table identity, columns and declared types, keys, and unique
+indexes before committing, exactly like the reference-data store but as a
+fully separate implementation. Local integration code can initialize the
+current review schema explicitly:
+
+```python
+from veridoc.review.persistence.sqlite import SQLiteReviewRepository
+
+repository = SQLiteReviewRepository("local-review-data.sqlite")
+repository.initialize()
+```
+
+A case's `ReviewSnapshot` stores its `ProcessingResult` as schema-versioned,
+digest-verified JSON; the digest is recomputed and checked on every read, so
+a stored snapshot can never silently drift from what processing actually
+returned. Every mutation appends one `ReviewEvent` under an
+`expected_version` guard and an `Idempotency-Key`; see
+[architecture](architecture.md) for the full transition table and
+concurrency/idempotency model. Use only fictional or otherwise approved
+review actor secrets and documents. See
+[ADR 0008](decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md)
+and
+[ADR 0009](decisions/0009-use-immutable-versioned-review-records.md).
+
+## Review backup and restore
+
+Create an online backup while the local service is running or stopped:
+
+```powershell
+uv run veridoc-review `
+  --database veridoc-review.sqlite3 `
+  backup --output backups/review-data.backup.sqlite
+```
+
+This mirrors `veridoc-reference backup`'s guarantees independently: SQLite's
+online backup API without modifying the source, migration and full
+persisted-row validation on a disposable copy before that copy's migration
+transaction commits, and atomic publication of the original snapshot only
+after every check succeeds. It refuses a destination with an existing
+`-wal`, `-shm`, or `-journal` sidecar, or an output path named as one of the
+source database's sidecars.
+
+Restore requires a stopped service and explicit confirmation:
+
+```powershell
+uv run veridoc-review `
+  --database veridoc-review.sqlite3 `
+  restore --input backups/review-data.backup.sqlite --confirm-replace
+```
+
+Restore validates the source, migrates and validates a temporary sibling
+copy, and only then atomically replaces the configured database; a failed
+restore leaves the existing review database unchanged. Because each case
+carries its own frozen snapshot, restoring a review backup never requires
+recovering the historical reference database that was live when a restored
+case was created — processing performed after a restore uses whichever
+reference database is currently configured (ADR 0010). Keep review backups
+outside the repository and protect them as review data.
+
 ## Operational guidance
 
 `GET /health` is a liveness check only: it confirms that the API can serve a
@@ -409,7 +528,13 @@ configuration problem; inspect its safe error code and the matching
 require a different upload rather than an automatic retry. A `422` means the
 validated document or typed processing result could not be handled safely.
 Administration additionally uses `401` for invalid credentials, `409` for
-reference conflicts, and `503` when no valid administrative token is configured.
+reference conflicts, and `503` when no valid administrative token is
+configured. The review workflow uses `401` for an invalid credential or
+session, `403` for a CSRF/origin/authorization rejection, `409` for a stale
+`expected_version` or a reused idempotency key with a different body, `422`
+for a reassignment missing its required reason, and `503` when the actor
+file, origin, or review store is not configured or available — see the
+[API guide](api.md) for the complete review error-code table.
 
 Every response includes `X-Request-ID`. Clients may submit a bounded safe value
 or let the service generate one; do not put invoice numbers, customer data, or
@@ -456,14 +581,21 @@ protocol.
    or deterministic internal fallbacks.
 8. Compose only typed stage outputs in `ProcessingState`; derive verdicts from
    canonical findings, never from an LLM response.
-9. Keep the review page stateless and render returned data with DOM text nodes.
+9. Keep the `/review` demo page stateless and render returned data with DOM
+   text nodes.
 10. Keep administration behind `ReferenceDataAdminRepository`; authenticate
     before resolving storage, bound import bytes before JSON parsing, and run
     bounded model parsing plus SQLite import work outside the async request loop.
 11. Preserve immutable provenance and perform bulk writes in one transaction.
-12. Add deterministic synthetic fixtures only when a focused test needs them.
-13. Run focused lint, format, import, and test checks.
-14. Update the affected documentation in the same commit when inseparable or in
+12. Keep review mutations behind `ReviewCaseReader`/`ReviewCaseWriter`;
+    resolve session/CSRF/origin dependencies before any repository or
+    processing dependency, guard every mutation with `expected_version` and
+    an `Idempotency-Key`, append events rather than editing them, and render
+    every value the console page fetches with `textContent`/
+    `createTextNode`, never `innerHTML`.
+13. Add deterministic synthetic fixtures only when a focused test needs them.
+14. Run focused lint, format, import, and test checks.
+15. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
-15. Update `AGENTS.md` if commands, package boundaries, conventions, or required
+16. Update `AGENTS.md` if commands, package boundaries, conventions, or required
    checks changed.
