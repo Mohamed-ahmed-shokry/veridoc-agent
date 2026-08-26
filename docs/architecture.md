@@ -8,8 +8,11 @@ evidence-grounded explanation layer. `POST /process` now orchestrates those
 stages into a typed final response and `GET /review` provides a minimal local
 review page. Phase 8 adds bearer-token-protected local reference-data CRUD and
 bounded atomic import plus online backup and stopped-service atomic restore.
-User identities, roles, review records, and production deployment controls
-remain later work.
+Phase 9 adds a per-actor authenticated human review workflow: an immutable
+processing snapshot and append-only event history per case, in a dedicated
+local SQLite store, behind session cookies, CSRF protection, and
+role-scoped authorization. Production identity providers, remote deployment
+controls, and automated retention/purge remain later work.
 
 ## System boundary
 
@@ -58,6 +61,16 @@ flowchart LR
     Operator["Stopped-service operator"] --> Maintenance["veridoc-reference backup or restore"]
     Maintenance --> SQLite
     Migrations["Forward-only migration ledger"] --> SQLite
+    ReviewActor["Review actor (reviewer / review_admin)"] --> ReviewConsole["GET /review/console"]
+    ReviewActor --> ReviewSession["Session + CSRF boundary"]
+    ReviewConsole --> ReviewSession
+    ReviewSession --> ReviewAPI["Review case router"]
+    ReviewAPI --> ProcessGraph
+    ReviewAPI --> ReviewRepo["ReviewCaseReader / ReviewCaseWriter protocol"]
+    ReviewRepo --> ReviewSQLite["Dedicated review SQLite store"]
+    ReviewOperator["Stopped-service operator"] --> ReviewMaintenance["veridoc-review backup or restore"]
+    ReviewMaintenance --> ReviewSQLite
+    ReviewMigrations["Forward-only review migration ledger"] --> ReviewSQLite
 ```
 
 The outer ASGI boundary limits complete document, import, and administration
@@ -115,8 +128,33 @@ after the request.
 - `veridoc.processing` owns the typed complete graph, its API-neutral service,
   final result contract, and deterministic review verdict. It orchestrates
   approved stages but does not implement their domain rules.
-- `veridoc.review` renders the no-build local review page. It submits to the
-  public processing endpoint and never stores a document or review decision.
+- `veridoc.review.page` renders the no-build local `/review` demo page. It
+  submits to the public processing endpoint and never stores a document or
+  review decision; it is unrelated to the Phase 9 workflow below.
+- `veridoc.review.models` owns the strict, `extra="forbid"` review domain
+  schemas: actor/case/event identifiers, the digest-verified `ReviewSnapshot`,
+  the append-only `ReviewEvent`, and the per-mutation request/idempotency
+  models. It imports `veridoc.processing.models` for the snapshot's
+  `ProcessingResult` payload and nothing FastAPI- or SQLite-specific.
+- `veridoc.review.transitions` owns the deterministic case-status transition
+  table and role/assignee authorization rules as pure functions; it does not
+  touch storage.
+- `veridoc.review.protocol` defines the `ReviewCaseReader`/`ReviewCaseWriter`/
+  `ReviewSessionStore` boundaries and the safe domain errors (data
+  unavailable, stale version, idempotency conflict, authorization denied).
+- `veridoc.review.auth` and `veridoc.review.config` own credential
+  comparison, session issuance/verification, CSRF token generation, and
+  environment-sourced actor-file/origin/store configuration.
+- `veridoc.review.persistence` implements the protocols against a dedicated
+  local SQLite database: `sqlite.py` (repository), `migrations.py` and
+  `schema.py` (mirroring `veridoc.persistence`'s pattern independently, per
+  ADR 0009), `maintenance.py` (backup/restore), and `cli.py` (the
+  `veridoc-review` console script).
+- `veridoc.review.api` owns the authenticated FastAPI router: session,
+  case, and console routes, auth-before-storage dependency ordering, and
+  safe HTTP error translation for every review-specific domain error.
+- `veridoc.review.console_page` renders the no-build browser console that
+  drives `veridoc.review.api`'s routes.
 
 ## Typed extraction flow
 
@@ -185,6 +223,83 @@ finding exists; otherwise it is `clear`, meaning only that no deterministic
 finding requires review. It is not an approval, payment decision, or guarantee
 that the document is trustworthy. See [ADR 0005](decisions/0005-use-review-required-processing-verdicts.md).
 
+## Phase 9 review workflow
+
+A review case is created by running the same typed processing graph
+`POST /process` uses — both routes depend on the identical
+`veridoc.processing.dependencies.get_processing_service` composition, so
+they cannot silently diverge — and storing its `ProcessingResult` as a
+`ReviewSnapshot`: a schema-versioned, SHA-256
+content-digested, immutable copy. The digest is recomputed and checked on
+every read (`hydrate_review_snapshot`), so a case's evidence, findings, and
+verdict can never silently drift from what the pipeline actually produced —
+including across a later change to the reference database a case's finding
+depended on at creation time.
+
+### State machine
+
+```text
+            create_case
+                |
+                v
+          [unassigned] --assign_case (self-claim)--> [assigned]
+                ^                                        |  |
+                |                                        |  +--assign_case (reassign, reason required)--> [assigned]
+                +----------escalate_case----------- [escalated]
+                                                          |
+                                                     decide_case
+                                                          v
+                                                      [decided]  (terminal)
+```
+
+`veridoc.review.transitions` encodes this table as pure data
+(`_ALLOWED_TRANSITIONS`), separate from the authorization rule that decides
+*who* may drive a given transition (`authorize_operation`): a `reviewer` may
+only self-claim from `unassigned` or `escalated`, and may only escalate or
+decide a case currently assigned to them; a `review_admin` may perform every
+operation on every case. Every mutation appends exactly one `ReviewEvent`
+(never edits a prior one) and increments the case version by exactly one, so
+a case's full history is always the ordered replay of its events, not a
+mutable row.
+
+### Concurrency, idempotency, and recovery
+
+Every mutation carries the case's `expected_version`; the repository applies
+it as `UPDATE ... WHERE id = ? AND version = ?`, backed by a
+`UNIQUE(case_row_id, case_version)` index as defense in depth, so two
+concurrent writers can never silently overwrite each other — the loser gets
+`StaleVersionConflictError` before any event is appended. Every mutation also
+carries an `Idempotency-Key`; a losing writer that raced on the exact same
+key and body replays the winner's result instead of erroring, which requires
+rolling back the loser's partial writes before re-checking the stored digest
+(see `_resolve_after_idempotency_conflict`). `veridoc.review.persistence.maintenance`
+mirrors `veridoc.persistence.maintenance`'s online-backup/atomic-restore
+pattern independently for the review store (ADR 0009): because each case
+carries its own frozen snapshot, restoring a review backup never requires
+reconstructing the historical reference database that was live when a
+restored case was created.
+
+### Authentication and CSRF
+
+`veridoc.review.auth.authenticate_actor` scans every configured actor's
+stored secret digest with `secrets.compare_digest`, without
+short-circuiting on the first match, so response timing does not reveal
+which actor (if any) owns a presented credential. A successful exchange
+issues an opaque session token; only its SHA-256 digest, actor ID, creation
+time, expiry, and revocation time are ever persisted. The session cookie is
+`HttpOnly`/`Secure`/`SameSite=Strict`; a separate non-`HttpOnly` CSRF cookie
+pairs with an `X-CSRF-Token` header (double-submit pattern) and an exact
+`Origin` check, both required before any state-changing dependency —
+including the untrusted document upload and the processing pipeline it
+would run — is resolved. `require_review_actor`, `require_origin_match`, and
+`require_csrf_protection` compose as FastAPI dependencies ahead of every
+mutating route parameter, matching the auth-before-storage ordering already
+used for administration (ADR 0006, ADR 0008).
+
+See [ADR 0008](decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md),
+[ADR 0009](decisions/0009-use-immutable-versioned-review-records.md), and
+[ADR 0010](decisions/0010-defer-automated-review-retention-and-purge.md).
+
 ## Dependency direction
 
 ```text
@@ -207,6 +322,11 @@ explanation service --> finding-explainer protocol <-- OpenAI adapter
 
 processing service --> processing graph --> extraction, verification, and explanation graphs
 review page --> POST /process
+
+review session/CSRF boundary --> review case router --> processing service (same graph as /process)
+review case router --> ReviewCaseReader/Writer protocol <-- review SQLite adapter
+review console page --> review case router (fetch only, no server-rendered document content)
+review maintenance CLI --> review SQLite online backup / migrated atomic restore
 ```
 
 API code does not implement extraction or verification rules. The extraction,
@@ -220,15 +340,17 @@ The [project roadmap](roadmap.md) describes later candidates without approving
 their implementation. If those phases are approved, they must extend the
 current boundaries rather than bypass them:
 
-- persistent review records must preserve canonical findings, explanations, and
-  verdicts rather than mutating them into reviewer-approved facts;
-- deployment controls such as user authentication, secret management, TLS,
-  automated retention, and observability export must remain outside
-  deterministic domain rules; and
+- a remote identity provider or production TLS/deployment profile must
+  preserve the actor attribution and session-secrecy properties Phase 9
+  already defines (ADR 0008), not replace them with a weaker shared secret;
+- automated retention/purge, when built, must operate on the
+  `retention_until` column Phase 9 already reserves without requiring a
+  storage migration (ADR 0010); and
 - evaluation must report OCR/extraction quality separately from deterministic
   verification-rule coverage and end-to-end operational performance.
 
-Phases 9 through 11 remain unapproved and unimplemented.
+Phase 9 is implemented as described above. Phases 10 and 11 remain
+unapproved and unimplemented.
 
 ## External boundaries
 
@@ -375,8 +497,12 @@ provider, or SQLite dependencies.
   unsupported claim.
 - The product behavior completed through Phase 6 has one synchronous processing
   endpoint and a stateless local review page. Phase 7 adds no runtime feature;
-  Phase 8 adds local shared-token reference-data administration only. The
-  service has no user accounts or roles, standalone verification or explanation
-  endpoint, approval action, malware scanning, automated retention service,
-  persistent audit trail, or review record. Its request ID is useful for
-  operational correlation but does not replace those controls.
+  Phase 8 adds local shared-token reference-data administration only. Phase 9
+  adds a per-actor authenticated, persistent review record with an immutable
+  snapshot and append-only event history, but only two roles, a local
+  operator-managed actor file (no self-registration, password reset, or
+  remote directory integration), and no automated retention/purge or
+  case-deletion route. The service still has no standalone verification or
+  explanation endpoint, malware scanning, or observability export. Its
+  request ID is useful for operational correlation but does not replace
+  those controls.
