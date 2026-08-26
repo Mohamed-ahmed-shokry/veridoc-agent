@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 8 are complete. Phase 9 and later are not approved. The
+Phase 0 through Phase 9 are complete. Phase 10 and later are not approved. The
 runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
@@ -23,7 +23,13 @@ runtime implementation remains deliberately small:
 - `src/veridoc/app.py` creates the FastAPI application, pre-parser body limits,
   validation-first dependencies, safe request correlation, `GET /health`,
   `POST /ocr`, `POST /extract`, `POST /process`, and `GET /review`, and includes
-  the authenticated reference-data administration router.
+  the authenticated reference-data administration router and the Phase 9
+  review router.
+- `src/veridoc/ingestion/dependencies.py` and
+  `src/veridoc/processing/dependencies.py` own the shared validated-upload and
+  OCR/extraction/processing dependency composition, so `app.py` and
+  `review/api.py` compose the identical dependency graph rather than each
+  maintaining its own.
 - `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
   uploads before decoding.
 - `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
@@ -64,7 +70,29 @@ runtime implementation remains deliberately small:
   an optional OpenAI adapter, and the typed explanation graph.
 - `src/veridoc/processing/` owns the typed final result, deterministic verdict,
   complete OCR-to-verdict graph, and API-neutral processing service.
-- `src/veridoc/review/` renders the minimal stateless local review page.
+- `src/veridoc/review/page.py` renders the minimal stateless, unauthenticated
+  local `/review` demo page (predates Phase 9 and is unrelated to it).
+- `src/veridoc/review/models.py` owns strict, `extra="forbid"` review domain
+  schemas, including the digest-verified immutable `ReviewSnapshot` and the
+  append-only `ReviewEvent`.
+- `src/veridoc/review/transitions.py` owns the deterministic case
+  status-transition table and role/assignee authorization rules as pure
+  functions.
+- `src/veridoc/review/protocol.py` defines the
+  `ReviewCaseReader`/`ReviewCaseWriter`/`ReviewSessionStore` boundaries and
+  the safe review domain errors.
+- `src/veridoc/review/auth.py` and `src/veridoc/review/config.py` own
+  credential/session/CSRF handling and actor-file/origin/store
+  configuration.
+- `src/veridoc/review/persistence/` implements the protocols against a
+  dedicated review SQLite store: migrations, schema validation, the
+  repository, maintenance (backup/restore), and the `veridoc-review` CLI —
+  independent of the reference-data store and its migration ledger.
+- `src/veridoc/review/api.py` owns the authenticated FastAPI router: session,
+  case, and `/review/console` routes, with auth-before-storage dependency
+  ordering.
+- `src/veridoc/review/console_page.py` renders the no-build authenticated
+  review console.
 - `tests/test_app.py` verifies application imports, metadata, and the safe 404
   response.
 - `tests/test_health.py` verifies health behavior and its required OpenAPI schema
@@ -101,13 +129,45 @@ runtime implementation remains deliberately small:
 - `tests/test_distribution_check.py` covers archive validation rejection paths.
 - `tests/test_documentation.py` validates local Markdown link targets and the
   exact documented test-module inventory as part of the ordinary pytest gate.
+- `tests/test_review_models.py`, `tests/test_review_transitions.py`, and
+  `tests/test_review_authorization.py` cover the strict domain schemas,
+  status transitions, and the complete role/assignee authorization matrix as
+  pure functions.
+- `tests/test_review_config.py` and `tests/test_review_auth.py` cover
+  actor-file/origin configuration and constant-time credential/session/CSRF
+  handling.
+- `tests/test_review_sqlite_migrations.py`, `tests/test_review_schema.py`,
+  `tests/test_review_sqlite_repository.py`,
+  `tests/test_review_persistence_concurrency.py`,
+  `tests/test_review_data_maintenance.py`, and `tests/test_review_cli.py`
+  mirror the reference-data persistence tests independently for the
+  dedicated review store, plus a race test proving exactly one writer wins a
+  version or idempotency-key conflict.
+- `tests/test_review_api.py`, `tests/test_review_session_api.py`, and
+  `tests/test_review_case_*_api.py` cover session/CSRF/origin handling and
+  every case route's own auth/idempotency/conflict/not-found contract
+  through HTTPX's ASGI transport; `tests/test_review_api_error_contracts.py`
+  adds the cross-route properties (idempotency conflict, generic
+  validation, unavailable-store 503, correlation) no single route test owns.
+- `tests/test_review_console_page.py` asserts the console page never uses
+  `innerHTML`.
+- `tests/test_review_case_creation_integration.py`,
+  `tests/test_review_authorization_integration.py`, and
+  `tests/test_review_retry_recovery_integration.py` cover the real
+  processing graph behind a real login, rejected-actor dependency
+  short-circuiting, and retry/concurrency/backup-restore/snapshot-
+  independence properties end to end.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
 quality and release gates without adding endpoints, domain behavior, deployment
 targets, or workflow features. Phase 8 adds controlled local reference-data
 operations without adding user accounts, an audit workflow, or deployment
-infrastructure.
+infrastructure. Phase 9 adds a per-actor authenticated, persistent review
+workflow — immutable snapshots, append-only events, session/CSRF-protected
+routes, and a browser console — in a store fully independent of reference
+data, without adding a production identity provider, deployment
+infrastructure, or automated retention/purge.
 
 The current and planned workflow is:
 
@@ -140,6 +200,11 @@ SQLite connection code, or vendor SDKs.
 - Use SQLite behind the `InvoiceRepository` and
   `ReferenceDataAdminRepository` interfaces. Apply schema changes only through
   the Phase 8 forward-only migration ledger.
+- Use SQLite behind the `ReviewCaseReader`/`ReviewCaseWriter`/
+  `ReviewSessionStore` interfaces for the Phase 9 review store. It has its
+  own forward-only migration ledger, fully independent of the reference-data
+  ledger (ADR 0009); never share a table or migration between them without a
+  new ADR.
 - Use pytest for tests.
 
 Do not replace the fixed stack without asking first. Add dependencies only when
@@ -164,7 +229,7 @@ uv run pytest
 uv run pytest tests/test_health.py
 uv run pytest tests/test_app.py
 
-# Run focused Phase 1 through Phase 8 boundary tests.
+# Run focused Phase 1 through Phase 9 boundary tests.
 uv run pytest tests/test_ingestion_validation.py
 uv run pytest tests/test_ingestion_storage.py
 uv run pytest tests/test_request_body_limits.py
@@ -223,9 +288,37 @@ uv run pytest tests/test_administration_purchase_order_api.py
 uv run pytest tests/test_administration_import_api.py
 uv run pytest tests/test_reference_data_maintenance.py
 uv run pytest tests/test_administration_cli.py
+uv run pytest tests/test_review_models.py
+uv run pytest tests/test_review_transitions.py
+uv run pytest tests/test_review_authorization.py
+uv run pytest tests/test_review_protocol.py
+uv run pytest tests/test_review_config.py
+uv run pytest tests/test_review_auth.py
+uv run pytest tests/test_review_schema.py
+uv run pytest tests/test_review_sqlite_migrations.py
+uv run pytest tests/test_review_sqlite_repository.py
+uv run pytest tests/test_review_persistence_concurrency.py
+uv run pytest tests/test_review_data_maintenance.py
+uv run pytest tests/test_review_cli.py
+uv run pytest tests/test_review_api.py
+uv run pytest tests/test_review_session_api.py
+uv run pytest tests/test_review_case_creation_api.py
+uv run pytest tests/test_review_case_listing_api.py
+uv run pytest tests/test_review_case_detail_api.py
+uv run pytest tests/test_review_case_assignment_api.py
+uv run pytest tests/test_review_case_escalation_api.py
+uv run pytest tests/test_review_case_decision_api.py
+uv run pytest tests/test_review_api_error_contracts.py
+uv run pytest tests/test_review_console_page.py
+uv run pytest tests/test_review_case_creation_integration.py
+uv run pytest tests/test_review_authorization_integration.py
+uv run pytest tests/test_review_retry_recovery_integration.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
+
+# Inspect the review-store maintenance interface.
+uv run veridoc-review --help
 
 # Check lint and formatting.
 uv run ruff check .
@@ -314,6 +407,13 @@ state its exact intended purpose.
   rejection before parsing/writing, transactional conflict behavior, migration
   compatibility, incomplete maintenance schemas, and restore integrity/atomicity
   at those boundaries.
+- Review tests must inject a fictional `ReviewActorDirectory` and a temporary
+  or in-memory `SQLiteReviewRepository`, never a real operator actor file.
+  Prove a rejected actor, missing/invalid session, or CSRF/origin failure
+  never resolves the processing pipeline or a review-store write; prove
+  every mutation's `expected_version` and `Idempotency-Key` guards; and
+  prove the console page renders every fetched value through
+  `textContent`/`createTextNode`, never `innerHTML`.
 - Use only deterministic synthetic or appropriately licensed fixtures. Never
   copy real invoice or customer data into tests.
 - Run the full suite after dependency, cross-cutting, or graph integration
@@ -336,8 +436,9 @@ documentation set is:
   rules;
 - `docs/api.md` for implemented endpoints and limitations;
 - `docs/roadmap.md` for approved work and later unapproved phase candidates;
-- `docs/phase-9-plan.md` for the proposed Phase 9 design, exact atomic commit
-  sequence, verification checkpoints, and explicit approval boundary;
+- `docs/phase-9-plan.md` for the approved Phase 9 design, exact atomic commit
+  sequence, verification checkpoints, and approval boundary — every item in
+  its sequence is implemented;
 - `docs/release-evidence.md` for local phase-gate results and evidence
   boundaries;
 - `docs/decisions/README.md` for ADR conventions and the decision index.
@@ -354,6 +455,12 @@ documentation set is:
   local administration authentication decision.
 - `docs/decisions/0007-use-forward-only-sqlite-migrations.md` for the schema
   evolution decision.
+- `docs/decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md`
+  for the review actor/session/CSRF design decision.
+- `docs/decisions/0009-use-immutable-versioned-review-records.md` for the
+  immutable versioned review-record decision.
+- `docs/decisions/0010-defer-automated-review-retention-and-purge.md` for the
+  deferred review retention/purge decision.
 - `tests/fixtures/README.md` for deterministic fictional fixture use and
   extension guidance.
 
@@ -409,6 +516,23 @@ following documentation commit.
   version, and replace a database or backup only after database and foreign-key
   integrity, migration-history, required-schema, and persisted-row semantic
   checks pass.
+- Require `VERIDOC_REVIEW_ACTORS_FILE` and `VERIDOC_REVIEW_ORIGIN` (an exact
+  HTTPS origin) at the review boundary; compare presented credentials to
+  stored digests with a constant-time scan over every actor, never
+  short-circuiting on the first match. Never accept a review credential in a
+  URL or query value, and never return a raw credential or session token in
+  a response body.
+- Require session, CSRF (`X-CSRF-Token` matching a non-`HttpOnly` cookie),
+  and exact-origin checks before resolving any review repository or
+  processing dependency, including the untrusted document upload path.
+- Treat the review database as sensitive review data, fully independent of
+  the reference database and its migration ledger. Every review case's
+  snapshot is immutable and digest-verified; every mutation appends one
+  event under an `expected_version` guard and an `Idempotency-Key` — never
+  edit a case or event in place.
+- Render every value a review route returns with DOM text nodes only
+  (`textContent`/`createTextNode`); never use `innerHTML` in the review
+  console, since extracted document content is untrusted.
 
 ## Phase boundaries
 
@@ -425,11 +549,16 @@ following documentation commit.
 - Phase 7: release engineering and reproducible quality gates. **Complete.**
 - Phase 8: controlled local reference-data administration, migrations, bounded
   imports, and backup/restore. **Complete.**
-- Phase 9 through Phase 11: candidate review/audit persistence, deployment
-  security, and readiness evaluation. **Planned; not approved.** See
-  `docs/roadmap.md` for their boundaries.
+- Phase 9: per-actor authenticated, persistent review/audit workflow —
+  immutable snapshots, append-only events, session/CSRF-protected routes,
+  and a browser console, in a store independent of reference data.
+  **Complete.**
+- Phase 10 through Phase 11: candidate deployment security and readiness
+  evaluation. **Planned; not approved.** See `docs/roadmap.md` for their
+  boundaries.
 
-Do not begin Phase 9. Before Phase 9 or any later phase, inspect the repository,
-run the existing suite, present the implementation and commit plan, identify
-documentation changes, and wait for explicit approval. Phase 9 approval must
-identify `docs/phase-9-plan.md` and does not approve Phase 10 or Phase 11.
+Do not begin Phase 10. Before Phase 10 or any later phase, inspect the
+repository, run the existing suite, present the implementation and commit
+plan, identify documentation changes, and wait for explicit approval. Phase
+9's approval identified `docs/phase-9-plan.md` and did not extend to Phase 10
+or Phase 11; the same rule applies to any future phase's approval.

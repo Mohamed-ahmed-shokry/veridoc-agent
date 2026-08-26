@@ -1,9 +1,10 @@
 # Project Roadmap
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
-Phase 6. Phase 7 release-engineering hardening and Phase 8 controlled local
-reference-data administration are also complete. Later phases are planning
-boundaries only and require separate approval before implementation.
+Phase 6. Phase 7 release-engineering hardening, Phase 8 controlled local
+reference-data administration, and Phase 9's persistent, authenticated review
+workflow are also complete. Later phases are planning boundaries only and
+require separate approval before implementation.
 
 ## Phase status
 
@@ -12,7 +13,7 @@ boundaries only and require separate approval before implementation.
 | 0-6 | Version 1 application, processing workflow, integration, and documentation | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Complete |
-| 9 | Persistent review and audit workflow | Planned; not approved |
+| 9 | Persistent, authenticated review and audit workflow | Complete |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
@@ -109,37 +110,45 @@ each package must be expanded into an exact atomic commit plan. Every behavior,
 schema change, adapter, test group, operations control, and documentation topic
 must follow the repository's smallest independently verified commit protocol.
 
-## Phase 9: persistent review and audit workflow
+## Phase 9: persistent, authenticated review and audit workflow
 
-Status: planned; not approved or implemented.
+Status: complete.
 
-The proposed design, security decisions, exact atomic commit sequence, and
-approval wording are defined in the
-[Phase 9 approval and implementation plan](phase-9-plan.md). That document is a
-planning artifact and does not approve implementation.
+The approved design, security decisions, and exact atomic commit sequence are
+recorded in the
+[Phase 9 approval and implementation plan](phase-9-plan.md); every item in
+that plan's sequence is implemented. This section is retained as a design
+record; see [architecture](architecture.md) and [the API guide](api.md) for
+what actually shipped, and [release evidence](release-evidence.md) for the
+verified completion gate.
 
 Goal: add an accountable human-review workflow while preserving the current
 processing result as immutable evidence. A `clear` processing verdict remains
 distinct from human approval, and no reviewer action may rewrite extraction,
-canonical findings, explanations, or the deterministic verdict.
+canonical findings, explanations, or the deterministic verdict. This goal is
+met: every review case stores a digest-verified, immutable `ProcessingResult`
+snapshot, and every subsequent change is an appended event, never an edit.
 
-Entry criteria:
+Entry criteria (satisfied):
 
 - explicit user approval for Phase 9 after a fresh Phase 0-8 release gate;
 - synthetic data only until the later deployment and privacy controls are
-  approved.
+  approved — Phase 9 tests and fixtures use only fictional actor secrets and
+  synthetic documents.
 
-Mandatory design gates before schema, API, or UI implementation:
+Mandatory design gates before schema, API, or UI implementation (satisfied):
 
-- an approved actor/authentication ADR covering identity, session or token
-  lifecycle, roles, and authorization checks;
-- an approved review-record ADR covering immutable snapshots, status
-  transitions, reason requirements, optimistic concurrency, idempotency, and
-  the review-store topology and recovery boundary;
-- an approved retention ADR covering review records, audit events, deletion,
-  legal holds, and backup interaction.
+- [ADR 0008](decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md)
+  covers actor identity, session lifecycle, roles, and authorization checks;
+- [ADR 0009](decisions/0009-use-immutable-versioned-review-records.md) covers
+  immutable snapshots, status transitions, reason requirements, optimistic
+  concurrency, idempotency, and the review-store topology and recovery
+  boundary;
+- [ADR 0010](decisions/0010-defer-automated-review-retention-and-purge.md)
+  covers review-record retention: metadata reserved but not enforced, no
+  automated purge, and no case-deletion route.
 
-Planned deliverables:
+Implemented deliverables:
 
 - strict review-case, assignment, decision, and append-only audit-event models;
 - a persistence-neutral `ReviewRepository` protocol and a forward-only SQLite
@@ -167,7 +176,15 @@ Planned deliverables:
 - backup/restore, migration, retention, and operational documentation for the
   new review store.
 
-Proposed dependency order after approval:
+Implemented atomic sequence: the same dependency order below was followed,
+expanded into the exact 60-commit sequence recorded in the
+[Phase 9 plan](phase-9-plan.md) — ADRs, then domain models and transition
+policy, the review-store protocol and dedicated SQLite implementation
+(cases/snapshots, then append-only events, then idempotency keys and
+sessions), authentication and authorization dependencies ahead of storage,
+one bounded API group at a time (session, then case creation, list, detail,
+assignment, escalation, decision), the authenticated console UI, integration
+and packaging tests, and finally documentation and completion evidence:
 
 1. Record the actor/authentication, review-record, and retention decisions as
    separate ADR commits.
@@ -194,13 +211,16 @@ Proposed dependency order after approval:
     README, and operating guidance.
 15. Run and record the complete Phase 9 release gate from a clean worktree.
 
-Required verification:
+Required verification (delivered):
 
 - model and state-machine tests for every allowed and forbidden transition;
 - authorization tests proving rejected actors cannot resolve storage or learn
   case contents;
-- browser tests covering login/session transport, CSRF and origin rejection,
-  expiry, logout, and the absence of credentials in rendered or stored content;
+- ASGI-transport tests covering login/session transport, CSRF and origin
+  rejection, expiry, and logout, plus a structural markup test proving the
+  console page never uses `innerHTML`; manual in-browser verification (not
+  committed test automation) additionally confirmed no credential reaches
+  rendered content, `localStorage`, or `sessionStorage`;
 - transaction and race tests for duplicate creation, concurrent assignment,
   repeated decisions, stale versions, and event ordering;
 - boundary tests proving retries return the original case while client-supplied
@@ -214,7 +234,7 @@ Required verification:
 - ASGI integration tests using synthetic documents and identities only, plus
   the existing full quality, coverage, audit, and distribution gates.
 
-Exit criteria:
+Exit criteria (met):
 
 - every review decision is attributable to an authenticated actor and linked to
   an immutable processing snapshot;
@@ -473,9 +493,11 @@ provider/model/deployment versions without comparison evidence.
 
 ## Approval rule
 
-Phase 8 is complete; no later phase is approved. Before Phase 9 or any later
-phase, inspect the current repository, run the full existing gate, present the
-exact implementation and atomic commit plan, identify data/security decisions,
-and wait for explicit user approval. Phase 9 approval must identify the
-[Phase 9 approval and implementation plan](phase-9-plan.md); approval does not
-extend to Phase 10 or Phase 11.
+Phase 9 is complete; no later phase is approved. Before Phase 10, Phase 11, or
+any later phase, inspect the current repository, run the full existing gate,
+present the exact implementation and atomic commit plan, identify
+data/security decisions, and wait for explicit user approval. Phase 9's
+approval was scoped to the
+[Phase 9 approval and implementation plan](phase-9-plan.md) alone and did not
+extend to Phase 10 or Phase 11; the same rule applies to any future phase's
+approval.

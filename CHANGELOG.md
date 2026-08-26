@@ -8,9 +8,31 @@ semantic versions for tagged releases.
 
 ### Added
 
-- An approval-ready Phase 9 design with explicit identity, session, review-store,
-  immutable-evidence, transition, audit, recovery, and 60-commit delivery gates.
-- Detailed, approval-gated implementation plans for candidate Phases 9 through
+- A per-actor authenticated, persistent review workflow (Phase 9): session
+  cookies (`HttpOnly`/`Secure`/`SameSite=Strict`), double-submit CSRF and
+  exact-origin protection, and two roles (`reviewer`, `review_admin`).
+- Immutable, schema-versioned, digest-verified per-case processing snapshots
+  with an append-only, ordered event history, in a dedicated review SQLite
+  store independent of reference-data persistence.
+- `POST /review/cases`, running the same processing pipeline as `/process`
+  and atomically persisting its result as a new case's initial snapshot and
+  event.
+- Bounded, filtered case listing and detail routes
+  (`GET /review/cases`, `GET /review/cases/{case_id}`).
+- Claim/assign/reassign, escalate, and terminal-decision mutation routes,
+  each guarded by an `expected_version` optimistic-concurrency check and an
+  `Idempotency-Key`; a reassignment requires a non-empty reason.
+- A build-free authenticated review console at `GET /review/console`
+  rendering login, the case list, per-case evidence, the event timeline, and
+  every action entirely through DOM text nodes, never `innerHTML`.
+- Numbered forward-only review-store migrations, structural schema
+  validation, and a `veridoc-review` online-backup/stopped-service-restore
+  maintenance entry point, mirroring the reference-data tooling
+  independently.
+- ADRs 0008-0010 recording the actor/session/CSRF design, the immutable
+  versioned review-record design, and the deferred automated
+  retention/purge decision.
+- Detailed, approval-gated implementation plans for candidate Phases 10 and
   11, including entry criteria, atomic delivery order, verification, and exit
   criteria.
 - Phase 7 roadmap and explicit approval boundaries for later candidate phases.
@@ -90,6 +112,24 @@ semantic versions for tagged releases.
   entry points, and version parity.
 - CI pins the checkout action by full release SHA, disables persisted checkout
   credentials, and pins the validated uv CLI version.
+- Extracted the shared OCR/extraction/processing dependency composition and
+  the validated-upload dependency into `veridoc.processing.dependencies` and
+  `veridoc.ingestion.dependencies`, so `/process` and the new review routes
+  compose the identical dependency graph instead of each maintaining its own.
+- Distribution validation now also requires the Phase 9 review router and
+  console-page modules and the `veridoc-review` console script; the
+  installed-distribution smoke check now recursively discovers routes
+  registered through `include_router`, including through an opaque wrapper
+  some Starlette versions use, rather than only reading top-level routes.
+
+### Fixed
+
+- `app.py` retained dead-code duplicate copies of the OCR/extraction
+  dependency functions after they were extracted into
+  `veridoc.processing.dependencies`; the duplicates silently shadowed the
+  imports of the same name, so `/process`, `/ocr`, and `/extract` were
+  quietly resolving a second, divergent copy of the dependency graph instead
+  of the shared one the review routes use. Removed the duplicates.
 
 ### Security
 
@@ -122,6 +162,20 @@ semantic versions for tagged releases.
   neither operation may write to a source-sidecar path.
 - Backup and restore open validated source databases in no-create mode, so a
   source removed concurrently cannot be recreated empty or replace good data.
+- Review actor credentials are compared against stored digests with a
+  constant-time scan over every configured actor that does not short-circuit
+  on the first match, so response timing does not reveal which actor (if
+  any) a presented credential belongs to.
+- Every review mutation resolves session, CSRF, and origin dependencies
+  before any repository or processing dependency, so a rejected request
+  never causes an untrusted document to reach OCR, extraction, the
+  reference database, or a review-store write.
+- A losing writer in a review idempotency-key or optimistic-version race has
+  its partial writes rolled back before the request is resolved as a safe
+  replay or a genuine conflict, so no orphaned duplicate case or event row
+  can survive a race.
+- No review session token, CSRF token, or actor credential is ever returned
+  in a response body, embedded in rendered HTML, or logged.
 
 ## [0.1.0] - 2026-08-02
 

@@ -14,6 +14,10 @@ final integration pass adds request correlation and end-to-end dependency-graph
 coverage without changing the deliberately local product boundary. Phase 8 adds
 authenticated local administration, forward-only SQLite migrations, bounded
 atomic imports, and safe backup/restore tooling for approved reference facts.
+Phase 9 adds a per-actor authenticated review workflow: an immutable,
+digest-verified processing snapshot and append-only event history per case,
+in a dedicated local SQLite store, behind session cookies, CSRF protection,
+and role-scoped authorization, plus a browser console at `/review/console`.
 
 ## Implemented capabilities
 
@@ -51,8 +55,17 @@ atomic imports, and safe backup/restore tooling for approved reference facts.
 - non-mutating online backup with integrity, migration, and constraint validation,
   plus stopped-service atomic restore tooling;
 - safe `X-Request-ID` correlation and metadata-only request completion logs;
-- deterministic fictional invoice fixtures and focused error-path tests; and
-- Ruff lint and format checks.
+- deterministic fictional invoice fixtures and focused error-path tests;
+- Ruff lint and format checks;
+- per-actor authenticated review sessions with `HttpOnly`/`Secure` cookies,
+  double-submit CSRF protection, and two roles (`reviewer`, `review_admin`);
+- immutable, schema-versioned, digest-verified per-case processing snapshots
+  with an append-only event history, in a dedicated local SQLite store;
+- optimistic-concurrency and idempotency-key guarded case creation,
+  assignment/reassignment, escalation, and terminal decisions;
+- a build-free browser console at `/review/console` that renders every
+  fetched value through DOM text nodes only; and
+- a separate `veridoc-review` backup/restore maintenance command.
 
 ## Quick start
 
@@ -65,6 +78,8 @@ Prerequisites:
   `POST /process`
 - a randomly generated 32-256 character token when using reference-data
   administration
+- an operator-managed actor file and an HTTPS review origin when using the
+  review workflow
 
 From the repository root:
 
@@ -249,6 +264,33 @@ before the original snapshot is published.
 Restore requires a stopped service and explicit `--confirm-replace`; see the
 [development guide](docs/development.md) before replacing a database.
 
+## Review workflow
+
+Configure an operator-managed actor file and an HTTPS review origin, then
+open the console:
+
+```powershell
+$env:VERIDOC_REVIEW_ACTORS_FILE = "C:\secure\veridoc-review-actors.json"
+$env:VERIDOC_REVIEW_ORIGIN = "https://review.example"
+```
+
+Authenticate with an actor's credential to receive a session cookie:
+
+```powershell
+curl.exe -X POST http://127.0.0.1:8000/review/session `
+  -H "Authorization: Bearer <actor-secret>" `
+  -H "Origin: https://review.example"
+```
+
+`POST /review/cases` runs the same processing pipeline as `/process` and
+stores the typed result as a new case's immutable snapshot. Every
+subsequent claim, assignment, escalation, or decision appends one
+`Idempotency-Key`- and `expected_version`-guarded event; nothing is ever
+edited in place. Open `http://127.0.0.1:8000/review/console` for the
+authenticated login, case list, evidence, and action console. See the
+[API guide](docs/api.md) for the complete route family, and
+[architecture](docs/architecture.md) for the case status/transition model.
+
 ## Tests and quality checks
 
 Run the complete suite:
@@ -257,7 +299,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run representative focused Phase 1 through Phase 8 tests:
+Run representative focused Phase 1 through Phase 9 tests:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -289,7 +331,20 @@ uv run pytest tests/test_administration_sqlite_import.py
 uv run pytest tests/test_administration_invoice_api.py
 uv run pytest tests/test_reference_data_maintenance.py
 uv run pytest tests/test_administration_cli.py
+uv run pytest tests/test_review_transitions.py
+uv run pytest tests/test_review_sqlite_repository.py
+uv run pytest tests/test_review_persistence_concurrency.py
+uv run pytest tests/test_review_session_api.py
+uv run pytest tests/test_review_case_creation_api.py
+uv run pytest tests/test_review_case_assignment_api.py
+uv run pytest tests/test_review_api_error_contracts.py
+uv run pytest tests/test_review_console_page.py
+uv run pytest tests/test_review_case_creation_integration.py
+uv run pytest tests/test_review_authorization_integration.py
+uv run pytest tests/test_review_retry_recovery_integration.py
 ```
+
+See the [testing guide](docs/testing.md) for the complete Phase 9 test list.
 
 Run lint and formatting checks:
 
@@ -360,7 +415,10 @@ API also returns an `X-Request-ID` for safe operational correlation. See
 │       ├── 0004-use-validated-llm-proposals-for-explanations.md
 │       ├── 0005-use-review-required-processing-verdicts.md
 │       ├── 0006-use-bearer-token-for-local-administration.md
-│       └── 0007-use-forward-only-sqlite-migrations.md
+│       ├── 0007-use-forward-only-sqlite-migrations.md
+│       ├── 0008-use-local-actor-file-and-http-only-sessions-for-review.md
+│       ├── 0009-use-immutable-versioned-review-records.md
+│       └── 0010-defer-automated-review-retention-and-purge.md
 ├── src/
 │   └── veridoc/
 │       ├── administration/
@@ -372,6 +430,10 @@ API also returns an `X-Request-ID` for safe operational correlation. See
 │       ├── explanation/
 │       ├── processing/
 │       ├── review/
+│       │   ├── persistence/     dedicated review SQLite store, migrations, CLI
+│       │   ├── api.py           authenticated FastAPI router
+│       │   ├── console_page.py  no-build authenticated review console
+│       │   └── page.py          no-build unauthenticated /review demo page
 │       ├── __init__.py
 │       ├── __main__.py
 │       └── app.py
@@ -403,6 +465,9 @@ The current HTTP application reads these process environment variables:
 | `VERIDOC_LLM_MODEL` | none | Required Responses model for `/extract` and `/process`; optional explanation guidance also uses it |
 | `VERIDOC_REFERENCE_DATABASE` | `veridoc-reference.sqlite3` | Local SQLite path for processing and reference-data administration |
 | `VERIDOC_ADMIN_TOKEN` | none | Required Bearer token for `/admin/reference-data/*` only |
+| `VERIDOC_REVIEW_ACTORS_FILE` | none | Required path to the operator-managed review actor file |
+| `VERIDOC_REVIEW_ORIGIN` | none | Required exact HTTPS browser origin for `/review/*` |
+| `VERIDOC_REVIEW_DATABASE` | `veridoc-review.sqlite3` | Local SQLite path for the dedicated review store |
 
 The application does not load `.env`. Never commit real credentials, invoices,
 production documents, personal information, customer data, or confidential
@@ -423,16 +488,20 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 6 | Final integration, documentation, and operational pass | Complete |
 | 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Complete |
-| 9 | Persistent review and audit workflow | Planned; not approved |
+| 9 | Persistent, authenticated review and audit workflow | Complete |
 | 10 | Deployment and operational security | Planned; not approved |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
 Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
 release evidence without adding endpoints or processing features. Phase 8
 completed controlled local reference-data operations with a verified release
-gate. See the [project roadmap](docs/roadmap.md) for deliverables and approval
-boundaries. The proposed persistent-review design and exact atomic sequence are
-in the [Phase 9 approval plan](docs/phase-9-plan.md); Phase 9 remains unapproved.
+gate. Phase 9 completed a per-actor authenticated review workflow with
+immutable snapshots, an event history, and a browser console, with its own
+verified release gate. See the [project roadmap](docs/roadmap.md) for
+deliverables and approval boundaries. The approved design and exact atomic
+implementation sequence are in the
+[Phase 9 approval plan](docs/phase-9-plan.md); Phases 10 and 11 remain
+unapproved.
 
 ## Documentation
 
@@ -454,19 +523,24 @@ in the [Phase 9 approval plan](docs/phase-9-plan.md); Phase 9 remains unapproved
 
 ## Current limitations
 
-Veridoc does not yet provide authoritative vendor identity resolution, user
-accounts, per-operator authorization, token rotation, malware scanning,
-encrypted storage, a persistent audit log, automatic retention enforcement, or
-a persistent/authenticated review workflow. Phase 8 authenticates only local
-reference-data administration with one shared token; processing and review
-remain unauthenticated. The deterministic `clear` verdict means only that no
-implemented rule produced a finding; it is not an automated approval. The
-service remains a local development boundary and is not production ready.
+Veridoc does not yet provide authoritative vendor identity resolution, token
+rotation, malware scanning, encrypted storage, a compliance-grade durable
+audit log, TLS termination, or remote/production deployment controls. Phase 8
+authenticates local reference-data administration with one shared token;
+Phase 9 authenticates the review workflow per actor with session cookies and
+two roles, but its actor file is local and operator-managed with no
+self-registration, password reset, or remote directory integration, and it
+performs no automated retention/purge or case deletion (ADR 0010). `/ocr`,
+`/extract`, `/process`, and the older `/review` demo page remain
+unauthenticated. The deterministic `clear` verdict means only that no
+implemented rule produced a finding; it is not an automated approval, and
+neither is a review case's `decided` status. The service remains a local
+development boundary and is not production ready.
 
 ## Future work
 
-Phase 8 completed controlled reference-data administration after Phase 7
-release engineering. Later candidates cover persistent review/audit workflows,
-deployment security, and evidence-based readiness evaluation. They are
-documented in the [roadmap](docs/roadmap.md) but remain unapproved and
-unimplemented.
+Phase 9 completed a persistent, authenticated review/audit workflow after
+Phase 8's reference-data administration. Later candidates cover deployment
+security (including a production-grade identity provider and TLS profile)
+and evidence-based readiness evaluation. They are documented in the
+[roadmap](docs/roadmap.md) but remain unapproved and unimplemented.
