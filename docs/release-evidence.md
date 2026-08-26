@@ -417,6 +417,63 @@ upstream package files, then completed both installs and smoke checks. No hosted
 CI run, provider call, Phase 9 runtime behavior, or deployment evidence was
 observed.
 
+## Phase 9 completion snapshot
+
+The local Phase 9 completion gate was recorded on 2026-08-23 against commit
+`ac75ce2`, immediately after every item in the
+[Phase 9 approval and implementation plan](phase-9-plan.md) was implemented,
+tested, and documented. Phase 10 and Phase 11 were not started.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 187 files already formatted |
+| `uv run --no-sync mypy` | No issues in 74 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 781 passed; 95.31% branch coverage against a 90% floor |
+| `uv run --no-sync pytest tests/test_documentation.py` | Local Markdown links across 23 tracked files and the documented inventory of all 85 test modules passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation, including the Phase 9 review router, console page, and persistence/maintenance modules |
+| Cache-free isolated-wheel smoke | The wheel passed `scripts/smoke_distribution.py`, including every Phase 9 review route family and the `/review/console` page |
+| Cache-free isolated-source-distribution smoke | The source distribution built, installed, and passed the same smoke script |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help` and `veridoc-review --help` |
+| Full tracked-tree whitespace and merge-conflict scans | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. Locked
+synchronization repeated the pre-existing stale local `websockets` metadata
+repair; every later local gate passed. The isolated wheel smoke initially
+failed before this phase's `scripts/smoke_distribution.py` fix (see the
+CHANGELOG): `app.include_router(...)` does not always flatten sub-routes
+directly into `app.routes` — on this environment's resolved Starlette
+version, an included router appears as an opaque wrapper exposing its
+routes only through `original_router.routes`, which made every review API
+route invisible to the prior naive `app.routes` scan. The fixed,
+recursive route-discovery logic is what the passing result above reflects.
+
+This snapshot exercises the review workflow only through deterministic
+in-process fakes and the ASGI transport, exactly like every other route
+family in this repository: no real browser, no HTTPS-terminating reverse
+proxy, no OpenAI credential, and no installed Tesseract executable were
+used. It does not claim a remote CI pass, a verified real-browser session
+against a `Secure` cookie over actual HTTPS, deployment readiness, or
+production identity-provider integration — those remain Phase 10 concerns.
+The local actor file, session model, and CSRF protection are exactly what
+[ADR 0008](decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md)
+scoped them to be: an operator-managed local control, not a production
+identity system.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
