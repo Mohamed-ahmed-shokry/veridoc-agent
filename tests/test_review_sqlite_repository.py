@@ -407,6 +407,43 @@ def test_assign_case_rejects_a_stale_expected_version(tmp_path: Path) -> None:
         )
 
 
+def test_assign_case_rejects_assigning_an_already_decided_case(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+    repository.decide_case(
+        case.case_id,
+        request=CaseDecisionRequest(
+            expected_version=2, decision="accept", reason="Amounts reconcile."
+        ),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-decide",
+        idempotent_request=None,
+    )
+
+    # review_admin passes authorization for any status, so this must be
+    # rejected by the transition table itself, not by authorize_operation.
+    with pytest.raises(StaleVersionConflictError):
+        repository.assign_case(
+            case.case_id,
+            request=CaseAssignmentRequest(expected_version=3, actor_id="reviewer-3"),
+            actor_id="admin-1",
+            actor_role="review_admin",
+            request_id="request-reassign-decided",
+            idempotent_request=None,
+        )
+
+
 def test_assign_case_returns_none_for_an_unknown_case(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
 
