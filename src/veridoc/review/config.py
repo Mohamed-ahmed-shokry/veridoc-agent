@@ -140,7 +140,7 @@ class ReviewOriginSettings:
         if not origin.startswith("https://"):
             raise ReviewAuthenticationUnavailableError
         remainder = origin[len("https://") :]
-        host = remainder.split("/", 1)[0]
-        if not host or remainder != host:
+        host = remainder.split("/", 1)[0].split("?", 1)[0]
+        if not host or host != remainder:
             raise ReviewAuthenticationUnavailableError
         return cls(origin=origin)

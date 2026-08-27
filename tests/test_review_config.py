@@ -9,6 +9,7 @@ from veridoc.review.config import (
     DEFAULT_REVIEW_DATABASE,
     ReviewActorDirectory,
     ReviewAuthenticationUnavailableError,
+    ReviewOriginSettings,
     ReviewStoreSettings,
 )
 from veridoc.review.protocol import ReviewDataUnavailableError
@@ -65,6 +66,51 @@ def test_settings_allow_distinct_configured_paths() -> None:
         }
     )
     assert settings.database_path == "review.sqlite3"
+
+
+def test_origin_settings_accept_a_bare_https_origin() -> None:
+    settings = ReviewOriginSettings.from_environment(
+        {"VERIDOC_REVIEW_ORIGIN": "https://review.example"}
+    )
+    assert settings.origin == "https://review.example"
+
+
+def test_origin_settings_strip_surrounding_whitespace() -> None:
+    settings = ReviewOriginSettings.from_environment(
+        {"VERIDOC_REVIEW_ORIGIN": "  https://review.example  "}
+    )
+    assert settings.origin == "https://review.example"
+
+
+def test_origin_settings_reject_a_missing_value() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment({})
+
+
+def test_origin_settings_reject_a_non_https_scheme() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment(
+            {"VERIDOC_REVIEW_ORIGIN": "http://review.example"}
+        )
+
+
+def test_origin_settings_reject_a_path() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment(
+            {"VERIDOC_REVIEW_ORIGIN": "https://review.example/path"}
+        )
+
+
+def test_origin_settings_reject_a_query_with_no_path() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment(
+            {"VERIDOC_REVIEW_ORIGIN": "https://review.example?x=1"}
+        )
+
+
+def test_origin_settings_reject_an_empty_host() -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment({"VERIDOC_REVIEW_ORIGIN": "https://"})
 
 
 def _write_actors(tmp_path: Path, entries: object) -> str:
