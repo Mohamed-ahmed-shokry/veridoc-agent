@@ -175,10 +175,15 @@ async def test_create_case_never_processes_the_document_for_an_unknown_token(
     resolved: list[str] = []
     async with _client(tmp_path, resolved=resolved) as (client, _repository):
         client.cookies.set("veridoc_review_session", "unknown-token")
+        client.cookies.set("veridoc_review_csrf", "csrf-token")
 
         response = await client.post(
             "/review/cases",
-            headers={"Origin": _ORIGIN, IDEMPOTENCY_KEY_HEADER: "case-key-1"},
+            headers={
+                "Origin": _ORIGIN,
+                CSRF_HEADER_NAME: "csrf-token",
+                IDEMPOTENCY_KEY_HEADER: "case-key-1",
+            },
             files={"file": ("invoice.png", _png_bytes(), "image/png")},
         )
 
@@ -209,3 +214,80 @@ async def test_assign_case_never_reaches_the_repository_write_without_csrf(
     assert response.status_code == 403
     assert response.json()["detail"]["code"] == "review_csrf_rejected"
     assert repository.get_case("some-case") is None
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path", "request_kwargs"),
+    [
+        (
+            "POST",
+            "/review/cases",
+            {
+                "files": {"file": ("invoice.png", _png_bytes(), "image/png")},
+                "headers": {IDEMPOTENCY_KEY_HEADER: "case-key-1"},
+            },
+        ),
+        (
+            "PUT",
+            "/review/cases/some-case/assignment",
+            {
+                "json": {"expected_version": 1},
+                "headers": {IDEMPOTENCY_KEY_HEADER: "assign-key-1"},
+            },
+        ),
+        (
+            "POST",
+            "/review/cases/some-case/escalations",
+            {
+                "json": {"expected_version": 1, "reason": "Needs review."},
+                "headers": {IDEMPOTENCY_KEY_HEADER: "escalate-key-1"},
+            },
+        ),
+        (
+            "POST",
+            "/review/cases/some-case/decisions",
+            {
+                "json": {
+                    "expected_version": 1,
+                    "decision": "accept",
+                    "reason": "Amounts reconcile.",
+                },
+                "headers": {IDEMPOTENCY_KEY_HEADER: "decide-key-1"},
+            },
+        ),
+    ],
+)
+async def test_rejected_csrf_precedes_repository_resolution(
+    tmp_path: Path,
+    method: str,
+    path: str,
+    request_kwargs: dict[str, object],
+) -> None:
+    resolved: list[str] = []
+    async with _client(tmp_path, resolved=resolved) as (client, _repository):
+        login = await client.post(
+            "/review/session",
+            headers={"Authorization": f"Bearer {_REVIEWER_SECRET}", "Origin": _ORIGIN},
+        )
+        client.cookies.set(
+            "veridoc_review_session", login.cookies["veridoc_review_session"]
+        )
+
+        def _unexpected_review_repository() -> None:
+            resolved.append("review_repository")
+            raise AssertionError("review repository must not resolve")
+
+        app.dependency_overrides[get_review_repository] = _unexpected_review_repository
+        supplied_headers = request_kwargs.pop("headers")
+        assert isinstance(supplied_headers, dict)
+        response = await client.request(
+            method,
+            path,
+            headers={"Origin": _ORIGIN, **supplied_headers},
+            **request_kwargs,
+        )
+
+    assert response.status_code == 403
+    assert response.json()["detail"]["code"] == "review_csrf_rejected"
+    assert resolved == []

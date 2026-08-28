@@ -152,6 +152,12 @@ def require_csrf_protection(
         raise _csrf_rejected()
 
 
+def require_review_session_cookie(request: Request) -> None:
+    """Require a session cookie before CSRF or storage-backed authentication."""
+    if not request.cookies.get(SESSION_COOKIE_NAME):
+        raise _invalid_session()
+
+
 @router.post(
     "/session",
     response_model=SessionResponse,
@@ -267,8 +273,9 @@ def _require_idempotency_key(request: Request) -> str:
 )
 async def create_review_case(
     request: Request,
-    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _csrf: Annotated[None, Depends(require_csrf_protection)],
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
     upload: Annotated[ValidatedUpload, Depends(get_validated_upload)],
     service: Annotated[ProcessingService, Depends(get_processing_service)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
@@ -342,8 +349,9 @@ def assign_review_case(
     case_id: str,
     body: CaseAssignmentRequest,
     request: Request,
-    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _csrf: Annotated[None, Depends(require_csrf_protection)],
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
 ) -> CaseDetail:
     """Claim, assign, or reassign one case under an expected-version guard."""
@@ -371,8 +379,9 @@ def escalate_review_case(
     case_id: str,
     body: CaseEscalationRequest,
     request: Request,
-    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _csrf: Annotated[None, Depends(require_csrf_protection)],
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
 ) -> CaseDetail:
     """Escalate one assigned case under an expected-version guard."""
@@ -400,8 +409,9 @@ def decide_review_case(
     case_id: str,
     body: CaseDecisionRequest,
     request: Request,
-    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _csrf: Annotated[None, Depends(require_csrf_protection)],
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
 ) -> CaseDetail:
     """Record one terminal decision under an expected-version guard."""
