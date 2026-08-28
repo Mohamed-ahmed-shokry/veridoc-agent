@@ -1,10 +1,10 @@
 # Data and Security
 
 Veridoc processes commercially sensitive documents at an untrusted boundary.
-Phase 8 accepts document bytes for one ephemeral OCR, extraction, or complete
-processing request. Complete processing reads local reference facts from an
-explicitly configured SQLite path, but never writes them or persists the current
-upload. Authenticated reference-data administration owns fact writes.
+The document-processing routes accept bytes for one ephemeral OCR, extraction,
+or complete processing request. Complete processing reads local reference facts
+from an explicitly configured SQLite path, but never writes them or persists the
+current upload. Authenticated reference-data administration owns fact writes.
 When `/extract` or `/process` is used, the extraction adapter sends the current
 request's OCR text and normalized page images to the configured OpenAI provider.
 The internal explanation adapter sends only canonical verification findings,
