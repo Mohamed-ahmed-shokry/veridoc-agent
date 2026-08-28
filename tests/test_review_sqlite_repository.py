@@ -921,3 +921,18 @@ def test_get_case_rejects_a_status_that_disagrees_with_the_last_event(
 
     with pytest.raises(ReviewDataUnavailableError):
         repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_an_assignee_that_disagrees_with_the_event_history(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute("UPDATE review_cases SET assignee_id = 'attacker'")
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)

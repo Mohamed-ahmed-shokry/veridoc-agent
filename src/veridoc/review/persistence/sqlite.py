@@ -737,9 +737,18 @@ def _verify_event_sequence(row: sqlite3.Row, events: list[ReviewEvent]) -> None:
         if current.prior_status != previous.resulting_status:
             raise InvalidPersistedReviewDataError
     last_event = events[-1]
+    expected_assignee = next(
+        (
+            event.assigned_actor_id
+            for event in reversed(events)
+            if event.event_type in {"case_assigned", "case_reassigned"}
+        ),
+        None,
+    )
     if (
         last_event.resulting_status != row["status"]
         or last_event.case_version != row["version"]
+        or expected_assignee != row["assignee_id"]
     ):
         raise InvalidPersistedReviewDataError
 
