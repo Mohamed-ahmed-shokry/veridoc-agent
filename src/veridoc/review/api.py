@@ -102,6 +102,22 @@ def get_review_actor_directory() -> ReviewActorDirectory:
         raise _service_unavailable(exc.code, exc.message) from exc
 
 
+def require_review_credentials(
+    request: Request,
+    directory: Annotated[ReviewActorDirectory, Depends(get_review_actor_directory)],
+) -> AuthenticatedActor:
+    """Authenticate a login credential before review storage is resolved."""
+    try:
+        actor = authenticate_actor(request.headers.get("Authorization"), directory)
+    except InvalidReviewCredentialsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"code": exc.code, "message": exc.message},
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+    return AuthenticatedActor(actor_id=actor.actor_id, role=actor.role)
+
+
 def get_review_origin_settings() -> ReviewOriginSettings:
     """Require the configured HTTPS review origin."""
     try:
@@ -142,22 +158,12 @@ def require_csrf_protection(
     status_code=status.HTTP_201_CREATED,
 )
 def create_review_session(
-    request: Request,
     response: Response,
     _origin_match: Annotated[None, Depends(require_origin_match)],
+    actor: Annotated[AuthenticatedActor, Depends(require_review_credentials)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
-    directory: Annotated[ReviewActorDirectory, Depends(get_review_actor_directory)],
 ) -> SessionResponse:
     """Exchange a configured actor credential for a browser session cookie."""
-    try:
-        actor = authenticate_actor(request.headers.get("Authorization"), directory)
-    except InvalidReviewCredentialsError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"code": exc.code, "message": exc.message},
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
-
     issued = issue_session(now=datetime.now(UTC))
     repository.create_session(
         session_digest=issued.digest,

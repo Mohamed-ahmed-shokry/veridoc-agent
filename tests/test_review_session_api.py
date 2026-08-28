@@ -164,6 +164,37 @@ async def test_create_session_rejects_wrong_credentials_generically(
 
 
 @pytest.mark.anyio
+async def test_invalid_login_is_rejected_before_repository_resolution() -> None:
+    repository_resolved = False
+
+    def _unexpected_repository() -> None:
+        nonlocal repository_resolved
+        repository_resolved = True
+        raise AssertionError("review repository must not resolve")
+
+    app.dependency_overrides[get_review_origin_settings] = lambda: ReviewOriginSettings(
+        origin=_ORIGIN
+    )
+    app.dependency_overrides[get_review_actor_directory] = _directory
+    app.dependency_overrides[get_review_repository] = _unexpected_repository
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport, base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/review/session",
+                headers={"Authorization": "Bearer wrong-secret", "Origin": _ORIGIN},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_review_credentials"
+    assert repository_resolved is False
+
+
+@pytest.mark.anyio
 async def test_create_session_reports_unavailable_origin_configuration(
     tmp_path: Path,
 ) -> None:
