@@ -1,53 +1,60 @@
-# Phase 9 Approval and Implementation Plan
+# Phase 9 Plan and Completion Record
 
-Status: proposed; not approved or implemented.
+Status: complete as of 2026-08-23. Phase 10 and Phase 11 remain unapproved.
 
-This document turns the Phase 9 roadmap candidate into an approval-ready plan.
-It does not approve Phase 9, create a runtime contract, or supersede an accepted
-architecture decision. Phase 0 through Phase 8 remain the implemented product.
+This document records the approved Phase 9 design and the atomic sequence used
+to implement it. Every numbered item is complete; the observed completion gate
+is recorded in [release evidence](release-evidence.md#phase-9-completion-snapshot).
+The accepted ADRs and implemented runtime remain authoritative when they are
+more specific than this historical plan.
 
 ## Purpose
 
-Phase 9 would add a local, accountable human-review workflow around an immutable
-`ProcessingResult`. It would not change extraction, verification, explanation,
-or verdict logic. A deterministic `clear` verdict would remain distinct from a
-human decision.
+Phase 9 adds a local, accountable human-review workflow around an immutable
+`ProcessingResult`. It does not change extraction, verification, explanation,
+or verdict logic. A deterministic `clear` verdict remains distinct from a human
+decision.
 
 The plan is intentionally local and synthetic-data-only. Deployment identity,
 remote access, production TLS, encrypted infrastructure, malware scanning, and
 real-document operation remain Phase 10 or later work.
 
-## Verified starting point
+## Implementation and completion record
 
 The planning baseline is commit `813104c`. On 2026-08-16 the existing Phase 0-8
-suite passed with 351 tests and 95.96% branch coverage. Before any approved
-implementation begins, the same full gate must pass again from a clean worktree
-if the baseline commit has changed.
+suite passed with 351 tests and 95.96% branch coverage. The Phase 9 completion
+gate was then recorded against commit `ac75ce2`: 781 tests passed at 95.31%
+branch coverage, and the quality, documentation, build, archive, isolated-wheel,
+isolated-source-distribution, maintenance-CLI, and clean-tree checks passed.
 
-Current behavior remains authoritative:
+Implemented behavior remains authoritative:
 
 - `POST /process` returns a typed result without persisting it;
-- `GET /review` is a stateless local display page;
-- `VERIDOC_REFERENCE_DATABASE` contains approved reference facts only; and
+- `POST /review/cases` runs the same processing graph and persists an immutable,
+  digest-verified snapshot in the dedicated review store;
+- `GET /review` remains a stateless local demo while `/review/console` is the
+  authenticated Phase 9 console;
+- `VERIDOC_REFERENCE_DATABASE` contains approved reference facts only, while
+  `VERIDOC_REVIEW_DATABASE` contains review cases, events, and sessions; and
 - `VERIDOC_ADMIN_TOKEN` authenticates reference-data administration only.
 
-## Approval boundary
+## Completed approval boundary
 
-Approval of this plan would authorize Phase 9 design records and implementation
-only. It would not approve Phase 10 deployment work, real data, production use,
+Approval of this plan authorized Phase 9 design records and implementation only.
+It did not approve Phase 10 deployment work, real data, production use,
 automatic payment action, SSO, a remote database, or a persistence-stack change.
 
-The first implementation work must be three accepted decision records:
+Implementation began with three accepted decision records:
 
-1. actor identity, credentials, roles, sessions, and authorization;
-2. review records, immutable snapshots, events, transitions, concurrency,
-   idempotency, and review-store topology; and
-3. retention, legal holds, purge authority, backup, restore, and recovery.
+1. [actor identity, credentials, roles, sessions, and authorization](decisions/0008-use-local-actor-file-and-http-only-sessions-for-review.md);
+2. [review records, immutable snapshots, events, transitions, concurrency,
+   idempotency, and review-store topology](decisions/0009-use-immutable-versioned-review-records.md);
+   and
+3. [retention, legal holds, purge authority, backup, restore, and recovery](decisions/0010-defer-automated-review-retention-and-purge.md).
 
-If an accepted decision differs materially from the recommendations below, the
-remaining atomic plan must be revised before code work continues.
+Those accepted decisions match the design recorded below.
 
-## Recommended decisions
+## Approved design
 
 ### Actor and session boundary
 
@@ -157,14 +164,15 @@ digest and the resulting case version or response identifier. A retry with the
 same key and digest returns the original result; reuse with different input
 returns a typed conflict. Failed transactions do not reserve a key.
 
-### Planned HTTP surface
+### Implemented HTTP surface
 
-The proposed routes are deliberately narrow:
+The implemented routes are deliberately narrow:
 
 | Method and path | Purpose |
 | --- | --- |
 | `POST /review/session` | Exchange a configured actor credential for a browser session |
 | `DELETE /review/session` | Revoke the current browser session |
+| `GET /review/session` | Return the current session actor and role |
 | `POST /review/cases` | Process a bounded document and atomically create a case |
 | `GET /review/cases` | List authorized case summaries with bounded pagination |
 | `GET /review/cases/{case_id}` | Read the immutable snapshot, current state, and ordered events |
@@ -172,13 +180,14 @@ The proposed routes are deliberately narrow:
 | `POST /review/cases/{case_id}/escalations` | Escalate an assigned case with a reason |
 | `POST /review/cases/{case_id}/decisions` | Record a terminal decision with a reason |
 
-`GET /review` remains the HTML entry point. No generic patch endpoint, snapshot
+`GET /review` remains the stateless local demo. `GET /review/console` is the
+authenticated review entry point. No generic patch endpoint, snapshot
 replacement endpoint, event-edit endpoint, or case-decision deletion endpoint
-is planned.
+exists.
 
-### Storage outline
+### Storage contract
 
-The review-store ADR should validate at least these managed records:
+The review store validates these managed records:
 
 - `review_schema_migrations` for the forward-only ledger;
 - `review_cases` for immutable snapshots and current state/version metadata;
@@ -190,12 +199,12 @@ Foreign keys, declared column types, uniqueness, indexes, trigger absence, and
 persisted-row semantics must be exact. Application-managed writes should be the
 only supported mutation path.
 
-### Retention and recovery recommendation
+### Retention and recovery
 
-Phase 9 should remain synthetic and local. It should expose no HTTP deletion
-route and perform no automatic purge. The retention ADR must define metadata,
-legal-hold semantics, operator authority, and the future purge boundary without
-claiming automated enforcement.
+Phase 9 remains synthetic and local. It exposes no HTTP deletion route and
+performs no automatic purge. The retention ADR defines metadata, legal-hold
+semantics, operator authority, and the future purge boundary without claiming
+automated enforcement.
 
 Review backup should copy and validate the dedicated review database without
 modifying the source. Restore must be stopped-service, sidecar-safe, migrated and
@@ -217,10 +226,10 @@ uses the currently configured reference database.
 - automated retention or legally authoritative audit certification; and
 - starting Phase 10 or Phase 11 work.
 
-## Planned package and test map
+## Implemented package and test map
 
-The approved implementation should extend the existing `veridoc.review`
-package rather than create a generic workflow layer:
+The implementation extends the existing `veridoc.review` package rather than
+creating a generic workflow layer:
 
 ```text
 src/veridoc/review/
@@ -240,17 +249,15 @@ src/veridoc/review/
     └── sqlite.py
 ```
 
-Tests should follow the same focused boundaries. Migration, repository,
+Tests follow the same focused boundaries. Migration, repository,
 maintenance, and API tests must use temporary review databases and synthetic
 processing results. Browser tests must use synthetic actors and must not require
 network access, provider credentials, Tesseract, or a real browser service.
 
-## Exact atomic commit plan
+## Implemented atomic commit record
 
-The following is the minimum planned sequence. Each numbered item is one commit
-unless the accepted ADRs require the plan to be revised. A behavior and its
-smallest inseparable regression test share one commit. No completed item waits
-for a later batch commit.
+The following atomic sequence was implemented without a later batch or squash.
+A behavior and its smallest inseparable regression test share one commit.
 
 ### Decisions and domain contracts
 
@@ -474,10 +481,10 @@ Additional Phase 9 evidence must include:
   and
 - synthetic-only complete API and UI integration scenarios.
 
-## Documentation updates at completion
+## Completion documentation
 
-Phase 9 implementation must update these documents only with behavior that has
-landed and passed its focused checks:
+Phase 9 implementation was required to update these documents only with
+behavior that had landed and passed its focused checks:
 
 - `README.md` for capabilities, setup, configuration, commands, tree, phase
   status, and limitations;
@@ -495,10 +502,10 @@ landed and passed its focused checks:
 - `docs/decisions/README.md` plus ADRs 0008 through 0010; and
 - `docs/release-evidence.md` for the observed local completion gate.
 
-## Approval wording
+## Historical approval wording
 
-Implementation must not start from an ambiguous request to “continue” or
-“improve the project.” Explicit approval should identify this plan, for example:
+Phase 9 implementation began only after approval identified this plan and kept
+later phases out of scope. The approval boundary was:
 
 > Approve Phase 9 implementation according to `docs/phase-9-plan.md`. Keep
 > Phase 10 and Phase 11 unapproved.
