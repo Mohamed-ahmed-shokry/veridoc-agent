@@ -365,6 +365,8 @@ def render_review_console_page() -> str:
       } catch (error) {
         loginStatus.textContent = error.message;
         loginStatus.className = "error";
+      } finally {
+        credentialInput.value = "";
       }
     });
 
