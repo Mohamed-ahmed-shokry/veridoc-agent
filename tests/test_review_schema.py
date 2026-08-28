@@ -142,6 +142,26 @@ def test_validate_current_schema_rejects_a_missing_named_unique_index(
         validate_current_schema(connection)
 
 
+@pytest.mark.parametrize(
+    "drop_statement",
+    [
+        "DROP INDEX review_cases_status_index",
+        "DROP INDEX review_cases_assignee_index",
+        "DROP INDEX review_events_case_order_index",
+        "DROP INDEX review_sessions_expires_at_index",
+        "DROP INDEX review_sessions_actor_index",
+    ],
+)
+def test_validate_current_schema_rejects_a_missing_query_index(
+    tmp_path: Path, drop_statement: str
+) -> None:
+    connection = _migrated_connection(tmp_path)
+    connection.execute(drop_statement)
+
+    with pytest.raises(InvalidReviewSchemaError):
+        validate_current_schema(connection)
+
+
 def test_validate_current_schema_rejects_a_missing_anonymous_unique_index(
     tmp_path: Path,
 ) -> None:

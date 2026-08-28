@@ -131,6 +131,19 @@ _REQUIRED_NAMED_UNIQUE_INDEXES: dict[
         ),
     },
 }
+_REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
+    "review_cases": {
+        "review_cases_status_index": ("status",),
+        "review_cases_assignee_index": ("assignee_id",),
+    },
+    "review_events": {
+        "review_events_case_order_index": ("case_row_id", "id"),
+    },
+    "review_sessions": {
+        "review_sessions_expires_at_index": ("expires_at",),
+        "review_sessions_actor_index": ("actor_id",),
+    },
+}
 _REQUIRED_ANONYMOUS_UNIQUE_COLUMNS = {
     "review_cases": ("case_id",),
     "review_idempotency_keys": ("actor_id", "operation", "idempotency_key"),
@@ -240,6 +253,20 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
     for table_name, columns in _REQUIRED_ANONYMOUS_UNIQUE_COLUMNS.items():
         if not _has_anonymous_unique_index(connection, table_name, columns):
             raise InvalidReviewSchemaError
+
+    for table_name, required_query_indexes in _REQUIRED_NAMED_INDEXES.items():
+        query_indexes = {
+            str(row[1]): (bool(row[2]), bool(row[4]))
+            for row in connection.execute(
+                "SELECT * FROM pragma_index_list(?)",
+                (table_name,),
+            )
+        }
+        for index_name, query_index_columns in required_query_indexes.items():
+            if query_indexes.get(index_name) != (False, False):
+                raise InvalidReviewSchemaError
+            if _index_columns(connection, index_name) != query_index_columns:
+                raise InvalidReviewSchemaError
 
 
 def _has_anonymous_unique_index(
