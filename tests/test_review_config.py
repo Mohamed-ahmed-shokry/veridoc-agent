@@ -113,6 +113,26 @@ def test_origin_settings_reject_an_empty_host() -> None:
         ReviewOriginSettings.from_environment({"VERIDOC_REVIEW_ORIGIN": "https://"})
 
 
+@pytest.mark.parametrize(
+    "origin",
+    [
+        "https://user@review.example",
+        "https://user:secret@review.example",
+        "https://review.example#fragment",
+        "https://review.example#",
+        "https://review.example?",
+        "https://review.example\\path",
+        "https://review.example:invalid",
+        "https://review.example:70000",
+        "https://review.example:",
+        "https://review.example:0",
+    ],
+)
+def test_origin_settings_reject_non_origin_url_variants(origin: str) -> None:
+    with pytest.raises(ReviewAuthenticationUnavailableError):
+        ReviewOriginSettings.from_environment({"VERIDOC_REVIEW_ORIGIN": origin})
+
+
 def _write_actors(tmp_path: Path, entries: object) -> str:
     path = tmp_path / "actors.json"
     path.write_text(json.dumps(entries), encoding="utf-8")

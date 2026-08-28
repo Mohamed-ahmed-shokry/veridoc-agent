@@ -8,6 +8,7 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import TypeAdapter, ValidationError
 
@@ -134,13 +135,28 @@ class ReviewOriginSettings:
     def from_environment(
         cls, environment: Mapping[str, str] | None = None
     ) -> ReviewOriginSettings:
-        """Require a configured HTTPS review origin with no path or query."""
+        """Require a configured bare HTTPS origin without embedded credentials."""
         values = os.environ if environment is None else environment
         origin = values.get("VERIDOC_REVIEW_ORIGIN", "").strip()
-        if not origin.startswith("https://"):
-            raise ReviewAuthenticationUnavailableError
-        remainder = origin[len("https://") :]
-        host = remainder.split("/", 1)[0].split("?", 1)[0]
-        if not host or host != remainder:
+        try:
+            parsed = urlsplit(origin)
+            hostname = parsed.hostname
+            port = parsed.port
+        except ValueError as exc:
+            raise ReviewAuthenticationUnavailableError from exc
+        if (
+            parsed.scheme != "https"
+            or not parsed.netloc
+            or not hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+            or port == 0
+            or origin.endswith(":")
+            or any(character.isspace() for character in origin)
+            or any(delimiter in origin for delimiter in ("\\", "?", "#"))
+        ):
             raise ReviewAuthenticationUnavailableError
         return cls(origin=origin)
