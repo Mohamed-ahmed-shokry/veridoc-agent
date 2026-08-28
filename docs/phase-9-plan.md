@@ -236,10 +236,10 @@ src/veridoc/review/
 ├── api.py
 ├── auth.py
 ├── config.py
+├── console_page.py
 ├── models.py
 ├── page.py
 ├── protocol.py
-├── service.py
 ├── transitions.py
 └── persistence/
     ├── cli.py
