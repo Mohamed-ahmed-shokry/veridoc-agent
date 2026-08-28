@@ -2,10 +2,10 @@
 
 Status: complete as of 2026-08-23. Phase 10 and Phase 11 remain unapproved.
 
-This document records the approved Phase 9 design and the atomic sequence used
-to implement it. Every numbered item is complete; the observed completion gate
-is recorded in [release evidence](release-evidence.md#phase-9-completion-snapshot).
-The accepted ADRs and implemented runtime remain authoritative when they are
+This document records the approved Phase 9 design and delivery map. Every
+numbered outcome is complete; the observed completion gate is recorded in
+[release evidence](release-evidence.md#phase-9-completion-snapshot). The accepted
+ADRs, Git history, and implemented runtime remain authoritative when they are
 more specific than this historical plan.
 
 ## Purpose
@@ -254,10 +254,14 @@ maintenance, and API tests must use temporary review databases and synthetic
 processing results. Browser tests must use synthetic actors and must not require
 network access, provider credentials, Tesseract, or a real browser service.
 
-## Implemented atomic commit record
+## Approved atomic delivery map
 
-The following atomic sequence was implemented without a later batch or squash.
-A behavior and its smallest inseparable regression test share one commit.
+The following was the approved smallest-change sequence. Its outcomes landed as
+focused commits without a later squash. One documented deviation preserved
+repository coherence: item 51's case-creation integration test landed in
+`c7a7be0` with the shared-processing-dependency fix that the test exposed. The
+unrelated `0297f1a` launch-file commit is not a Phase 9 plan item. History was
+not rewritten to make the commit list resemble the plan.
 
 ### Decisions and domain contracts
 
