@@ -115,6 +115,33 @@ def test_backup_rejects_semantic_corruption_without_replacing_destination(
     assert backup_path.read_bytes() == b"existing backup contents"
 
 
+@pytest.mark.parametrize(
+    "corruption_statement",
+    [
+        "UPDATE review_idempotency_keys SET request_digest = 'invalid'",
+        "UPDATE review_idempotency_keys SET result_case_version = 99",
+    ],
+)
+def test_backup_rejects_invalid_idempotency_records(
+    tmp_path: Path, corruption_statement: str
+) -> None:
+    database_path = tmp_path / "review.sqlite"
+    backup_path = tmp_path / "review.backup.sqlite"
+    repository = _repository(database_path)
+    _create_case(repository, "key-1")
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(corruption_statement)
+        connection.commit()
+
+    backup_path.write_bytes(b"existing backup contents")
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert backup_path.read_bytes() == b"existing backup contents"
+
+
 def test_backup_rejects_foreign_key_corruption(tmp_path: Path) -> None:
     database_path = tmp_path / "review.sqlite"
     backup_path = tmp_path / "review.backup.sqlite"

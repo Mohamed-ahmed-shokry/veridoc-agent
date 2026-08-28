@@ -68,17 +68,64 @@ _EVENT_OPERATIONS: dict[EventType, MutationOperation] = {
 
 
 def validate_persisted_review_data(connection: sqlite3.Connection) -> None:
-    """Validate every managed case, its snapshot, and its event chain."""
+    """Validate every managed case, event chain, and idempotency record."""
     original_row_factory = connection.row_factory
     try:
         connection.row_factory = sqlite3.Row
         case_rows = connection.execute(
             "SELECT * FROM review_cases ORDER BY id"
         ).fetchall()
+        case_versions: dict[int, int] = {}
         for row in case_rows:
-            _case_detail_from_row(connection, row)
+            detail = _case_detail_from_row(connection, row)
+            case_versions[_stored_integer(row["id"])] = detail.version
+        _validate_idempotency_rows(connection, case_versions=case_versions)
     finally:
         connection.row_factory = original_row_factory
+
+
+def _validate_idempotency_rows(
+    connection: sqlite3.Connection, *, case_versions: dict[int, int]
+) -> None:
+    for row in connection.execute(
+        "SELECT * FROM review_idempotency_keys ORDER BY id"
+    ).fetchall():
+        try:
+            IdempotentRequest(
+                actor_id=row["actor_id"],
+                operation=row["operation"],
+                idempotency_key=row["idempotency_key"],
+                request_digest=row["request_digest"],
+            )
+            case_row_id = _stored_integer(row["case_row_id"])
+            result_case_version = _stored_integer(row["result_case_version"])
+            _stored_aware_datetime(row["created_at"])
+        except (TypeError, ValueError) as exc:
+            raise InvalidPersistedReviewDataError from exc
+
+        current_version = case_versions.get(case_row_id)
+        if (
+            current_version is None
+            or result_case_version < 1
+            or result_case_version > current_version
+        ):
+            raise InvalidPersistedReviewDataError
+
+
+def _stored_integer(value: object) -> int:
+    if not isinstance(value, int):
+        raise InvalidPersistedReviewDataError
+    return value
+
+
+def _stored_aware_datetime(value: object) -> datetime:
+    if not isinstance(value, str):
+        raise InvalidPersistedReviewDataError
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise InvalidPersistedReviewDataError
+    return parsed
 
 
 class SQLiteReviewRepository:
