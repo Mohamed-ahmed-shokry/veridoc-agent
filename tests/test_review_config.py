@@ -1,6 +1,7 @@
 """Review-store and review-actor configuration tests."""
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -54,6 +55,21 @@ def test_settings_reject_paths_that_resolve_to_the_same_file(tmp_path: Path) -> 
             {
                 "VERIDOC_REVIEW_DATABASE": f"{tmp_path}/./data.sqlite3",
                 "VERIDOC_REFERENCE_DATABASE": str(absolute),
+            }
+        )
+
+
+def test_settings_reject_hard_links_to_the_same_database(tmp_path: Path) -> None:
+    review_path = tmp_path / "review.sqlite3"
+    reference_path = tmp_path / "reference.sqlite3"
+    review_path.write_bytes(b"database placeholder")
+    os.link(review_path, reference_path)
+
+    with pytest.raises(ReviewDataUnavailableError):
+        ReviewStoreSettings.from_environment(
+            {
+                "VERIDOC_REVIEW_DATABASE": str(review_path),
+                "VERIDOC_REFERENCE_DATABASE": str(reference_path),
             }
         )
 

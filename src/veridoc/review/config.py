@@ -49,7 +49,17 @@ class ReviewStoreSettings:
         reference_path = values.get("VERIDOC_REFERENCE_DATABASE", "").strip()
         reference_path = reference_path or _DEFAULT_REFERENCE_DATABASE
 
-        if Path(review_path).resolve() == Path(reference_path).resolve():
+        resolved_review_path = Path(review_path).resolve()
+        resolved_reference_path = Path(reference_path).resolve()
+        try:
+            paths_share_file = resolved_review_path == resolved_reference_path or (
+                resolved_review_path.exists()
+                and resolved_reference_path.exists()
+                and resolved_review_path.samefile(resolved_reference_path)
+            )
+        except OSError as exc:
+            raise ReviewDataUnavailableError from exc
+        if paths_share_file:
             raise ReviewDataUnavailableError
         return cls(database_path=review_path)
 
