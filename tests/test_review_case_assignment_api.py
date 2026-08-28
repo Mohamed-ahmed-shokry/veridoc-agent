@@ -127,10 +127,15 @@ async def _authenticated_headers(
     }
 
 
-async def _create_case(client: httpx.AsyncClient, headers: dict[str, str]) -> str:
+async def _create_case(
+    client: httpx.AsyncClient,
+    headers: dict[str, str],
+    *,
+    idempotency_key: str = "case-key-1",
+) -> str:
     response = await client.post(
         "/review/cases",
-        headers={**headers, IDEMPOTENCY_KEY_HEADER: "case-key-1"},
+        headers={**headers, IDEMPOTENCY_KEY_HEADER: idempotency_key},
         files={"file": ("fictional-invoice.png", _png_bytes(), "image/png")},
     )
     assert response.status_code == 201
@@ -302,3 +307,39 @@ async def test_assign_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
     assert first.status_code == 200
     assert second.status_code == 200
     assert first.json() == second.json()
+
+
+@pytest.mark.anyio
+async def test_assignment_idempotency_key_cannot_replay_another_case(
+    tmp_path: Path,
+) -> None:
+    async with _client(tmp_path) as (client, repository):
+        headers = await _authenticated_headers(client, secret=_REVIEWER_SECRET)
+        first_case_id = await _create_case(
+            client, headers, idempotency_key="case-key-1"
+        )
+        second_case_id = await _create_case(
+            client, headers, idempotency_key="case-key-2"
+        )
+
+        first = await _assign(
+            client,
+            headers,
+            first_case_id,
+            expected_version=1,
+            idempotency_key="shared-assignment-key",
+        )
+        second = await _assign(
+            client,
+            headers,
+            second_case_id,
+            expected_version=1,
+            idempotency_key="shared-assignment-key",
+        )
+        second_case = repository.get_case(second_case_id)
+
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "review_idempotency_conflict"
+    assert second_case is not None
+    assert second_case.status == "unassigned"

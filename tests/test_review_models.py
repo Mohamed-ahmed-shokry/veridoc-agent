@@ -274,7 +274,8 @@ def test_case_decision_request_requires_decision_and_reason() -> None:
 
 def test_idempotent_request_bounds_its_scoping_fields() -> None:
     digest = compute_request_digest(
-        CaseDecisionRequest(expected_version=1, decision="accept", reason="OK.")
+        "case-1",
+        CaseDecisionRequest(expected_version=1, decision="accept", reason="OK."),
     )
     request = IdempotentRequest(
         actor_id="reviewer-1",
@@ -299,8 +300,15 @@ def test_compute_request_digest_is_deterministic_and_input_sensitive() -> None:
     second = CaseEscalationRequest(expected_version=1, reason="Cannot decide.")
     third = CaseEscalationRequest(expected_version=1, reason="Different reason.")
 
-    assert compute_request_digest(first) == compute_request_digest(second)
-    assert compute_request_digest(first) != compute_request_digest(third)
+    assert compute_request_digest("case-1", first) == compute_request_digest(
+        "case-1", second
+    )
+    assert compute_request_digest("case-1", first) != compute_request_digest(
+        "case-1", third
+    )
+    assert compute_request_digest("case-1", first) != compute_request_digest(
+        "case-2", first
+    )
 
 
 def test_review_model_forbids_extra_fields_and_strips_strings() -> None:

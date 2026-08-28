@@ -358,7 +358,7 @@ def assign_review_case(
             actor_id=actor.actor_id,
             operation="assign_case",
             idempotency_key=idempotency_key,
-            request_digest=compute_request_digest(body),
+            request_digest=compute_request_digest(case_id, body),
         ),
     )
     if detail is None:
@@ -387,7 +387,7 @@ def escalate_review_case(
             actor_id=actor.actor_id,
             operation="escalate_case",
             idempotency_key=idempotency_key,
-            request_digest=compute_request_digest(body),
+            request_digest=compute_request_digest(case_id, body),
         ),
     )
     if detail is None:
@@ -416,7 +416,7 @@ def decide_review_case(
             actor_id=actor.actor_id,
             operation="decide_case",
             idempotency_key=idempotency_key,
-            request_digest=compute_request_digest(body),
+            request_digest=compute_request_digest(case_id, body),
         ),
     )
     if detail is None:

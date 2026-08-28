@@ -184,9 +184,16 @@ class IdempotentRequest(ReviewModel):
     request_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
 
 
-def compute_request_digest(payload: BaseModel) -> str:
-    """Return the SHA-256 hex digest of one canonical mutation request body."""
-    return _model_digest(payload)
+def compute_request_digest(case_id: str, payload: BaseModel) -> str:
+    """Return a mutation digest bound to its case and canonical request body."""
+    encoded_case_id = case_id.encode("utf-8")
+    encoded_payload = payload.model_dump_json().encode("utf-8")
+    framed_payload = (
+        len(encoded_case_id).to_bytes(4, byteorder="big")
+        + encoded_case_id
+        + encoded_payload
+    )
+    return hashlib.sha256(framed_payload).hexdigest()
 
 
 class CaseSummary(ReviewModel):
