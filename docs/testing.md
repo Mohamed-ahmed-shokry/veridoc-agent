@@ -1,6 +1,6 @@
 # Testing
 
-Veridoc uses pytest. The Phase 8 suite covers the FastAPI application, bounded
+Veridoc uses pytest. The Phase 9 suite covers the FastAPI application, bounded
 upload validation outside the async request loop, temporary-file cleanup, typed
 OCR contracts, normalized page images, structured invoice schemas, typed
 extraction and verification graphs, the mocked OpenAI adapter, local SQLite
@@ -13,6 +13,10 @@ Phase 7 additionally enforces strict static typing for the production package.
 Phase 8 adds bounded administration schemas, local Bearer authentication,
 forward-only migrations, invoice and purchase-order CRUD, atomic conflict-aware
 imports, and backup/restore maintenance tests.
+Phase 9 adds strict review schemas, deterministic transitions and authorization,
+constant-time actor/session/CSRF handling, an independent SQLite review store,
+idempotent and version-guarded case APIs, safe console rendering, maintenance,
+concurrency races, and real-graph integration/recovery scenarios.
 
 ## Test organization
 
