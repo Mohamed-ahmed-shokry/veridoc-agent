@@ -176,9 +176,11 @@ Implemented deliverables:
 - backup/restore, migration, retention, and operational documentation for the
   new review store.
 
-Implemented atomic sequence: the same dependency order below was followed,
-expanded into the exact 60-commit sequence recorded in the
-[Phase 9 plan](phase-9-plan.md) — ADRs, then domain models and transition
+Implemented delivery sequence: the same dependency order below was followed,
+expanded into the 60-item delivery map recorded in the
+[Phase 9 plan](phase-9-plan.md). Its completion record identifies one
+co-delivered dependency fix and one unrelated launch-file commit; history was
+not rewritten. The sequence covers ADRs, then domain models and transition
 policy, the review-store protocol and dedicated SQLite implementation
 (cases/snapshots, then append-only events, then idempotency keys and
 sessions), authentication and authorization dependencies ahead of storage,
