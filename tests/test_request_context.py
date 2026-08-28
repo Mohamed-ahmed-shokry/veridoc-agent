@@ -44,15 +44,34 @@ async def test_request_context_echoes_a_safe_correlation_identifier(
 
 
 @pytest.mark.anyio
-async def test_request_context_replaces_unsafe_identifiers_on_error_responses() -> None:
+async def test_request_context_replaces_unsafe_identifiers_on_error_responses(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="veridoc.request")
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(
-            "/missing", headers={"X-Request-ID": "unsafe value"}
+            "/missing-private-value", headers={"X-Request-ID": "unsafe value"}
         )
 
     assert response.status_code == 404
     assert re.fullmatch(r"[0-9a-f]{32}", response.headers["X-Request-ID"])
+    assert "path=<unmatched>" in caplog.text
+    assert "missing-private-value" not in caplog.text
+
+
+@pytest.mark.anyio
+async def test_request_context_logs_route_templates_without_case_identifiers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="veridoc.request")
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/review/cases/private-case-123")
+
+    assert response.status_code == 503
+    assert "path=/review/cases/{case_id}" in caplog.text
+    assert "private-case-123" not in caplog.text
 
 
 @pytest.mark.anyio

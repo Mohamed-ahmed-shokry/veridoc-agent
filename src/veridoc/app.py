@@ -214,10 +214,16 @@ async def add_request_context(
             "request_complete request_id=%s method=%s path=%s status_code=%s duration_ms=%.1f",
             request_id,
             request.method,
-            request.url.path,
+            _request_log_path(request),
             status_code,
             (time.perf_counter() - started_at) * 1000,
         )
+
+
+def _request_log_path(request: Request) -> str:
+    """Return a static route template or a coarse unmatched-route marker."""
+    route_path = getattr(request.scope.get("route"), "path", None)
+    return route_path if isinstance(route_path, str) else "<unmatched>"
 
 
 def _request_id(supplied_value: str | None) -> str:
