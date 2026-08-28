@@ -97,13 +97,17 @@ class SQLiteReviewRepository:
         with self._connection() as connection:
             existing = _find_idempotency_key(connection, idempotent_request)
             if existing is not None:
-                stored_digest, case_row_id = existing
+                stored_digest, case_row_id, result_case_version = existing
                 if stored_digest != idempotent_request.request_digest:
                     raise IdempotencyConflictError
                 row = connection.execute(
                     "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
                 ).fetchone()
-                return _case_detail_from_row(connection, row)
+                if row is None:
+                    raise InvalidPersistedReviewDataError
+                return _case_detail_from_row(
+                    connection, row, result_case_version=result_case_version
+                )
 
             case_id = uuid4().hex
             timestamp = _timestamp()
@@ -182,7 +186,7 @@ class SQLiteReviewRepository:
             existing = _find_idempotency_key(connection, request)
             if existing is None:
                 return None
-            stored_digest, case_row_id = existing
+            stored_digest, case_row_id, result_case_version = existing
             if stored_digest != request.request_digest:
                 raise IdempotencyConflictError
             row = connection.execute(
@@ -190,7 +194,9 @@ class SQLiteReviewRepository:
             ).fetchone()
             if row is None:
                 raise InvalidPersistedReviewDataError
-            return _case_detail_from_row(connection, row)
+            return _case_detail_from_row(
+                connection, row, result_case_version=result_case_version
+            )
 
     def list_cases(
         self,
@@ -472,17 +478,25 @@ class SQLiteReviewRepository:
 
 def _find_idempotency_key(
     connection: sqlite3.Connection, request: IdempotentRequest
-) -> tuple[str, int] | None:
+) -> tuple[str, int, int] | None:
     row = connection.execute(
         """
-        SELECT request_digest, case_row_id FROM review_idempotency_keys
+        SELECT request_digest, case_row_id, result_case_version
+        FROM review_idempotency_keys
         WHERE actor_id = ? AND operation = ? AND idempotency_key = ?
         """,
         (request.actor_id, request.operation, request.idempotency_key),
     ).fetchone()
     if row is None:
         return None
-    return str(row["request_digest"]), int(row["case_row_id"])
+    try:
+        return (
+            str(row["request_digest"]),
+            int(row["case_row_id"]),
+            int(row["result_case_version"]),
+        )
+    except (TypeError, ValueError) as exc:
+        raise InvalidPersistedReviewDataError from exc
 
 
 def _find_replay(
@@ -494,13 +508,17 @@ def _find_replay(
     existing = _find_idempotency_key(connection, idempotent_request)
     if existing is None:
         return False, None
-    stored_digest, case_row_id = existing
+    stored_digest, case_row_id, result_case_version = existing
     if stored_digest != idempotent_request.request_digest:
         raise IdempotencyConflictError
     row = connection.execute(
         "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
     ).fetchone()
-    return True, (_case_detail_from_row(connection, row) if row is not None else None)
+    if row is None:
+        raise InvalidPersistedReviewDataError
+    return True, _case_detail_from_row(
+        connection, row, result_case_version=result_case_version
+    )
 
 
 def _resolve_after_idempotency_conflict(
@@ -520,7 +538,7 @@ def _resolve_after_idempotency_conflict(
     resolved = _find_idempotency_key(connection, idempotent_request)
     if resolved is None:
         raise IdempotencyConflictError from original_exc
-    stored_digest, case_row_id = resolved
+    stored_digest, case_row_id, result_case_version = resolved
     if stored_digest != idempotent_request.request_digest:
         raise IdempotencyConflictError from original_exc
     row = connection.execute(
@@ -528,7 +546,9 @@ def _resolve_after_idempotency_conflict(
     ).fetchone()
     if row is None:
         raise IdempotencyConflictError from original_exc
-    return _case_detail_from_row(connection, row)
+    return _case_detail_from_row(
+        connection, row, result_case_version=result_case_version
+    )
 
 
 def _apply_transition(
@@ -643,7 +663,10 @@ def _case_summary_from_row(row: sqlite3.Row) -> CaseSummary:
 
 
 def _case_detail_from_row(
-    connection: sqlite3.Connection, row: sqlite3.Row
+    connection: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    result_case_version: int | None = None,
 ) -> CaseDetail:
     try:
         snapshot = hydrate_review_snapshot(row["snapshot_json"])
@@ -660,7 +683,7 @@ def _case_detail_from_row(
             ).fetchall()
         ]
         _verify_event_sequence(row, events)
-        return CaseDetail(
+        current_detail = CaseDetail(
             case_id=row["case_id"],
             status=row["status"],
             version=row["version"],
@@ -670,6 +693,32 @@ def _case_detail_from_row(
             updated_at=row["updated_at"],
             snapshot=snapshot,
             events=events,
+        )
+        if result_case_version is None or result_case_version == current_detail.version:
+            return current_detail
+        if not 1 <= result_case_version <= current_detail.version:
+            raise InvalidPersistedReviewDataError
+
+        replay_events = current_detail.events[:result_case_version]
+        replay_event = replay_events[-1]
+        assignee_id = next(
+            (
+                event.assigned_actor_id
+                for event in reversed(replay_events)
+                if event.event_type in {"case_assigned", "case_reassigned"}
+            ),
+            None,
+        )
+        return CaseDetail(
+            case_id=current_detail.case_id,
+            status=replay_event.resulting_status,
+            version=result_case_version,
+            creator_actor_id=current_detail.creator_actor_id,
+            assignee_id=assignee_id,
+            created_at=current_detail.created_at,
+            updated_at=replay_event.occurred_at,
+            snapshot=current_detail.snapshot,
+            events=replay_events,
         )
     except ValueError as exc:
         raise InvalidPersistedReviewDataError from exc

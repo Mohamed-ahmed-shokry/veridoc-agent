@@ -14,6 +14,7 @@ from veridoc.review.models import (
     CaseDetail,
     CaseEscalationRequest,
     IdempotentRequest,
+    MutationOperation,
     ReviewSnapshot,
     build_review_snapshot,
 )
@@ -43,11 +44,15 @@ def _snapshot() -> ReviewSnapshot:
 
 
 def _idempotent_request(
-    *, idempotency_key: str = "key-1", request_digest: str = "a" * 64
+    *,
+    idempotency_key: str = "key-1",
+    request_digest: str = "a" * 64,
+    operation: MutationOperation = "create_case",
+    actor_id: str = "reviewer-1",
 ) -> IdempotentRequest:
     return IdempotentRequest(
-        actor_id="reviewer-1",
-        operation="create_case",
+        actor_id=actor_id,
+        operation=operation,
         idempotency_key=idempotency_key,
         request_digest=request_digest,
     )
@@ -143,6 +148,39 @@ def test_idempotent_case_lookup_distinguishes_miss_replay_and_conflict(
         repository.get_idempotent_case(
             request=_idempotent_request(request_digest="b" * 64)
         )
+
+
+def test_create_case_replay_returns_the_original_version_after_a_transition(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    request = _idempotent_request()
+    created = repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-create",
+        idempotent_request=request,
+    )
+    assigned = repository.assign_case(
+        created.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=None,
+    )
+
+    replayed = repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-replay",
+        idempotent_request=request,
+    )
+
+    assert assigned is not None
+    assert assigned.version == 2
+    assert repository.get_idempotent_case(request=request) == created
+    assert replayed == created
 
 
 def test_create_case_allows_distinct_cases_for_distinct_keys(tmp_path: Path) -> None:
@@ -485,7 +523,11 @@ def test_assign_case_returns_none_for_an_unknown_case(tmp_path: Path) -> None:
 def test_assign_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     case = _create_case(repository)
-    request = _idempotent_request(idempotency_key="assign-key")
+    request = _idempotent_request(
+        idempotency_key="assign-key",
+        operation="assign_case",
+        actor_id="reviewer-2",
+    )
 
     first = repository.assign_case(
         case.case_id,
@@ -507,6 +549,50 @@ def test_assign_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
     assert first == second
     assert first is not None
     assert first.events[-1].idempotency_key == "assign-key"
+
+
+def test_assignment_replay_returns_its_version_after_the_case_advances(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    request = _idempotent_request(
+        idempotency_key="assign-key",
+        operation="assign_case",
+        actor_id="reviewer-2",
+    )
+    assigned = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=request,
+    )
+    escalated = repository.escalate_case(
+        case.case_id,
+        request=CaseEscalationRequest(expected_version=2, reason="Needs review."),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-escalate",
+        idempotent_request=None,
+    )
+
+    replayed = repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-replay",
+        idempotent_request=request,
+    )
+
+    assert assigned is not None
+    assert escalated is not None
+    assert escalated.version == 3
+    assert replayed == assigned
+    assert replayed.version == 2
+    assert len(replayed.events) == 2
 
 
 def _assign_case(
