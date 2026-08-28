@@ -220,9 +220,9 @@ Required verification (delivered):
   case contents;
 - ASGI-transport tests covering login/session transport, CSRF and origin
   rejection, expiry, and logout, plus a structural markup test proving the
-  console page never uses `innerHTML`; manual in-browser verification (not
-  committed test automation) additionally confirmed no credential reaches
-  rendered content, `localStorage`, or `sessionStorage`;
+  console page never uses `innerHTML`; no real browser or HTTPS-terminating
+  proxy was used, so browser cookie enforcement and storage inspection remain
+  outside the recorded local evidence;
 - transaction and race tests for duplicate creation, concurrent assignment,
   repeated decisions, stale versions, and event ordering;
 - boundary tests proving retries return the original case while client-supplied
