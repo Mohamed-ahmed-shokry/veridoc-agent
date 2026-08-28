@@ -513,9 +513,10 @@ unapproved.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 8 scope and unapproved later phases.
-- [Phase 9 approval plan](docs/phase-9-plan.md): proposed design, decisions,
-  atomic implementation sequence, gates, and explicit approval boundary.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 9 scope and the
+  unapproved Phase 10 and Phase 11 candidates.
+- [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
+  atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Release evidence](docs/release-evidence.md): verified local gates and evidence
   boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
