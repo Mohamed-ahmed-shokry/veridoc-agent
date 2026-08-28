@@ -68,7 +68,7 @@ _EVENT_OPERATIONS: dict[EventType, MutationOperation] = {
 
 
 def validate_persisted_review_data(connection: sqlite3.Connection) -> None:
-    """Validate every managed case, event chain, and idempotency record."""
+    """Validate every managed case, event, idempotency, and session record."""
     original_row_factory = connection.row_factory
     try:
         connection.row_factory = sqlite3.Row
@@ -80,6 +80,10 @@ def validate_persisted_review_data(connection: sqlite3.Connection) -> None:
             detail = _case_detail_from_row(connection, row)
             case_versions[_stored_integer(row["id"])] = detail.version
         _validate_idempotency_rows(connection, case_versions=case_versions)
+        for row in connection.execute(
+            "SELECT * FROM review_sessions ORDER BY id"
+        ).fetchall():
+            _session_from_row(row)
     finally:
         connection.row_factory = original_row_factory
 

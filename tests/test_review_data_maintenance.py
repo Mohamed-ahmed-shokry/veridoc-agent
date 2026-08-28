@@ -1,6 +1,7 @@
 """SQLite backup and restore safety tests for the dedicated review store."""
 
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -132,6 +133,28 @@ def test_backup_rejects_invalid_idempotency_records(
 
     with sqlite3.connect(database_path) as connection:
         connection.execute(corruption_statement)
+        connection.commit()
+
+    backup_path.write_bytes(b"existing backup contents")
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert backup_path.read_bytes() == b"existing backup contents"
+
+
+def test_backup_rejects_an_invalid_session_record(tmp_path: Path) -> None:
+    database_path = tmp_path / "review.sqlite"
+    backup_path = tmp_path / "review.backup.sqlite"
+    repository = _repository(database_path)
+    repository.create_session(
+        session_digest="b" * 64,
+        actor_id="reviewer-1",
+        expires_at=datetime(2026, 8, 23, 0, 0, tzinfo=UTC),
+    )
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("UPDATE review_sessions SET session_digest = 'invalid'")
         connection.commit()
 
     backup_path.write_bytes(b"existing backup contents")
