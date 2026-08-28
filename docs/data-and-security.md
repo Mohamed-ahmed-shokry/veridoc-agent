@@ -113,11 +113,13 @@ underscores, or hyphens; otherwise the service generates one. Do not include
 document identifiers, customer data, credentials, or secrets in that header.
 
 The `veridoc.request` logger writes one metadata-only completion record with the
-request ID, method, path without query text, status code, and duration. It does
-not log complete documents, raw OCR text, rendered pages, extracted names or
-identifiers, line items, credentials, authorization headers, query values, raw
-Tesseract output, provider responses, local temporary paths, persisted reference
-facts, verification findings, explanation narratives, or numerical context.
+request ID, method, static route template, status code, and duration. Unmatched
+requests use a coarse `<unmatched>` marker, so neither concrete path parameters
+nor raw unknown paths enter the log. It does not log complete documents, raw OCR
+text, rendered pages, extracted names or identifiers, line items, credentials,
+authorization headers, query values, raw Tesseract output, provider responses,
+local temporary paths, persisted reference facts, verification findings,
+explanation narratives, or numerical context.
 Request-validation failures return a generic `invalid_request` response and do
 not echo submitted field names or values.
 

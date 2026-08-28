@@ -540,8 +540,10 @@ Every response includes `X-Request-ID`. Clients may submit a bounded safe value
 or let the service generate one; do not put invoice numbers, customer data, or
 secrets in it. Configure the deployment's standard-library logging to retain the
 `veridoc.request` logger at `INFO` when operational request records are needed.
-Each record contains only the request ID, HTTP method, path without query text,
-status code, and duration in milliseconds.
+Each record contains only the request ID, HTTP method, static route template,
+status code, and duration in milliseconds. Unmatched requests use the coarse
+`<unmatched>` marker; concrete path parameters and raw unknown paths are not
+logged.
 
 The OCR, extraction, verification, explanation, processing, and review
 boundaries do not log document bodies, raw OCR text, extracted values, rendered
