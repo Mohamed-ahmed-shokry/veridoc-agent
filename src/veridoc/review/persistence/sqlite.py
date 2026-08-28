@@ -22,7 +22,9 @@ from veridoc.review.models import (
     CasePage,
     CaseStatus,
     CaseSummary,
+    EventType,
     IdempotentRequest,
+    MutationOperation,
     RequestId,
     ReviewEvent,
     ReviewSession,
@@ -54,6 +56,15 @@ from veridoc.review.transitions import (
 
 class InvalidPersistedReviewDataError(RuntimeError):
     """Raised when stored review rows violate the repository's semantic contract."""
+
+
+_EVENT_OPERATIONS: dict[EventType, MutationOperation] = {
+    "case_created": "create_case",
+    "case_assigned": "assign_case",
+    "case_reassigned": "assign_case",
+    "case_escalated": "escalate_case",
+    "case_decided": "decide_case",
+}
 
 
 def validate_persisted_review_data(connection: sqlite3.Connection) -> None:
@@ -732,6 +743,17 @@ def _verify_event_sequence(row: sqlite3.Row, events: list[ReviewEvent]) -> None:
         raise InvalidPersistedReviewDataError
     for expected_version, event in enumerate(events, start=1):
         if event.case_version != expected_version:
+            raise InvalidPersistedReviewDataError
+        try:
+            expected_transition = next_transition(
+                event.prior_status, _EVENT_OPERATIONS[event.event_type]
+            )
+        except InvalidTransitionError as exc:
+            raise InvalidPersistedReviewDataError from exc
+        if (
+            event.event_type != expected_transition.event_type
+            or event.resulting_status != expected_transition.resulting_status
+        ):
             raise InvalidPersistedReviewDataError
     for previous, current in pairwise(events):
         if current.prior_status != previous.resulting_status:

@@ -936,3 +936,18 @@ def test_get_case_rejects_an_assignee_that_disagrees_with_the_event_history(
 
     with pytest.raises(ReviewDataUnavailableError):
         repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_an_impossible_event_transition(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_events SET resulting_status = 'assigned' WHERE case_version = 1"
+        )
+        connection.execute("UPDATE review_cases SET status = 'assigned'")
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
