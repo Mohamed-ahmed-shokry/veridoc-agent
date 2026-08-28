@@ -173,9 +173,9 @@ never travels over plain HTTP. A real browser session therefore needs an
 HTTPS-serving reverse proxy in front of the local Uvicorn process; the
 automated test suite exercises the same routes directly over the in-process
 ASGI transport instead, which does not enforce that browser-level
-requirement. Open `http://127.0.0.1:8000/review/console` for the
-authenticated login, case list, evidence, and action console once the above
-is configured.
+requirement. Open `$env:VERIDOC_REVIEW_ORIGIN/review/console` through that
+HTTPS-serving proxy for the authenticated login, case list, evidence, and
+action console once the above is configured.
 
 The installed console entry point starts the same application without reload:
 

@@ -519,9 +519,9 @@ never returns a raw credential or session token in a response body.
 Authenticate by exchanging a credential for a session cookie:
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:8000/review/session `
+curl.exe -X POST "$env:VERIDOC_REVIEW_ORIGIN/review/session" `
   -H "Authorization: Bearer <actor-secret>" `
-  -H "Origin: https://review.example"
+  -H "Origin: $env:VERIDOC_REVIEW_ORIGIN"
 ```
 
 ```json
@@ -565,8 +565,8 @@ case's initial snapshot and `case_created` event. Requires the same upload
 limits, media types, and extraction/explanation configuration as `/process`.
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:8000/review/cases `
-  -H "Origin: https://review.example" `
+curl.exe -X POST "$env:VERIDOC_REVIEW_ORIGIN/review/cases" `
+  -H "Origin: $env:VERIDOC_REVIEW_ORIGIN" `
   -H "X-CSRF-Token: <csrf-cookie-value>" `
   -H "Idempotency-Key: 3f9c2e10-review-case-1" `
   -F "file=@fictional-invoice.png;type=image/png" `
@@ -662,8 +662,8 @@ response never confirms or denies the case's current state to an
 unauthorized actor.
 
 ```powershell
-curl.exe -X PUT http://127.0.0.1:8000/review/cases/<case_id>/assignment `
-  -H "Origin: https://review.example" `
+curl.exe -X PUT "$env:VERIDOC_REVIEW_ORIGIN/review/cases/<case_id>/assignment" `
+  -H "Origin: $env:VERIDOC_REVIEW_ORIGIN" `
   -H "X-CSRF-Token: <csrf-cookie-value>" `
   -H "Idempotency-Key: 3f9c2e10-assign-1" `
   -H "Content-Type: application/json" `

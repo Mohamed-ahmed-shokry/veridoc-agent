@@ -277,18 +277,19 @@ $env:VERIDOC_REVIEW_ORIGIN = "https://review.example"
 Authenticate with an actor's credential to receive a session cookie:
 
 ```powershell
-curl.exe -X POST http://127.0.0.1:8000/review/session `
+curl.exe -X POST "$env:VERIDOC_REVIEW_ORIGIN/review/session" `
   -H "Authorization: Bearer <actor-secret>" `
-  -H "Origin: https://review.example"
+  -H "Origin: $env:VERIDOC_REVIEW_ORIGIN"
 ```
 
 `POST /review/cases` runs the same processing pipeline as `/process` and
 stores the typed result as a new case's immutable snapshot. Every
 subsequent claim, assignment, escalation, or decision appends one
 `Idempotency-Key`- and `expected_version`-guarded event; nothing is ever
-edited in place. Open `http://127.0.0.1:8000/review/console` for the
-authenticated login, case list, evidence, and action console. See the
-[API guide](docs/api.md) for the complete route family, and
+edited in place. Open `$env:VERIDOC_REVIEW_ORIGIN/review/console` through the
+configured HTTPS-serving proxy for the authenticated login, case list,
+evidence, and action console. See the [API guide](docs/api.md) for the complete
+route family, and
 [architecture](docs/architecture.md) for the case status/transition model.
 
 ## Tests and quality checks
