@@ -124,6 +124,10 @@ semantic versions for tagged releases.
 
 ### Fixed
 
+- Review idempotency digests are bound to the target case, creation retries are
+  resolved before processing runs again, mutation events retain their key, and
+  every replay returns the originally recorded case version rather than later
+  case state.
 - `app.py` retained dead-code duplicate copies of the OCR/extraction
   dependency functions after they were extracted into
   `veridoc.processing.dependencies`; the duplicates silently shadowed the
@@ -170,6 +174,15 @@ semantic versions for tagged releases.
   before any repository or processing dependency, so a rejected request
   never causes an untrusted document to reach OCR, extraction, the
   reference database, or a review-store write.
+- Review login credentials and mutation CSRF/origin checks now fail before
+  review storage resolves; the console clears the credential field after every
+  login attempt.
+- Review configuration rejects non-origin URL variants and database hard-link
+  aliases, while schema and maintenance validation now verify exact columns,
+  query indexes, event transitions, current assignees, idempotency rows, and
+  session rows.
+- Request completion logs use static route templates or an `<unmatched>` marker,
+  so concrete case identifiers and raw unknown paths never enter the log.
 - A losing writer in a review idempotency-key or optimistic-version race has
   its partial writes rolled back before the request is resolved as a safe
   replay or a genuine conflict, so no orphaned duplicate case or event row
