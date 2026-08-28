@@ -88,6 +88,13 @@ class ReviewCaseReader(Protocol):
     def get_case(self, case_id: str) -> CaseDetail | None:
         """Return one case's full snapshot, current state, and ordered events."""
 
+    def get_idempotent_case(self, *, request: IdempotentRequest) -> CaseDetail | None:
+        """Return a matching prior case creation, or ``None`` for a new key.
+
+        Reusing the same scoped key with another digest raises
+        :class:`IdempotencyConflictError`.
+        """
+
 
 @runtime_checkable
 class ReviewCaseWriter(Protocol):

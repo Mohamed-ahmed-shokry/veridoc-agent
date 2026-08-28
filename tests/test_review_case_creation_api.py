@@ -50,9 +50,9 @@ def _directory() -> ReviewActorDirectory:
     )
 
 
-def _png_bytes() -> bytes:
+def _png_bytes(*, color: str = "white") -> bytes:
     output = BytesIO()
-    Image.new("RGB", (12, 8), color="white").save(output, format="PNG")
+    Image.new("RGB", (12, 8), color=color).save(output, format="PNG")
     return output.getvalue()
 
 
@@ -131,11 +131,18 @@ async def _post_case(
     headers: dict[str, str],
     *,
     idempotency_key: str = "case-key-1",
+    document_bytes: bytes | None = None,
 ) -> httpx.Response:
     return await client.post(
         "/review/cases",
         headers={**headers, IDEMPOTENCY_KEY_HEADER: idempotency_key},
-        files={"file": ("fictional-invoice.png", _png_bytes(), "image/png")},
+        files={
+            "file": (
+                "fictional-invoice.png",
+                document_bytes or _png_bytes(),
+                "image/png",
+            )
+        },
     )
 
 
@@ -205,7 +212,8 @@ async def test_create_case_requires_an_idempotency_key(tmp_path: Path) -> None:
 
 @pytest.mark.anyio
 async def test_create_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
-    async with _client(tmp_path) as (client, _repository):
+    service = _FakeProcessingService()
+    async with _client(tmp_path, service=service) as (client, _repository):
         headers = await _authenticated_headers(client)
         first = await _post_case(client, headers)
         second = await _post_case(client, headers)
@@ -213,6 +221,27 @@ async def test_create_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> N
     assert first.status_code == 201
     assert second.status_code == 201
     assert first.json()["case_id"] == second.json()["case_id"]
+    assert len(service.uploads) == 1
+
+
+@pytest.mark.anyio
+async def test_reused_creation_key_conflicts_before_processing_new_bytes(
+    tmp_path: Path,
+) -> None:
+    service = _FakeProcessingService()
+    async with _client(tmp_path, service=service) as (client, _repository):
+        headers = await _authenticated_headers(client)
+        first = await _post_case(client, headers)
+        second = await _post_case(
+            client,
+            headers,
+            document_bytes=_png_bytes(color="black"),
+        )
+
+    assert first.status_code == 201
+    assert second.status_code == 409
+    assert second.json()["detail"]["code"] == "review_idempotency_conflict"
+    assert len(service.uploads) == 1
 
 
 @pytest.mark.anyio

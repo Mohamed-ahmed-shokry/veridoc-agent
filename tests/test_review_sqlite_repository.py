@@ -122,6 +122,28 @@ def test_create_case_rejects_a_reused_key_with_a_different_digest(
         )
 
 
+def test_idempotent_case_lookup_distinguishes_miss_replay_and_conflict(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    request = _idempotent_request()
+
+    assert repository.get_idempotent_case(request=request) is None
+    created = repository.create_case(
+        snapshot=_snapshot(),
+        creator_actor_id="reviewer-1",
+        request_id="request-1",
+        idempotent_request=request,
+    )
+
+    replay = repository.get_idempotent_case(request=request)
+    assert replay == created
+    with pytest.raises(IdempotencyConflictError):
+        repository.get_idempotent_case(
+            request=_idempotent_request(request_digest="b" * 64)
+        )
+
+
 def test_create_case_allows_distinct_cases_for_distinct_keys(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
 

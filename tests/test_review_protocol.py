@@ -14,6 +14,7 @@ from veridoc.review.models import (
     CaseEscalationRequest,
     CasePage,
     CaseSummary,
+    IdempotentRequest,
     ReviewSession,
     ReviewSnapshot,
     build_review_snapshot,
@@ -68,6 +69,10 @@ class _FakeReader:
 
     def get_case(self, case_id: str) -> CaseDetail | None:
         del case_id
+        return None
+
+    def get_idempotent_case(self, *, request: IdempotentRequest) -> CaseDetail | None:
+        del request
         return None
 
 

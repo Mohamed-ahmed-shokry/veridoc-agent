@@ -286,6 +286,16 @@ async def create_review_case(
     original case; reuse with a different document conflicts.
     """
     idempotency_key = _require_idempotency_key(request)
+    idempotent_request = IdempotentRequest(
+        actor_id=actor.actor_id,
+        operation="create_case",
+        idempotency_key=idempotency_key,
+        request_digest=hashlib.sha256(upload.data).hexdigest(),
+    )
+    replay = repository.get_idempotent_case(request=idempotent_request)
+    if replay is not None:
+        return replay
+
     try:
         result = await service.process(upload)
     except OCRUnavailableError as exc:
@@ -304,12 +314,7 @@ async def create_review_case(
         snapshot=snapshot,
         creator_actor_id=actor.actor_id,
         request_id=request.state.request_id,
-        idempotent_request=IdempotentRequest(
-            actor_id=actor.actor_id,
-            operation="create_case",
-            idempotency_key=idempotency_key,
-            request_digest=hashlib.sha256(upload.data).hexdigest(),
-        ),
+        idempotent_request=idempotent_request,
     )
 
 

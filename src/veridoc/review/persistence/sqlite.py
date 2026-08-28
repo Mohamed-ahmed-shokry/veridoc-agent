@@ -170,6 +170,22 @@ class SQLiteReviewRepository:
             ).fetchone()
             return _case_detail_from_row(connection, row) if row is not None else None
 
+    def get_idempotent_case(self, *, request: IdempotentRequest) -> CaseDetail | None:
+        """Return a matching prior case before external processing is repeated."""
+        with self._read_connection() as connection:
+            existing = _find_idempotency_key(connection, request)
+            if existing is None:
+                return None
+            stored_digest, case_row_id = existing
+            if stored_digest != request.request_digest:
+                raise IdempotencyConflictError
+            row = connection.execute(
+                "SELECT * FROM review_cases WHERE id = ?", (case_row_id,)
+            ).fetchone()
+            if row is None:
+                raise InvalidPersistedReviewDataError
+            return _case_detail_from_row(connection, row)
+
     def list_cases(
         self,
         *,
