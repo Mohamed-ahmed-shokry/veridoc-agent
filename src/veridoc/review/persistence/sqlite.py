@@ -130,10 +130,16 @@ class SQLiteReviewRepository:
                 """
                 INSERT INTO review_events (
                     case_row_id, case_version, event_type, actor_id,
-                    occurred_at, request_id, resulting_status
-                ) VALUES (?, 1, 'case_created', ?, ?, ?, 'unassigned')
+                    occurred_at, request_id, idempotency_key, resulting_status
+                ) VALUES (?, 1, 'case_created', ?, ?, ?, ?, 'unassigned')
                 """,
-                (case_row_id, creator_actor_id, timestamp, request_id),
+                (
+                    case_row_id,
+                    creator_actor_id,
+                    timestamp,
+                    request_id,
+                    idempotent_request.idempotency_key,
+                ),
             )
             try:
                 connection.execute(
@@ -568,9 +574,9 @@ def _apply_transition(
         """
         INSERT INTO review_events (
             case_row_id, case_version, event_type, actor_id, occurred_at,
-            request_id, prior_status, resulting_status, reason, decision,
-            assigned_actor_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            request_id, idempotency_key, prior_status, resulting_status, reason,
+            decision, assigned_actor_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             row["id"],
@@ -579,6 +585,11 @@ def _apply_transition(
             actor_id,
             timestamp,
             request_id,
+            (
+                idempotent_request.idempotency_key
+                if idempotent_request is not None
+                else None
+            ),
             row["status"],
             transition.resulting_status,
             reason,

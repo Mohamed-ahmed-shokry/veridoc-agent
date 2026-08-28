@@ -76,6 +76,7 @@ def test_create_case_stores_the_snapshot_and_initial_event(tmp_path: Path) -> No
     assert len(case.events) == 1
     assert case.events[0].event_type == "case_created"
     assert case.events[0].request_id == "request-1"
+    assert case.events[0].idempotency_key == "key-1"
     assert case.snapshot.result.verdict.status == "clear"
 
 
@@ -504,6 +505,8 @@ def test_assign_case_is_idempotent_for_a_repeated_key(tmp_path: Path) -> None:
     )
 
     assert first == second
+    assert first is not None
+    assert first.events[-1].idempotency_key == "assign-key"
 
 
 def _assign_case(
