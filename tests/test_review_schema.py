@@ -42,6 +42,16 @@ def test_validate_current_schema_rejects_a_missing_table(tmp_path: Path) -> None
         validate_current_schema(connection)
 
 
+def test_validate_current_schema_rejects_an_extra_managed_column(
+    tmp_path: Path,
+) -> None:
+    connection = _migrated_connection(tmp_path)
+    connection.execute("ALTER TABLE review_sessions ADD COLUMN unexpected TEXT")
+
+    with pytest.raises(InvalidReviewSchemaError):
+        validate_current_schema(connection)
+
+
 def test_validate_current_schema_rejects_a_wrong_column_type(tmp_path: Path) -> None:
     connection = _migrated_connection(tmp_path)
     connection.execute("DROP TABLE review_sessions")
