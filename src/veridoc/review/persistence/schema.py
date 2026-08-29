@@ -268,6 +268,25 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
             if _index_columns(connection, index_name) != query_index_columns:
                 raise InvalidReviewSchemaError
 
+    for table_name in _REQUIRED_SCHEMA_COLUMNS:
+        required_names = _REQUIRED_NAMED_UNIQUE_INDEXES.get(table_name, {})
+        allowed_anonymous_columns = _REQUIRED_ANONYMOUS_UNIQUE_COLUMNS.get(table_name)
+        for row in connection.execute(
+            "SELECT * FROM pragma_index_list(?)", (table_name,)
+        ):
+            if not bool(row[2]):
+                continue
+            index_name = str(row[1])
+            if index_name in required_names:
+                continue
+            if (
+                str(row[3]) == "u"
+                and allowed_anonymous_columns is not None
+                and _index_columns(connection, index_name) == allowed_anonymous_columns
+            ):
+                continue
+            raise InvalidReviewSchemaError
+
 
 def _has_anonymous_unique_index(
     connection: sqlite3.Connection, table_name: str, columns: tuple[str, ...]

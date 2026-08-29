@@ -162,6 +162,18 @@ def test_validate_current_schema_rejects_a_missing_query_index(
         validate_current_schema(connection)
 
 
+def test_validate_current_schema_rejects_an_unexpected_unique_index(
+    tmp_path: Path,
+) -> None:
+    connection = _migrated_connection(tmp_path)
+    connection.execute(
+        "CREATE UNIQUE INDEX unexpected_status_unique ON review_cases(status)"
+    )
+
+    with pytest.raises(InvalidReviewSchemaError):
+        validate_current_schema(connection)
+
+
 def test_validate_current_schema_rejects_a_missing_anonymous_unique_index(
     tmp_path: Path,
 ) -> None:
