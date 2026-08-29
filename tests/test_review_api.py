@@ -126,11 +126,27 @@ async def test_require_review_actor_accepts_a_valid_active_session() -> None:
 @pytest.mark.anyio
 async def test_require_review_actor_rejects_a_missing_cookie() -> None:
     test_app = _test_app()
+    resolved: list[str] = []
+
+    def _unexpected_dependency(name: str) -> None:
+        resolved.append(name)
+        raise AssertionError(f"{name} must not resolve")
+
+    test_app.dependency_overrides[get_review_origin_settings] = lambda: (
+        _unexpected_dependency("origin")
+    )
+    test_app.dependency_overrides[get_review_repository] = lambda: (
+        _unexpected_dependency("repository")
+    )
+    test_app.dependency_overrides[get_review_actor_directory] = lambda: (
+        _unexpected_dependency("actor_directory")
+    )
 
     response = await _get(test_app, cookie=None)
 
     assert response.status_code == 401
     assert response.json()["detail"]["code"] == "invalid_review_session"
+    assert resolved == []
 
 
 @pytest.mark.anyio

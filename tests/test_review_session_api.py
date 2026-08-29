@@ -285,6 +285,38 @@ async def test_revoke_session_rejects_without_a_csrf_token(tmp_path: Path) -> No
 
 
 @pytest.mark.anyio
+async def test_revoke_session_rejects_a_missing_session_before_storage() -> None:
+    repository_resolved = False
+
+    def _unexpected_repository() -> None:
+        nonlocal repository_resolved
+        repository_resolved = True
+        raise AssertionError("review repository must not resolve")
+
+    app.dependency_overrides[get_review_origin_settings] = lambda: ReviewOriginSettings(
+        origin=_ORIGIN
+    )
+    app.dependency_overrides[get_review_repository] = _unexpected_repository
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+            cookies={CSRF_COOKIE_NAME: "csrf-token"},
+        ) as client:
+            response = await client.delete(
+                "/review/session",
+                headers={"Origin": _ORIGIN, CSRF_HEADER_NAME: "csrf-token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 401
+    assert response.json()["detail"]["code"] == "invalid_review_session"
+    assert repository_resolved is False
+
+
+@pytest.mark.anyio
 async def test_revoke_session_rejects_a_mismatched_csrf_token(tmp_path: Path) -> None:
     async with _client(tmp_path) as (client, _repository):
         login = await _login(client)

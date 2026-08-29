@@ -205,6 +205,7 @@ def create_review_session(
 )
 def revoke_review_session(
     request: Request,
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _csrf: Annotated[None, Depends(require_csrf_protection)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
 ) -> Response:
@@ -220,6 +221,7 @@ def revoke_review_session(
 
 def require_review_actor(
     request: Request,
+    _session_cookie: Annotated[None, Depends(require_review_session_cookie)],
     _origin: Annotated[ReviewOriginSettings, Depends(get_review_origin_settings)],
     repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
     directory: Annotated[ReviewActorDirectory, Depends(get_review_actor_directory)],
