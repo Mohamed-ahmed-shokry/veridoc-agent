@@ -145,6 +145,9 @@ _REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
         ),
     },
 }
+_ALLOWED_ANONYMOUS_UNIQUE_INDEXES = {
+    "purchase_orders": frozenset({("vendor_key", "purchase_order_number")}),
+}
 
 
 class InvalidReferenceSchemaError(RuntimeError):
@@ -271,6 +274,26 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
         for row in purchase_order_indexes
     ):
         raise InvalidReferenceSchemaError
+
+    for table_name in _REQUIRED_SCHEMA_COLUMNS:
+        required_names = _REQUIRED_NAMED_UNIQUE_INDEXES.get(table_name, {})
+        allowed_anonymous_columns = _ALLOWED_ANONYMOUS_UNIQUE_INDEXES.get(
+            table_name, frozenset()
+        )
+        for row in connection.execute(
+            "SELECT * FROM pragma_index_list(?)", (table_name,)
+        ):
+            if not bool(row[2]):
+                continue
+            index_name = str(row[1])
+            if index_name in required_names:
+                continue
+            if (
+                str(row[3]) == "u"
+                and _index_columns(connection, index_name) in allowed_anonymous_columns
+            ):
+                continue
+            raise InvalidReferenceSchemaError
 
 
 def _index_columns(connection: sqlite3.Connection, index_name: str) -> tuple[str, ...]:

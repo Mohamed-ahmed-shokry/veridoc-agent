@@ -403,6 +403,20 @@ def test_repository_rejects_a_missing_invoice_query_index(
         repository.initialize()
 
 
+def test_repository_rejects_an_unexpected_unique_index(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "CREATE UNIQUE INDEX unexpected_vendor_key_unique "
+            "ON vendor_invoices(vendor_key)"
+        )
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
 @pytest.mark.parametrize(
     "index_name",
     [
