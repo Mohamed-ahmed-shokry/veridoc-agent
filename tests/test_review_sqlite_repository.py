@@ -938,6 +938,48 @@ def test_get_case_rejects_an_assignee_that_disagrees_with_the_event_history(
         repository.get_case(case.case_id)
 
 
+@pytest.mark.parametrize(
+    "corruption_statement",
+    [
+        "UPDATE review_cases SET creator_actor_id = 'reviewer-2'",
+        "UPDATE review_cases SET created_at = '2000-01-01T00:00:00Z'",
+        "UPDATE review_cases SET updated_at = '2000-01-01T00:00:00Z'",
+    ],
+)
+def test_get_case_rejects_metadata_that_disagrees_with_the_event_history(
+    tmp_path: Path,
+    corruption_statement: str,
+) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(corruption_statement)
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
+
+
+def test_get_case_rejects_non_monotonic_event_timestamps(tmp_path: Path) -> None:
+    repository = _repository(tmp_path)
+    case = _create_case(repository)
+    _assign_case(repository, case.case_id)
+
+    with sqlite3.connect(tmp_path / "review.sqlite") as connection:
+        connection.execute(
+            "UPDATE review_events SET occurred_at = '2000-01-01T00:00:00Z' "
+            "WHERE case_version = 2"
+        )
+        connection.execute(
+            "UPDATE review_cases SET updated_at = '2000-01-01T00:00:00Z'"
+        )
+        connection.commit()
+
+    with pytest.raises(ReviewDataUnavailableError):
+        repository.get_case(case.case_id)
+
+
 def test_get_case_rejects_an_impossible_event_transition(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     case = _create_case(repository)

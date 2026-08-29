@@ -116,6 +116,26 @@ def test_backup_rejects_semantic_corruption_without_replacing_destination(
     assert backup_path.read_bytes() == b"existing backup contents"
 
 
+def test_backup_rejects_case_metadata_that_disagrees_with_its_events(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "review.sqlite"
+    backup_path = tmp_path / "review.backup.sqlite"
+    repository = _repository(database_path)
+    _create_case(repository, "key-1")
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("UPDATE review_cases SET creator_actor_id = 'reviewer-2'")
+        connection.commit()
+
+    backup_path.write_bytes(b"existing backup contents")
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert backup_path.read_bytes() == b"existing backup contents"
+
+
 @pytest.mark.parametrize(
     "corruption_statement",
     [

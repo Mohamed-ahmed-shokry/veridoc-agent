@@ -790,7 +790,15 @@ def _verify_event_sequence(row: sqlite3.Row, events: list[ReviewEvent]) -> None:
     """Require a gap-free, chained, current event history for one case row."""
     if not events:
         raise InvalidPersistedReviewDataError
-    if events[0].event_type != "case_created" or events[0].case_version != 1:
+    first_event = events[0]
+    last_event = events[-1]
+    if first_event.event_type != "case_created" or first_event.case_version != 1:
+        raise InvalidPersistedReviewDataError
+    if (
+        first_event.actor_id != row["creator_actor_id"]
+        or first_event.occurred_at != _stored_aware_datetime(row["created_at"])
+        or last_event.occurred_at != _stored_aware_datetime(row["updated_at"])
+    ):
         raise InvalidPersistedReviewDataError
     for expected_version, event in enumerate(events, start=1):
         if event.case_version != expected_version:
@@ -807,9 +815,11 @@ def _verify_event_sequence(row: sqlite3.Row, events: list[ReviewEvent]) -> None:
         ):
             raise InvalidPersistedReviewDataError
     for previous, current in pairwise(events):
-        if current.prior_status != previous.resulting_status:
+        if (
+            current.prior_status != previous.resulting_status
+            or current.occurred_at < previous.occurred_at
+        ):
             raise InvalidPersistedReviewDataError
-    last_event = events[-1]
     expected_assignee = next(
         (
             event.assigned_actor_id
