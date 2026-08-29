@@ -173,7 +173,7 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
         if (
             table_type is None
             or str(table_type[0]) != "table"
-            or not required_columns.issubset(actual_columns)
+            or actual_columns != required_columns
             or any(
                 actual_column_types[column_name]
                 != (

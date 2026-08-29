@@ -371,6 +371,17 @@ def test_repository_rejects_a_missing_provenance_uniqueness_constraint(
         repository.initialize()
 
 
+def test_repository_rejects_an_extra_managed_column(tmp_path) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("ALTER TABLE vendor_invoices ADD COLUMN unexpected TEXT")
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
 @pytest.mark.parametrize(
     "index_name",
     [
