@@ -54,8 +54,12 @@ _MULTIPART_OVERHEAD_BYTES = 64 * 1024
 MAX_DOCUMENT_REQUEST_BYTES = MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD_BYTES
 MAX_ADMIN_IMPORT_REQUEST_BYTES = MAX_ADMIN_IMPORT_BYTES + _MULTIPART_OVERHEAD_BYTES
 MAX_ADMIN_JSON_REQUEST_BYTES = MAX_ADMIN_IMPORT_BYTES
+MAX_REVIEW_MUTATION_REQUEST_BYTES = 32 * 1024
 _ADMIN_JSON_PATH_PATTERN = re.compile(
     r"^/admin/reference-data/(?:invoices|purchase-orders)(?:/[^/]+)?$"
+)
+_REVIEW_MUTATION_PATH_PATTERN = re.compile(
+    r"^/review/cases/[^/]+/(?:assignment|escalations|decisions)$"
 )
 
 
@@ -147,6 +151,14 @@ def _request_body_limit(path: str, method: str) -> tuple[int, str, str] | None:
             MAX_ADMIN_JSON_REQUEST_BYTES,
             "reference_data_request_too_large",
             "The reference-data request exceeds the size limit.",
+        )
+    if method.upper() in {"POST", "PUT"} and _REVIEW_MUTATION_PATH_PATTERN.fullmatch(
+        path
+    ):
+        return (
+            MAX_REVIEW_MUTATION_REQUEST_BYTES,
+            "review_request_too_large",
+            "The review request exceeds the size limit.",
         )
     return None
 

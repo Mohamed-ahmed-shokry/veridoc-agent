@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from veridoc.administration.api import require_admin
 from veridoc.app import RequestBodyLimitMiddleware, app, get_ocr_engine
+from veridoc.review.api import require_review_session_cookie
 
 
 @pytest.fixture
@@ -319,6 +320,93 @@ async def test_streamed_oversized_admin_json_is_rejected_before_authentication(
     assert response.status_code == 413
     assert response.json()["detail"]["code"] == "reference_data_request_too_large"
     assert response.headers["X-Request-ID"] == "streamed-admin-json-limit"
+    assert authentication_resolved is False
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("PUT", "/review/cases/case-1/assignment"),
+        ("PUT", "/review/cases/case-1/assignment/"),
+        ("POST", "/review/cases/case-1/escalations"),
+        ("POST", "/review/cases/case-1/decisions"),
+    ],
+)
+async def test_declared_oversized_review_json_is_rejected_before_authentication(
+    method: str,
+    path: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authentication_resolved = False
+
+    def unexpected_authentication() -> None:
+        nonlocal authentication_resolved
+        authentication_resolved = True
+
+    monkeypatch.setattr("veridoc.app.MAX_REVIEW_MUTATION_REQUEST_BYTES", 10)
+    app.dependency_overrides[require_review_session_cookie] = unexpected_authentication
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.request(
+                method,
+                path,
+                content=b"",
+                headers={
+                    "Content-Length": "11",
+                    "Content-Type": "application/json",
+                    "X-Request-ID": "review-json-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "review_request_too_large"
+    assert response.headers["X-Request-ID"] == "review-json-limit"
+    assert authentication_resolved is False
+
+
+@pytest.mark.anyio
+async def test_streamed_oversized_review_json_is_rejected_before_authentication(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authentication_resolved = False
+
+    def unexpected_authentication() -> None:
+        nonlocal authentication_resolved
+        authentication_resolved = True
+
+    async def chunks() -> AsyncIterator[bytes]:
+        yield b"a" * 6
+        yield b"b" * 5
+
+    monkeypatch.setattr("veridoc.app.MAX_REVIEW_MUTATION_REQUEST_BYTES", 10)
+    app.dependency_overrides[require_review_session_cookie] = unexpected_authentication
+    transport = httpx.ASGITransport(app=app)
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.post(
+                "/review/cases/case-1/decisions",
+                content=chunks(),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Request-ID": "streamed-review-json-limit",
+                },
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "review_request_too_large"
+    assert response.headers["X-Request-ID"] == "streamed-review-json-limit"
     assert authentication_resolved is False
 
 
