@@ -385,6 +385,27 @@ def test_repository_rejects_an_extra_managed_column(tmp_path) -> None:
 @pytest.mark.parametrize(
     "index_name",
     [
+        "vendor_invoices_vendor_key_index",
+        "vendor_invoices_vendor_invoice_number_index",
+    ],
+)
+def test_repository_rejects_a_missing_invoice_query_index(
+    index_name: str,
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = SQLiteInvoiceRepository(database_path)
+    repository.initialize()
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(f"DROP INDEX {index_name}")
+
+    with pytest.raises(ReferenceDataUnavailableError):
+        repository.initialize()
+
+
+@pytest.mark.parametrize(
+    "index_name",
+    [
         "invoice_line_items_invoice_position_index",
         "purchase_order_line_items_purchase_order_position_index",
     ],

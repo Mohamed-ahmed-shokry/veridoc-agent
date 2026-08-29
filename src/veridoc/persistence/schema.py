@@ -136,6 +136,15 @@ _REQUIRED_NAMED_UNIQUE_INDEXES: dict[
         ),
     },
 }
+_REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
+    "vendor_invoices": {
+        "vendor_invoices_vendor_key_index": ("vendor_key",),
+        "vendor_invoices_vendor_invoice_number_index": (
+            "vendor_key",
+            "invoice_number",
+        ),
+    },
+}
 
 
 class InvalidReferenceSchemaError(RuntimeError):
@@ -235,6 +244,20 @@ def validate_current_schema(connection: sqlite3.Connection) -> None:
             if predicate is not None and (
                 not separator or actual_predicate != predicate.removeprefix("WHERE ")
             ):
+                raise InvalidReferenceSchemaError
+
+    for table_name, required_query_indexes in _REQUIRED_NAMED_INDEXES.items():
+        indexes = {
+            str(row[1]): (bool(row[2]), bool(row[4]))
+            for row in connection.execute(
+                "SELECT * FROM pragma_index_list(?)",
+                (table_name,),
+            )
+        }
+        for query_index_name, query_index_columns in required_query_indexes.items():
+            if indexes.get(query_index_name) != (False, False):
+                raise InvalidReferenceSchemaError
+            if _index_columns(connection, query_index_name) != query_index_columns:
                 raise InvalidReferenceSchemaError
 
     purchase_order_indexes = list(
