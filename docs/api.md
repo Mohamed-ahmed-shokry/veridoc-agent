@@ -641,7 +641,10 @@ review_case_not_found` for an unknown ID.
 Every mutation takes an `expected_version` in its JSON body, matched against
 the case's current version with `UPDATE ... WHERE version = ?`; a mismatch
 returns `409 review_case_version_conflict` before anything is written. Each
-successful mutation appends exactly one event and increments the version.
+successful mutation appends exactly one event and increments the version. The
+assignment, escalation, and decision JSON bodies are each limited to 32 KiB
+before parsing or authentication; a larger declared or streamed body returns
+`413 review_request_too_large`.
 
 | Method and path | Body | Result |
 | --- | --- | --- |
@@ -698,6 +701,7 @@ browser regardless of what the source document contains.
 | `404` | `review_case_not_found` | The requested `case_id` does not exist. |
 | `409` | `review_case_version_conflict` | `expected_version` no longer matches the case's current version. |
 | `409` | `review_idempotency_conflict` | The `Idempotency-Key` was already used with a different request body. |
+| `413` | `review_request_too_large` | An assignment, escalation, or decision JSON body exceeds 32 KiB. |
 | `422` | `review_reassignment_reason_required` | A reassignment omitted its required `reason`. |
 | `503` | `review_data_unavailable` | The review store cannot be opened, migrated, or decoded safely. |
 | `503` | `review_authentication_unavailable` | The actor file or `VERIDOC_REVIEW_ORIGIN` is missing or invalid. |

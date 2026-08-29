@@ -288,6 +288,11 @@ unavailable — every route returns `503 review_authentication_unavailable` —
 unless `VERIDOC_REVIEW_ORIGIN` is configured as an HTTPS origin, so the
 `Secure` session cookie is never expected to travel over plain HTTP.
 
+Protected reads and logout reject a missing session cookie before resolving
+the actor directory, review origin, or review store. Assignment, escalation,
+and decision JSON bodies are bounded to 32 KiB by the pre-parser middleware;
+declared and streamed overflow is rejected before authentication or storage.
+
 ### Review data and idempotency
 
 `Idempotency-Key` is required on every mutating review request. A replayed
