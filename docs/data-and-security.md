@@ -297,10 +297,10 @@ declared and streamed overflow is rejected before authentication or storage.
 ### Review data and idempotency
 
 `Idempotency-Key` is required on case creation and case transitions, not on
-session login or logout. A replayed key with the exact same request body returns
-the original result; a reused key with a different body returns
-`409 review_idempotency_conflict` rather
-than silently applying the new request or silently keeping the old one. A
+session login or logout. Keys are scoped to actor and operation; transition
+digests also bind the case ID and canonical request body. A replay returns the
+original result version, even after later events advance the case. Reusing a key
+for a different case or body returns `409 review_idempotency_conflict`. A
 concurrent writer that loses an optimistic-version race
 (`expected_version` mismatch) never partially applies its write: the
 repository detects the loss via `UPDATE ... WHERE version = ?` returning zero

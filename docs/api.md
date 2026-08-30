@@ -605,6 +605,7 @@ Status: `201 Created`
       "actor_id": "reviewer-1",
       "occurred_at": "2026-08-23T06:34:33.085231Z",
       "request_id": "f129b628d56147aba22a767149bec5b5",
+      "idempotency_key": "3f9c2e10-review-case-1",
       "prior_status": null,
       "resulting_status": "unassigned",
       "reason": null,
@@ -619,8 +620,9 @@ Status: `201 Created`
 `snapshot.content_digest` is the SHA-256 hex digest of the canonical
 `snapshot.result`; it is revalidated on every read. A retry with the same
 `Idempotency-Key` and the exact same document returns the identical stored
-case (`201`, not a duplicate); reusing the key with a different document
-returns `409 review_idempotency_conflict`.
+creation result at version 1 (`201`, not a duplicate), even if the case has since
+advanced; reusing the key with a different document returns
+`409 review_idempotency_conflict`.
 
 ### Listing and reading cases
 
@@ -679,8 +681,10 @@ curl.exe -X PUT "$env:VERIDOC_REVIEW_ORIGIN/review/cases/<case_id>/assignment" `
 
 Each `assignment`/`escalations`/`decisions` request is idempotent the same
 way case creation is: replaying the same `Idempotency-Key` for the same actor
-and operation with an identical body returns the original stored result;
-reusing it with a different body returns `409 review_idempotency_conflict`.
+and operation with the same case ID and canonical body returns the original
+stored result at that operation's recorded version, not the latest case state.
+Reusing it for another case or a different body returns
+`409 review_idempotency_conflict`.
 
 ### `GET /review/console`
 
