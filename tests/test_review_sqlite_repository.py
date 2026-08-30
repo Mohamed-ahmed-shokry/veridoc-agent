@@ -857,7 +857,18 @@ def test_validate_persisted_review_data_accepts_a_healthy_history(
 ) -> None:
     repository = _repository(tmp_path)
     case = _create_case(repository)
-    _assign_case(repository, case.case_id)
+    repository.assign_case(
+        case.case_id,
+        request=CaseAssignmentRequest(expected_version=1),
+        actor_id="reviewer-2",
+        actor_role="reviewer",
+        request_id="request-assign",
+        idempotent_request=_idempotent_request(
+            idempotency_key="assign-key",
+            operation="assign_case",
+            actor_id="reviewer-2",
+        ),
+    )
 
     with sqlite3.connect(tmp_path / "review.sqlite") as connection:
         validate_persisted_review_data(connection)

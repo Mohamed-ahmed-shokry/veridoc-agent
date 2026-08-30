@@ -141,6 +141,10 @@ def test_backup_rejects_case_metadata_that_disagrees_with_its_events(
     [
         "UPDATE review_idempotency_keys SET request_digest = 'invalid'",
         "UPDATE review_idempotency_keys SET result_case_version = 99",
+        "UPDATE review_idempotency_keys SET actor_id = 'reviewer-2'",
+        "UPDATE review_idempotency_keys SET operation = 'assign_case'",
+        "UPDATE review_idempotency_keys SET idempotency_key = 'different-key'",
+        "UPDATE review_idempotency_keys SET created_at = '2000-01-01T00:00:00Z'",
     ],
 )
 def test_backup_rejects_invalid_idempotency_records(
@@ -161,6 +165,27 @@ def test_backup_rejects_invalid_idempotency_records(
         backup_database(database_path, backup_path)
 
     assert backup_path.read_bytes() == b"existing backup contents"
+
+
+def test_backup_rejects_an_idempotency_record_linked_to_another_case(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "review.sqlite"
+    backup_path = tmp_path / "review.backup.sqlite"
+    repository = _repository(database_path)
+    _create_case(repository, "key-1")
+    _create_case(repository, "key-2")
+
+    with sqlite3.connect(database_path) as connection:
+        connection.execute(
+            "UPDATE review_idempotency_keys SET case_row_id = 2 WHERE id = 1"
+        )
+        connection.commit()
+
+    with pytest.raises(ReviewDataMaintenanceError):
+        backup_database(database_path, backup_path)
+
+    assert not backup_path.exists()
 
 
 def test_backup_rejects_an_invalid_session_record(tmp_path: Path) -> None:

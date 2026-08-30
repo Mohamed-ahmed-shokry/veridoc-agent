@@ -92,10 +92,19 @@ def _validate_idempotency_rows(
     connection: sqlite3.Connection, *, case_versions: dict[int, int]
 ) -> None:
     for row in connection.execute(
-        "SELECT * FROM review_idempotency_keys ORDER BY id"
+        """
+        SELECT k.*, e.actor_id AS event_actor_id, e.event_type AS event_type,
+               e.idempotency_key AS event_idempotency_key,
+               e.occurred_at AS event_occurred_at
+        FROM review_idempotency_keys AS k
+        LEFT JOIN review_events AS e
+          ON e.case_row_id = k.case_row_id
+         AND e.case_version = k.result_case_version
+        ORDER BY k.id
+        """
     ).fetchall():
         try:
-            IdempotentRequest(
+            identity = IdempotentRequest(
                 actor_id=row["actor_id"],
                 operation=row["operation"],
                 idempotency_key=row["idempotency_key"],
@@ -103,7 +112,8 @@ def _validate_idempotency_rows(
             )
             case_row_id = _stored_integer(row["case_row_id"])
             result_case_version = _stored_integer(row["result_case_version"])
-            _stored_aware_datetime(row["created_at"])
+            created_at = _stored_aware_datetime(row["created_at"])
+            event_occurred_at = _stored_aware_datetime(row["event_occurred_at"])
         except (TypeError, ValueError) as exc:
             raise InvalidPersistedReviewDataError from exc
 
@@ -112,6 +122,10 @@ def _validate_idempotency_rows(
             current_version is None
             or result_case_version < 1
             or result_case_version > current_version
+            or identity.actor_id != row["event_actor_id"]
+            or identity.operation != _EVENT_OPERATIONS.get(row["event_type"])
+            or identity.idempotency_key != row["event_idempotency_key"]
+            or created_at != event_occurred_at
         ):
             raise InvalidPersistedReviewDataError
 
