@@ -69,7 +69,7 @@ async def test_request_context_logs_route_templates_without_case_identifiers(
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/review/cases/private-case-123")
 
-    assert response.status_code == 503
+    assert response.status_code == 401
     assert "path=/review/cases/{case_id}" in caplog.text
     assert "private-case-123" not in caplog.text
 
