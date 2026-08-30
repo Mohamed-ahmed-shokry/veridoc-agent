@@ -203,6 +203,12 @@ tables. This prevents ambiguous child ordering and supplies the index used by
 ordered parent hydration; schema validation rejects a current ledger if either
 index is missing or has a different shape.
 
+Reference-store initialization and maintenance require the exact managed column
+sets and both invoice lookup indexes. Both store validators reject unexpected
+unique indexes on managed tables, since an extra uniqueness constraint can make
+otherwise valid writes fail; additional non-unique indexes do not change that
+write contract.
+
 Purchase-order natural-key conflicts are scoped to vendor key plus purchase
 order number. Parameterized repository queries protect SQL boundaries; this
 does not make unreviewed input trustworthy. Public errors identify the safe
@@ -317,6 +323,15 @@ route to set it and performs no automated retention or purge; there is also
 no case-deletion route (ADR 0010). Treat the review database with the same
 confidentiality as the reference database — never seed it with real invoice
 or purchase-order data.
+
+Case-detail hydration verifies the creator and creation/update timestamps
+against the first and last events, requires nondecreasing event times, and
+checks every transition, version, status, and assignee. Maintenance additionally
+binds each idempotency record to the actor, operation, key, case/version, and
+timestamp of its result event. Inconsistent or incomplete histories are rejected,
+not silently repaired or rewritten. These are internal-consistency checks, not
+cryptographic proof against an attacker who can rewrite the database and its
+history consistently.
 
 ### Review backup and recovery
 
