@@ -476,8 +476,9 @@ it makes.
 
 The FastAPI middleware assigns a safe request ID before route handling, returns
 it as `X-Request-ID`, and emits one `veridoc.request` completion record. The
-record includes the ID, method, path without query text, status code, and
-duration only. The header may carry a bounded safe client correlation value, but
+record includes the ID, method, static route template (or `<unmatched>`), status
+code, and duration only; it never includes path parameters or query text. The
+header may carry a bounded safe client correlation value, but
 does not identify a document, reviewer, or approval decision. `GET /health` is
 a liveness signal for the HTTP application, not a readiness probe for OCR,
 provider, or SQLite dependencies.
