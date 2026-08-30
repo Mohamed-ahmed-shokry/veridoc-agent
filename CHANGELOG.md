@@ -175,12 +175,21 @@ semantic versions for tagged releases.
   never causes an untrusted document to reach OCR, extraction, the
   reference database, or a review-store write.
 - Review login credentials and mutation CSRF/origin checks now fail before
-  review storage resolves; the console clears the credential field after every
-  login attempt.
+  review storage resolves; missing session cookies also short-circuit protected
+  reads and logout. The console clears the credential field after every login
+  attempt.
+- Review assignment, escalation, and decision JSON bodies are bounded to 32 KiB
+  before parsing or authentication, including streamed requests.
 - Review configuration rejects non-origin URL variants and database hard-link
   aliases, while schema and maintenance validation now verify exact columns,
   query indexes, event transitions, current assignees, idempotency rows, and
   session rows.
+- Reference schema validation requires exact managed columns and both invoice
+  lookup indexes; both stores reject unexpected unique indexes that could
+  change valid-write behavior.
+- Review case creator/timestamps must agree with their event chain, event times
+  cannot move backward, and maintenance binds every idempotency row to its
+  exact result event before publishing a backup or restored database.
 - Request completion logs use static route templates or an `<unmatched>` marker,
   so concrete case identifiers and raw unknown paths never enter the log.
 - A losing writer in a review idempotency-key or optimistic-version race has
