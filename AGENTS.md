@@ -56,7 +56,8 @@ runtime implementation remains deliberately small:
   rejects unsupported future schema versions.
 - `src/veridoc/persistence/schema.py` validates the current tables, columns,
   declared types, keys, constraints, foreign keys, required provenance indexes,
-  required child-position indexes, and absence of triggers on managed tables.
+  invoice lookup indexes, child-position indexes, and absence of unexpected
+  unique indexes or triggers on managed tables.
 - `src/veridoc/persistence/sqlite.py` implements processing and administration
   repository boundaries with local SQLite and applies the same canonical,
   bounded record contract to every write and hydrated-row read path.
@@ -525,11 +526,17 @@ following documentation commit.
 - Require session, CSRF (`X-CSRF-Token` matching a non-`HttpOnly` cookie),
   and exact-origin checks before resolving any review repository or
   processing dependency, including the untrusted document upload path.
+  Reject missing session cookies before origin, actor-directory, or store
+  resolution on protected reads and logout. Bound assignment, escalation,
+  and decision JSON bodies to 32 KiB before parsing or authentication.
 - Treat the review database as sensitive review data, fully independent of
   the reference database and its migration ledger. Every review case's
   snapshot is immutable and digest-verified; every mutation appends one
   event under an `expected_version` guard and an `Idempotency-Key` — never
-  edit a case or event in place.
+  edit a case or event in place. Case-detail reads must verify creator,
+  timestamps, state, version, and assignee against the event chain;
+  maintenance must bind idempotency metadata to the exact result event and
+  reject inconsistent histories without silently repairing them.
 - Render every value a review route returns with DOM text nodes only
   (`textContent`/`createTextNode`); never use `innerHTML` in the review
   console, since extracted document content is untrusted.
