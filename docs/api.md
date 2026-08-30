@@ -543,19 +543,22 @@ works over HTTPS):
 current session, or `401 invalid_review_session` if it is missing, unknown,
 expired, or revoked — use it to detect an already-active or expired session on
 page load. `DELETE /review/session` revokes the session and clears both
-cookies; repeating it is a safe no-op.
+cookies; repeating it with the same cookies is a safe no-op. A missing session
+cookie returns `401 invalid_review_session` before origin, actor-directory, or
+review-store resolution on protected reads and logout.
 
-Every state-changing request (`POST`, `PUT`, and `DELETE`) is rejected before
-any repository or processing work with `403 review_csrf_rejected` unless:
+With a session cookie present, every state-changing review request (`POST`,
+`PUT`, and `DELETE`) is rejected before any repository or processing work with
+`403 review_csrf_rejected` unless:
 
 - the `Origin` header exactly matches `VERIDOC_REVIEW_ORIGIN`, and
 - an `X-CSRF-Token` header exactly matches the `veridoc_review_csrf` cookie.
 
 `POST /review/session` itself only requires the matching `Origin` header (no
-prior CSRF cookie can exist yet). Every mutating route also requires an
-`Idempotency-Key` header (1-128 safe identifier characters); a request without
-one is rejected with `400 missing_idempotency_key` before any repository or
-processing work begins.
+prior CSRF cookie can exist yet). Case creation and every case transition also
+require an `Idempotency-Key` header (1-128 safe identifier characters); a request
+without one is rejected with `400 missing_idempotency_key` before processing the
+document or applying a case mutation. Login and logout do not use this header.
 
 ### `POST /review/cases`
 
