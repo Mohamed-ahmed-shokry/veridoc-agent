@@ -30,3 +30,4 @@ Accepted decisions:
 - [0011: Use a local container for the Phase 10 deployment profile](0011-use-local-container-for-phase-10-deployment.md)
 - [0012: Adopt a threat model and data classification for Phase 10](0012-threat-model-and-data-classification.md)
 - [0013: Keep local actor identity with proxy-terminated TLS for Phase 10](0013-local-identity-with-proxy-tls.md)
+- [0014: Inject deployment secrets at runtime with operator rotation](0014-runtime-secret-injection-and-rotation.md)
