@@ -32,3 +32,4 @@ Accepted decisions:
 - [0013: Keep local actor identity with proxy-terminated TLS for Phase 10](0013-local-identity-with-proxy-tls.md)
 - [0014: Inject deployment secrets at runtime with operator rotation](0014-runtime-secret-injection-and-rotation.md)
 - [0015: Keep SQLite on encrypted single-writer storage with drilled recovery](0015-encrypted-single-writer-storage.md)
+- [0016: Scan uploads before decoding with operator-held quarantine](0016-scan-uploads-before-decoding.md)
