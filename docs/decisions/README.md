@@ -27,3 +27,4 @@ Accepted decisions:
 - [0008: Use a local actor file and HttpOnly sessions for Phase 9 review](0008-use-local-actor-file-and-http-only-sessions-for-review.md)
 - [0009: Use immutable versioned review records in a dedicated store](0009-use-immutable-versioned-review-records.md)
 - [0010: Defer automated review retention and purge](0010-defer-automated-review-retention-and-purge.md)
+- [0011: Use a local container for the Phase 10 deployment profile](0011-use-local-container-for-phase-10-deployment.md)
