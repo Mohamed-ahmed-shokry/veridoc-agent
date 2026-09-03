@@ -28,3 +28,4 @@ Accepted decisions:
 - [0009: Use immutable versioned review records in a dedicated store](0009-use-immutable-versioned-review-records.md)
 - [0010: Defer automated review retention and purge](0010-defer-automated-review-retention-and-purge.md)
 - [0011: Use a local container for the Phase 10 deployment profile](0011-use-local-container-for-phase-10-deployment.md)
+- [0012: Adopt a threat model and data classification for Phase 10](0012-threat-model-and-data-classification.md)
