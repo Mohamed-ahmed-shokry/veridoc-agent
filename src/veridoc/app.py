@@ -17,6 +17,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from veridoc import __version__
 from veridoc.administration.api import router as administration_router
 from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
+from veridoc.deployment.readiness import readiness_from_environment
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.protocol import (
     ExtractionProcessingError,
@@ -67,6 +68,13 @@ class HealthResponse(BaseModel):
     """Typed response returned by the service health check."""
 
     status: Literal["ok"]
+
+
+class ReadyResponse(BaseModel):
+    """Typed readiness signal for the configured deployment dependencies."""
+
+    status: Literal["ready", "not_ready"]
+    checks: dict[str, bool]
 
 
 class RequestBodyLimitMiddleware:
@@ -403,6 +411,19 @@ async def handle_unexpected_error(request: Request, exc: Exception) -> JSONRespo
 def health_check() -> HealthResponse:
     """Return the service health status without touching external dependencies."""
     return HealthResponse(status="ok")
+
+
+@app.get("/ready", response_model=ReadyResponse, tags=["system"])
+def readiness_check() -> ReadyResponse | JSONResponse:
+    """Return readiness for every configured dependency, or a safe 503."""
+    result = readiness_from_environment()
+    checks = result.as_dict()
+    if result.ready:
+        return ReadyResponse(status="ready", checks=checks)
+    return JSONResponse(
+        status_code=503,
+        content={"status": "not_ready", "checks": checks},
+    )
 
 
 @app.get("/review", response_class=HTMLResponse, include_in_schema=False)
