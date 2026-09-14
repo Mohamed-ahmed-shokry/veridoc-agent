@@ -18,6 +18,7 @@ from veridoc import __version__
 from veridoc.administration.api import router as administration_router
 from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
 from veridoc.deployment.readiness import readiness_from_environment
+from veridoc.deployment.scope import route_relative_path
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.extraction.protocol import (
     ExtractionProcessingError,
@@ -94,7 +95,7 @@ class RequestBodyLimitMiddleware:
             return
 
         limit = _request_body_limit(
-            _route_relative_path(scope), str(scope.get("method", ""))
+            route_relative_path(scope), str(scope.get("method", ""))
         )
         if limit is None:
             await self._app(scope, receive, send)
@@ -169,14 +170,6 @@ def _request_body_limit(path: str, method: str) -> tuple[int, str, str] | None:
             "The review request exceeds the size limit.",
         )
     return None
-
-
-def _route_relative_path(scope: Scope) -> str:
-    path = str(scope.get("path", ""))
-    root_path = str(scope.get("root_path", "")).rstrip("/")
-    if root_path and path.startswith(f"{root_path}/"):
-        path = path[len(root_path) :]
-    return path.rstrip("/") or "/"
 
 
 def _content_length(scope: Scope) -> int | None:
