@@ -1,6 +1,7 @@
 """FastAPI application setup for Veridoc."""
 
 import logging
+import os
 import re
 import time
 from asyncio import to_thread
@@ -53,6 +54,8 @@ from veridoc.review.protocol import (
     ReviewDataUnavailableError,
     StaleVersionConflictError,
 )
+from veridoc.telemetry.log import emit_request_record
+from veridoc.telemetry.registry import REGISTRY
 
 _REQUEST_LOGGER = logging.getLogger("veridoc.request")
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -80,6 +83,17 @@ class ReadyResponse(BaseModel):
 
     status: Literal["ready", "not_ready"]
     checks: dict[str, bool]
+
+
+class MetricsResponse(BaseModel):
+    """Typed operational-only deployment metrics."""
+
+    requests_total: int
+    requests_by_route: dict[str, dict[str, int]]
+    scans: dict[str, int]
+    rate_limited_total: int
+    uptime_seconds: float
+    temporary_storage: dict[str, int]
 
 
 class RequestBodyLimitMiddleware:
@@ -229,13 +243,23 @@ async def add_request_context(
         response.headers["X-Request-ID"] = request_id
         return response
     finally:
+        route = _request_log_path(request)
+        duration_ms = (time.perf_counter() - started_at) * 1000
+        REGISTRY.record_request(route, status_code)
+        emit_request_record(
+            request_id=request_id,
+            method=request.method,
+            route=route,
+            status_code=status_code,
+            duration_ms=duration_ms,
+        )
         _REQUEST_LOGGER.info(
             "request_complete request_id=%s method=%s path=%s status_code=%s duration_ms=%.1f",
             request_id,
             request.method,
-            _request_log_path(request),
+            route,
             status_code,
-            (time.perf_counter() - started_at) * 1000,
+            duration_ms,
         )
 
 
@@ -423,6 +447,14 @@ def readiness_check() -> ReadyResponse | JSONResponse:
         status_code=503,
         content={"status": "not_ready", "checks": checks},
     )
+
+
+@app.get("/metrics", response_model=MetricsResponse, tags=["system"])
+def deployment_metrics() -> MetricsResponse:
+    """Return operational-only counters when metrics export is enabled."""
+    if os.environ.get("VERIDOC_METRICS_ENABLED", "").strip() != "1":
+        raise HTTPException(status_code=404)
+    return MetricsResponse.model_validate(REGISTRY.snapshot())
 
 
 @app.get("/review", response_class=HTMLResponse, include_in_schema=False)

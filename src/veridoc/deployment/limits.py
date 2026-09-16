@@ -21,6 +21,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from veridoc.deployment.scope import client_host, route_relative_path
+from veridoc.telemetry.registry import REGISTRY
 
 _LIMIT_EXEMPT_PATHS = frozenset({"/health", "/ready"})
 _MAX_TRACKED_CLIENTS = 1024
@@ -187,6 +188,7 @@ class RateLimitMiddleware:
             )
             self._buckets[host] = bucket
         if not bucket.take():
+            REGISTRY.record_rate_limited()
             response = JSONResponse(
                 status_code=429,
                 content={
