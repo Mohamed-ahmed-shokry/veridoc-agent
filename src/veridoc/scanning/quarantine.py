@@ -15,7 +15,7 @@ import os
 import re
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 
@@ -278,7 +278,7 @@ def _validated_entry_id(entry_id: str) -> str:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _retention_until(scanned_at: str, retention_days: int) -> str:
