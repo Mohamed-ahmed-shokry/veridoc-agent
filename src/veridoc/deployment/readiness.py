@@ -55,6 +55,7 @@ def readiness_from_environment(
         _review_store_check(values),
         _review_identity_check(values),
         _extraction_provider_check(values),
+        _ocr_engine_check(values),
     )
     return ReadinessResult(
         ready=all(check.ok for check in checks),
@@ -99,6 +100,40 @@ def _extraction_provider_check(values: Mapping[str, str]) -> ReadinessCheck:
         and values.get("VERIDOC_LLM_MODEL", "").strip()
     )
     return ReadinessCheck("extraction_provider", complete)
+
+
+def _ocr_engine_check(values: Mapping[str, str]) -> ReadinessCheck:
+    configured = bool(
+        values.get("TESSDATA_PREFIX")
+        or values.get("TESSERACT_CMD")
+        or values.get("TESSERACT_LANG")
+    )
+    if not configured:
+        return ReadinessCheck("ocr_engine", True)
+
+    tessdata = values.get("TESSDATA_PREFIX", "").strip()
+    if tessdata:
+        tessdata_path = Path(tessdata)
+        if not (tessdata_path.exists() and tessdata_path.is_dir()):
+            return ReadinessCheck("ocr_engine", False)
+        languages = [
+            lang.strip()
+            for lang in values.get("TESSERACT_LANG", "eng").replace("+", " ").split()
+            if lang.strip()
+        ]
+        for lang in languages:
+            if not (tessdata_path / f"{lang}.traineddata").is_file():
+                return ReadinessCheck("ocr_engine", False)
+
+    tesseract_cmd = values.get("TESSERACT_CMD", "").strip()
+    if (
+        tesseract_cmd
+        and ("/" in tesseract_cmd or "\\" in tesseract_cmd)
+        and not Path(tesseract_cmd).is_file()
+    ):
+        return ReadinessCheck("ocr_engine", False)
+
+    return ReadinessCheck("ocr_engine", True)
 
 
 def _store_ready(path: str) -> bool:

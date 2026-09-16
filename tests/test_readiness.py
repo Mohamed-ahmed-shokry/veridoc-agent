@@ -26,6 +26,7 @@ def test_readiness_is_at_least_live_with_default_environment() -> None:
         "review_store": True,
         "review_identity": True,
         "extraction_provider": True,
+        "ocr_engine": True,
     }
 
 
@@ -122,8 +123,58 @@ async def test_ready_endpoint_returns_safe_503_when_dependency_is_missing(
             "review_store": True,
             "review_identity": True,
             "extraction_provider": False,
+            "ocr_engine": True,
         },
     }
+
+
+def test_readiness_reports_missing_tessdata_directory(tmp_path) -> None:
+    """A configured TESSDATA_PREFIX that does not exist marks ocr_engine failed."""
+    result = readiness_from_environment(
+        {"TESSDATA_PREFIX": str(tmp_path / "nonexistent")}
+    )
+    assert result.ready is False
+    assert result.as_dict()["ocr_engine"] is False
+
+
+def test_readiness_reports_missing_traineddata_language(tmp_path) -> None:
+    """A missing configured traineddata language marks ocr_engine failed."""
+    tessdata = tmp_path / "tessdata"
+    tessdata.mkdir()
+    (tessdata / "eng.traineddata").write_bytes(b"data")
+    result = readiness_from_environment(
+        {
+            "TESSDATA_PREFIX": str(tessdata),
+            "TESSERACT_LANG": "eng+ara",
+        }
+    )
+    assert result.ready is False
+    assert result.as_dict()["ocr_engine"] is False
+
+
+def test_readiness_reports_valid_tessdata_assets(tmp_path) -> None:
+    """Every configured traineddata language present marks ocr_engine passing."""
+    tessdata = tmp_path / "tessdata"
+    tessdata.mkdir()
+    (tessdata / "eng.traineddata").write_bytes(b"eng")
+    (tessdata / "ara.traineddata").write_bytes(b"ara")
+    result = readiness_from_environment(
+        {
+            "TESSDATA_PREFIX": str(tessdata),
+            "TESSERACT_LANG": "eng+ara",
+        }
+    )
+    assert result.ready is True
+    assert result.as_dict()["ocr_engine"] is True
+
+
+def test_readiness_reports_missing_tesseract_cmd_path(tmp_path) -> None:
+    """A configured TESSERACT_CMD path that does not exist marks ocr_engine failed."""
+    result = readiness_from_environment(
+        {"TESSERACT_CMD": str(tmp_path / "missing_tesseract")}
+    )
+    assert result.ready is False
+    assert result.as_dict()["ocr_engine"] is False
 
 
 def test_ready_endpoint_declares_typed_response_schema() -> None:
