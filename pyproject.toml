@@ -20,6 +20,8 @@ veridoc = "veridoc.__main__:main"
 veridoc-reference = "veridoc.administration.cli:main"
 veridoc-review = "veridoc.review.persistence.cli:main"
 veridoc-quarantine = "veridoc.scanning.cli:main"
+veridoc-backup = "veridoc.deployment.maintenance:main"
+
 
 [build-system]
 requires = ["uv_build>=0.9.13,<0.10.0"]
