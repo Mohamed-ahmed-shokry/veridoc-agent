@@ -115,6 +115,8 @@ tests/
 ├── test_quarantine.py               Phase 10 quarantine storage and operator decisions
 ├── test_quarantine_cli.py           Phase 10 quarantine maintenance CLI
 ├── test_upload_scanning.py          Phase 10 scan-before-decode upload wiring
+├── test_telemetry.py                Phase 10 registry, JSON export, and /metrics
+├── test_telemetry_redaction.py      Phase 10 redaction across every telemetry sink
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

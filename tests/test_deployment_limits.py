@@ -145,10 +145,10 @@ def _client_with_host(host: str) -> httpx.AsyncClient:
 
 
 @pytest.mark.anyio
-async def test_health_and_ready_bypass_all_limits(
+async def test_health_ready_and_metrics_bypass_all_limits(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Health and readiness probes are never rate-limited or concurrency-limited."""
+    """Operational probes are never rate-limited or concurrency-limited."""
     monkeypatch.setenv("VERIDOC_MAX_CONCURRENCY", "1")
     monkeypatch.setenv("VERIDOC_RATE_LIMIT_CAPACITY", "1")
     monkeypatch.setenv("VERIDOC_RATE_LIMIT_REFILL_PER_SECOND", "0")

@@ -23,7 +23,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 from veridoc.deployment.scope import client_host, route_relative_path
 from veridoc.telemetry.registry import REGISTRY
 
-_LIMIT_EXEMPT_PATHS = frozenset({"/health", "/ready"})
+_LIMIT_EXEMPT_PATHS = frozenset({"/health", "/ready", "/metrics"})
 _MAX_TRACKED_CLIENTS = 1024
 
 
