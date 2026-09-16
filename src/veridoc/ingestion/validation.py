@@ -11,7 +11,11 @@ import pymupdf
 from fastapi import UploadFile
 from PIL import Image, UnidentifiedImageError
 
-from veridoc.ingestion.models import DocumentMediaType, ValidatedUpload
+from veridoc.ingestion.models import (
+    DocumentMediaType,
+    UndecodedUpload,
+    ValidatedUpload,
+)
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_PDF_PAGES = 20
@@ -70,6 +74,23 @@ def validate_upload(
     declared_content_type: str | None,
 ) -> ValidatedUpload:
     """Validate bytes, signature, metadata, and decode limits before processing."""
+    pending = validate_upload_head(
+        data, filename=filename, declared_content_type=declared_content_type
+    )
+    return decode_validated_upload(pending)
+
+
+def validate_upload_head(
+    data: bytes,
+    *,
+    filename: str | None,
+    declared_content_type: str | None,
+) -> UndecodedUpload:
+    """Validate size, signature, declared type, and filename without decoding.
+
+    The returned upload is safe to hand to the scanning boundary but must
+    not reach a decoder, OCR engine, or provider until it is decoded.
+    """
     if not data:
         raise UploadValidationError("empty_upload", "The uploaded document is empty.")
     if len(data) > MAX_UPLOAD_BYTES:
@@ -94,19 +115,29 @@ def validate_upload(
             status_code=415,
         )
 
-    if media_type == "application/pdf":
-        page_count = _validate_pdf(data)
-        width = height = None
-        suffix = ".pdf"
-    else:
-        page_count, width, height = _validate_image(data, media_type)
-        suffix = ".png" if media_type == "image/png" else ".jpg"
-
-    return ValidatedUpload(
+    return UndecodedUpload(
         data=data,
         media_type=media_type,
         filename=sanitize_filename(filename),
-        suffix=suffix,
+        suffix=".pdf"
+        if media_type == "application/pdf"
+        else (".png" if media_type == "image/png" else ".jpg"),
+    )
+
+
+def decode_validated_upload(pending: UndecodedUpload) -> ValidatedUpload:
+    """Decode one signature-checked upload and enforce page and pixel limits."""
+    if pending.media_type == "application/pdf":
+        page_count = _validate_pdf(pending.data)
+        width = height = None
+    else:
+        page_count, width, height = _validate_image(pending.data, pending.media_type)
+
+    return ValidatedUpload(
+        data=pending.data,
+        media_type=pending.media_type,
+        filename=pending.filename,
+        suffix=pending.suffix,
         page_count=page_count,
         width=width,
         height=height,
