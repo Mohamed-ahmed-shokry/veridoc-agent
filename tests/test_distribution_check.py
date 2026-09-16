@@ -21,6 +21,7 @@ from scripts.smoke_distribution import (
     _REQUIRED_SCHEMA_PATHS,
     _collect_route_paths,
     api_main,
+    backup_main,
     quarantine_main,
     reference_main,
     review_main,
@@ -139,6 +140,7 @@ def test_distribution_check_requires_all_console_scripts() -> None:
         b"veridoc-reference = veridoc.administration.cli:main\n"
         b"veridoc-review = veridoc.review.persistence.cli:main\n"
         b"veridoc-quarantine = veridoc.scanning.cli:main\n"
+        b"veridoc-backup = veridoc.deployment.maintenance:main\n"
     )
 
     _check_console_scripts(valid, Path("dist/veridoc.whl"))
@@ -207,3 +209,4 @@ def test_distribution_smoke_imports_all_console_targets() -> None:
     assert callable(reference_main)
     assert callable(review_main)
     assert callable(quarantine_main)
+    assert callable(backup_main)
