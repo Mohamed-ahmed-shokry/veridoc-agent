@@ -63,7 +63,7 @@ def _read_response(connection: socket.socket) -> str:
     while True:
         try:
             chunk = connection.recv(4096)
-        except socket.timeout as exc:
+        except TimeoutError as exc:
             raise ScanUnavailableError from exc
         if not chunk:
             break

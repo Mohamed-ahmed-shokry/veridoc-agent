@@ -1,8 +1,6 @@
 """Deployment limits tests: bounded concurrency and per-client rate limiting."""
 
 import asyncio
-import time
-from collections.abc import AsyncIterator
 
 import httpx
 import pytest
@@ -56,7 +54,9 @@ def test_limits_settings_rejects_negative_rate_capacity() -> None:
 def test_limits_settings_rejects_negative_refill() -> None:
     """Negative refill rate raises the configuration error."""
     with pytest.raises(LimitsConfigurationError):
-        LimitsSettings.from_environment({"VERIDOC_RATE_LIMIT_REFILL_PER_SECOND": "-0.1"})
+        LimitsSettings.from_environment(
+            {"VERIDOC_RATE_LIMIT_REFILL_PER_SECOND": "-0.1"}
+        )
 
 
 def test_limits_settings_rejects_nonnumeric_concurrency() -> None:
@@ -102,15 +102,15 @@ def test_token_bucket_refills_over_time() -> None:
     bucket = TokenBucket(
         capacity=2, refill_per_second=2.0, clock=lambda: next(clock_iter)
     )
-    assert bucket.take() is True   # t=0.0: tokens=2→1
-    assert bucket.take() is True   # t=0.0: tokens=1→0
-    assert bucket.take() is True   # t=0.5: tokens=0→refill 1→0 (elapsed 0.5s * 2/s = 1)
+    assert bucket.take() is True  # t=0.0: tokens=2→1
+    assert bucket.take() is True  # t=0.0: tokens=1→0
+    assert bucket.take() is True  # t=0.5: tokens=0→refill 1→0 (elapsed 0.5s * 2/s = 1)
     assert bucket.take() is False  # t=0.5: tokens=0, no refill
     # advance by another 0.5s → +1 token
-    assert bucket.take() is True   # t=1.0: tokens=0→refill 1→0
+    assert bucket.take() is True  # t=1.0: tokens=0→refill 1→0
     assert bucket.take() is False  # t=1.0: tokens=0
     # advance by another 0.5s → +1 token
-    assert bucket.take() is True   # t=1.5: tokens=0→refill 1→0
+    assert bucket.take() is True  # t=1.5: tokens=0→refill 1→0
     assert bucket.take() is False  # t=1.5: tokens=0
 
 
@@ -145,11 +145,39 @@ def _client_with_host(host: str) -> httpx.AsyncClient:
 
 
 @pytest.mark.anyio
-async def test_health_and_ready_bypass_all_limits() -> None:
+async def test_health_and_ready_bypass_all_limits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Health and readiness probes are never rate-limited or concurrency-limited."""
-    # Even with aggressive limits set, health/ready should succeed.
-    # We construct a wrapped app with limits enabled; the real app has defaults=0.
-    pass
+    monkeypatch.setenv("VERIDOC_MAX_CONCURRENCY", "1")
+    monkeypatch.setenv("VERIDOC_RATE_LIMIT_CAPACITY", "1")
+    monkeypatch.setenv("VERIDOC_RATE_LIMIT_REFILL_PER_SECOND", "0")
+    for name in (
+        "OPENAI_API_KEY",
+        "VERIDOC_LLM_MODEL",
+        "VERIDOC_REVIEW_ACTORS_FILE",
+        "VERIDOC_REVIEW_ORIGIN",
+        "VERIDOC_REFERENCE_DATABASE",
+        "VERIDOC_REVIEW_DATABASE",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    from veridoc.deployment.limits import (
+        BoundedConcurrencyMiddleware,
+        RateLimitMiddleware,
+    )
+
+    wrapped = BoundedConcurrencyMiddleware(RateLimitMiddleware(app))
+    transport = httpx.ASGITransport(app=wrapped, client=("10.9.9.9", 1))
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        assert (await client.get("/missing-probe-target")).status_code == 404
+        assert (await client.get("/health")).status_code == 200
+        assert (await client.get("/ready")).status_code == 200
+        # the single rate token is spent: a normal route now fails ...
+        assert (await client.get("/missing-probe-target")).status_code == 429
+        # ... while both probes keep succeeding through the same stack.
+        assert (await client.get("/health")).status_code == 200
+        assert (await client.get("/ready")).status_code == 200
 
 
 @pytest.mark.anyio
@@ -247,13 +275,16 @@ async def test_rate_limit_middleware_uses_per_host_buckets(
 
     middleware = RateLimitMiddleware(inner_app)
 
-    async with httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=middleware, client=("10.0.0.1", 1)),
-        base_url="http://test",
-    ) as c1, httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=middleware, client=("10.0.0.2", 1)),
-        base_url="http://test",
-    ) as c2:
+    async with (
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=middleware, client=("10.0.0.1", 1)),
+            base_url="http://test",
+        ) as c1,
+        httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=middleware, client=("10.0.0.2", 1)),
+            base_url="http://test",
+        ) as c2,
+    ):
         r1 = await c1.get("/test")
         r2 = await c2.get("/test")
         r3 = await c1.get("/test")
