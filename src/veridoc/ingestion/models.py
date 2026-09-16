@@ -7,6 +7,16 @@ DocumentMediaType = Literal["application/pdf", "image/jpeg", "image/png"]
 
 
 @dataclass(frozen=True, slots=True)
+class UndecodedUpload:
+    """A bounded upload whose signature was checked but not yet decoded."""
+
+    data: bytes
+    media_type: DocumentMediaType
+    filename: str
+    suffix: str
+
+
+@dataclass(frozen=True, slots=True)
 class ValidatedUpload:
     """A bounded document whose media signature and dimensions were checked."""
 
