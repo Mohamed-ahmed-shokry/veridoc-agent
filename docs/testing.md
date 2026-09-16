@@ -82,6 +82,7 @@ tests/
 ├── test_processing_api.py           in-process complete processing endpoint
 ├── test_processing_integration.py   complete FastAPI dependency composition
 ├── test_readiness.py                deployment readiness probe and OpenAPI contract
+├── test_deployment_limits.py        bounded concurrency and rate limiting
 ├── test_request_context.py          safe correlation header and request logs
 ├── test_review_page.py              local review-interface route
 ├── test_review_models.py            Phase 9 actor/case/role/status/decision types
