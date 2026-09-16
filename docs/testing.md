@@ -112,6 +112,7 @@ tests/
 ├── test_review_retry_recovery_integration.py  Phase 9 retry, concurrency, backup/restore, snapshot independence
 ├── test_scanning.py                 Phase 10 scanner protocol and settings contracts
 ├── test_clamav_scanner.py           Phase 10 clamd adapter against a fake daemon
+├── test_quarantine.py               Phase 10 quarantine storage and operator decisions
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
