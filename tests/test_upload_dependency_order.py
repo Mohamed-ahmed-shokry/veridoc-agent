@@ -18,7 +18,7 @@ from veridoc.app import (
     get_structured_extractor,
     get_validated_upload,
 )
-from veridoc.ingestion.models import ValidatedUpload
+from veridoc.ingestion.models import UndecodedUpload
 from veridoc.ingestion.validation import UploadValidationError
 
 
@@ -47,7 +47,7 @@ async def test_upload_validation_runs_off_loop_and_closes_the_file(
         *,
         filename: str | None,
         declared_content_type: str | None,
-    ) -> ValidatedUpload:
+    ) -> UndecodedUpload:
         nonlocal validation_thread
         validation_thread = get_ident()
         assert data == payload
@@ -59,7 +59,9 @@ async def test_upload_validation_runs_off_loop_and_closes_the_file(
             status_code=415,
         )
 
-    monkeypatch.setattr("veridoc.ingestion.dependencies.validate_upload", reject_upload)
+    monkeypatch.setattr(
+        "veridoc.ingestion.dependencies.validate_upload_head", reject_upload
+    )
     backing_file = BytesIO(payload)
     upload = UploadFile(
         backing_file,
