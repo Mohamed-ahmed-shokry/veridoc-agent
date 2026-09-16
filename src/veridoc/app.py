@@ -17,6 +17,10 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 from veridoc import __version__
 from veridoc.administration.api import router as administration_router
 from veridoc.administration.models import MAX_ADMIN_IMPORT_BYTES
+from veridoc.deployment.limits import (
+    BoundedConcurrencyMiddleware,
+    RateLimitMiddleware,
+)
 from veridoc.deployment.readiness import readiness_from_environment
 from veridoc.deployment.scope import route_relative_path
 from veridoc.extraction.models import InvoiceExtraction
@@ -206,6 +210,8 @@ app = FastAPI(
 app.include_router(administration_router)
 app.include_router(review_router)
 app.add_middleware(RequestBodyLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(BoundedConcurrencyMiddleware)
 
 
 @app.middleware("http")
