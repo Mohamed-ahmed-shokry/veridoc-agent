@@ -20,3 +20,15 @@ def client_host(scope: Scope) -> str:
     if isinstance(client, tuple) and client and isinstance(client[0], str):
         return client[0]
     return "<unknown>"
+
+
+def is_loopback_host(host: str) -> bool:
+    """Return whether the client host represents a loopback address."""
+    if host in {"localhost", "testclient"}:
+        return True
+    try:
+        import ipaddress
+
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False

@@ -12,6 +12,7 @@ from fastapi import (
     HTTPException,
     Path,
     Query,
+    Request,
     Security,
     UploadFile,
     status,
@@ -46,6 +47,7 @@ from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
     ReferenceDataConflictError,
 )
+from veridoc.deployment.scope import client_host, is_loopback_host
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 
 router = APIRouter(
@@ -71,8 +73,17 @@ def require_admin(
         HTTPAuthorizationCredentials | None,
         Security(_ADMIN_BEARER),
     ],
+    request: Request,
 ) -> None:
-    """Require valid configured administration credentials."""
+    """Require valid configured administration credentials from a loopback client."""
+    if not is_loopback_host(client_host(request.scope)):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={
+                "code": AdminAuthenticationUnavailableError.code,
+                "message": AdminAuthenticationUnavailableError.message,
+            },
+        )
     try:
         settings = AdminSettings.from_environment()
     except AdminAuthenticationUnavailableError as exc:

@@ -257,3 +257,28 @@ async def test_invoice_admin_rejects_an_offset_beyond_sqlite_range(
         )
 
     assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_admin_routes_refuse_remote_non_loopback_clients(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = _repository(tmp_path)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    app.dependency_overrides[get_admin_repository] = lambda: repository
+    transport = httpx.ASGITransport(app=app, client=("192.168.1.100", 45000))
+    try:
+        async with httpx.AsyncClient(
+            transport=transport,
+            base_url="http://test",
+        ) as client:
+            response = await client.get(
+                "/admin/reference-data/invoices",
+                headers=_AUTHORIZATION,
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "admin_authentication_unavailable"
