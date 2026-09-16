@@ -20,6 +20,9 @@ _REQUIRED_RUNTIME_FILES = {
     "administration/api.py",
     "administration/cli.py",
     "app.py",
+    "deployment/limits.py",
+    "deployment/readiness.py",
+    "deployment/scope.py",
     "persistence/maintenance.py",
     "persistence/migrations.py",
     "persistence/schema.py",
@@ -31,6 +34,11 @@ _REQUIRED_RUNTIME_FILES = {
     "review/persistence/migrations.py",
     "review/persistence/schema.py",
     "review/persistence/sqlite.py",
+    "scanning/clamav.py",
+    "scanning/cli.py",
+    "scanning/config.py",
+    "scanning/protocol.py",
+    "scanning/quarantine.py",
 }
 
 
@@ -130,6 +138,7 @@ def _check_console_scripts(contents: bytes, archive: Path) -> None:
         "veridoc": "veridoc.__main__:main",
         "veridoc-reference": "veridoc.administration.cli:main",
         "veridoc-review": "veridoc.review.persistence.cli:main",
+        "veridoc-quarantine": "veridoc.scanning.cli:main",
     }
     actual = (
         dict(parser.items("console_scripts"))

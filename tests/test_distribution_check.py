@@ -21,6 +21,7 @@ from scripts.smoke_distribution import (
     _REQUIRED_SCHEMA_PATHS,
     _collect_route_paths,
     api_main,
+    quarantine_main,
     reference_main,
     review_main,
 )
@@ -118,12 +119,26 @@ def test_distribution_check_requires_phase_9_runtime_boundaries() -> None:
     assert "veridoc/review/persistence/sqlite.py" in required
 
 
+def test_distribution_check_requires_phase_10_runtime_boundaries() -> None:
+    required = _required_package_members("veridoc")
+
+    assert "veridoc/deployment/limits.py" in required
+    assert "veridoc/deployment/readiness.py" in required
+    assert "veridoc/deployment/scope.py" in required
+    assert "veridoc/scanning/clamav.py" in required
+    assert "veridoc/scanning/cli.py" in required
+    assert "veridoc/scanning/config.py" in required
+    assert "veridoc/scanning/protocol.py" in required
+    assert "veridoc/scanning/quarantine.py" in required
+
+
 def test_distribution_check_requires_all_console_scripts() -> None:
     valid = (
         b"[console_scripts]\n"
         b"veridoc = veridoc.__main__:main\n"
         b"veridoc-reference = veridoc.administration.cli:main\n"
         b"veridoc-review = veridoc.review.persistence.cli:main\n"
+        b"veridoc-quarantine = veridoc.scanning.cli:main\n"
     )
 
     _check_console_scripts(valid, Path("dist/veridoc.whl"))
@@ -191,3 +206,4 @@ def test_distribution_smoke_imports_all_console_targets() -> None:
     assert callable(api_main)
     assert callable(reference_main)
     assert callable(review_main)
+    assert callable(quarantine_main)
