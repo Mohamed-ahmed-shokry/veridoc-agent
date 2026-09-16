@@ -110,6 +110,7 @@ tests/
 ├── test_review_case_creation_integration.py  Phase 9 review case creation through the real processing graph
 ├── test_review_authorization_integration.py  Phase 9 rejected actors never resolve processing or storage
 ├── test_review_retry_recovery_integration.py  Phase 9 retry, concurrency, backup/restore, snapshot independence
+├── test_scanning.py                 Phase 10 scanner protocol and settings contracts
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
