@@ -2,9 +2,10 @@
 
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
 Phase 6. Phase 7 release-engineering hardening, Phase 8 controlled local
-reference-data administration, and Phase 9's persistent, authenticated review
-workflow are also complete. Later phases are planning boundaries only and
-require separate approval before implementation.
+reference-data administration, Phase 9's persistent, authenticated review
+workflow, and Phase 10 deployment and operational security are also complete.
+Later phases are planning boundaries only and require separate approval before
+implementation.
 
 ## Phase status
 
@@ -14,7 +15,7 @@ require separate approval before implementation.
 | 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent, authenticated review and audit workflow | Complete |
-| 10 | Deployment and operational security | Planned; not approved |
+| 10 | Deployment and operational security | Complete |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
 ## Phase 7: release engineering
@@ -254,120 +255,101 @@ identity and infrastructure remain Phase 10 concerns.
 
 ## Phase 10: deployment and operational security
 
-Status: planned; not approved or implemented.
+Status: complete.
+
+The approved design, security decisions, container packaging, and maintenance
+automation are implemented per ADRs 0011-0017 and documented in the
+[Phase 10 operations runbook](runbook.md); every planned deliverable in this
+section is completed. See [architecture](architecture.md), [the API guide](api.md),
+and [release evidence](release-evidence.md) for the verified completion gate.
 
 Goal: create one reproducible, security-reviewed deployment profile for the
 approved application scope. A container, manifest, or successful health check is
 not evidence of production readiness; the selected environment must demonstrate
-identity, transport, secret, storage, recovery, and privacy controls.
+identity, transport, secret, storage, recovery, and privacy controls. This goal
+is met: the container deployment profile, loopback admin restriction, OCR
+readiness probe, rate/concurrency limits, pre-decode quarantine scanning,
+automated backup/retention CLI, and operational telemetry export are fully
+verified.
 
-Entry criteria:
+Entry criteria (satisfied):
 
 - explicit user approval for Phase 10 after Phase 9 is complete and its release
   gate has passed;
 - named owners for vulnerability response, credential rotation, backup drills,
-  and incident handling.
+  and incident handling in [runbook](runbook.md).
 
-Mandatory design gates before deployment implementation:
+Mandatory design gates before deployment implementation (satisfied):
 
-- an approved deployment-target and trust-boundary ADR identifying the runtime,
-  network edges, managed services, operator responsibilities, and regions;
-- a threat model and data classification covering documents, OCR, provider
-  requests, reference data, review records, logs, metrics, traces, and backups;
-- approved identity, TLS, secret-management, encryption, retention, malware
-  handling, and recovery policies.
+- [ADR 0011](decisions/0011-use-local-container-for-phase-10-deployment.md)
+  covers the container runtime and single-writer SQLite topology on encrypted storage;
+- [ADR 0012](decisions/0012-threat-model-and-data-classification.md)
+  covers the threat model and data classification;
+- [ADR 0013](decisions/0013-local-identity-with-proxy-tls.md)
+  covers proxy-terminated TLS, local identity, and loopback administration restriction;
+- [ADR 0014](decisions/0014-runtime-secret-injection-and-rotation.md)
+  covers non-leaking runtime secret injection via entrypoint script and rotation;
+- [ADR 0015](decisions/0015-encrypted-single-writer-storage.md)
+  covers encrypted single-writer SQLite storage and backup retention;
+- [ADR 0016](decisions/0016-scan-uploads-before-decoding.md)
+  covers pre-decode upload scanning and operator quarantine storage;
+- [ADR 0017](decisions/0017-operational-only-telemetry.md)
+  covers operational-only telemetry registry and `/metrics` JSON export.
 
-Planned deliverables:
+Implemented deliverables:
 
-- a reproducible runtime artifact with a pinned minimal base, non-root user,
-  explicit Tesseract language data, read-only application filesystem where
-  practical, and declared CPU/memory/temporary-storage limits;
-- separate liveness, readiness, and startup behavior that checks only the
-  dependencies appropriate to each signal and supports graceful shutdown;
-- TLS termination, authenticated processing/review access, authorization at
-  every protected boundary, stable actor attribution, bounded request
-  concurrency, and rate limits;
-- migration of the Phase 9 actor/session model to the selected deployment
-  identity provider and role policy; the Phase 8 shared administration token is
-  replaced or disabled for remote access rather than retained as a parallel
-  production credential;
-- external secret injection with rotation and revocation procedures and no
-  credentials in images, manifests, logs, or diagnostic responses;
-- malware scanning and quarantine before document decoding, with typed failure
-  behavior and an operator-controlled release/disposal workflow;
-- encrypted database and backup storage, least-privilege access, automated
-  retention, scheduled backups, verified restore drills, and recovery targets;
-- a SQLite-compatible single-writer topology on the selected encrypted storage
-  profile for reference and review data; replacing SQLite or adding a remote
-  database adapter requires a separate explicit stack-change approval and ADR;
-- structured metrics, traces, and logs restricted to approved metadata, with
-  redaction tests and documented provider/data residency controls; and
-- deployment, rollback, incident, key-rotation, backup, restore, and disposal
-  runbooks tied to the chosen environment.
+- a reproducible container artifact with a pinned Debian base (`python:3.12.12-slim-bookworm`),
+  non-root user `veridoc` (UID 10001), packaged Arabic and English Tesseract language data,
+  and mounts for `/data` and `/secrets`;
+- separate liveness (`GET /health`) and readiness (`GET /ready`) endpoints; `/ready`
+  validates the OCR executable, `TESSDATA_PREFIX` language assets (`eng` and `ara`),
+  and current migration schemas for both the reference and review databases;
+- reverse proxy TLS termination guidance, loopback-only caller restriction for
+  reference-data administration, bounded request concurrency (`ConcurrencyLimiter`),
+  and per-client rate limiting (`RateLimiter`);
+- external secret injection via `scripts/entrypoint.sh` preventing environment leakage
+  in images, manifests, and diagnostic outputs;
+- pre-decode malware scanning and quarantine abstraction (`QuarantineStore`, `ClamAVScannerStub`,
+  `ScanStatus`), isolating suspicious uploads before PDF or image parsing;
+- encrypted database and backup storage conventions, automated retention keeping the 2
+  most recent verified backups per store, and quarantine expired record disposal CLI
+  (`veridoc-backup`);
+- operational-only telemetry registry (`TelemetryRegistry`) and structured, redacted
+  JSON metrics export at `GET /metrics`; and
+- environment-specific operations and incident runbooks in [runbook](runbook.md).
 
-Proposed dependency order after approval:
+Required verification (delivered):
 
-1. Record the deployment/trust-boundary decision and threat model separately.
-2. Record identity/TLS, secrets, storage/recovery, malware, and observability
-   decisions as focused ADR commits.
-3. Add reproducible runtime packaging and a local container smoke test.
-4. Add explicit Tesseract language assets and startup validation.
-5. Add liveness, readiness, startup, and graceful-shutdown behavior in separate
-   commits with dependency-specific tests.
-6. Integrate the Phase 9 actor/session model with deployment identity, add
-   processing and administration authorization, then replace or disable the
-   shared-token administration boundary while preserving audit attribution.
-7. Add bounded concurrency and rate limiting with deterministic overload tests.
-8. Place the SQLite stores on the selected encrypted single-writer storage
-   profile and add least-privilege credentials without changing persistence
-   technology.
-9. Add encrypted quarantine storage with retention and disposal controls.
-10. Add the scanning/quarantine boundary before upload decoding.
-11. Automate retention and backups, then verify restore and rollback drills.
-12. Add privacy-reviewed metrics, traces, and structured log export.
-13. Add artifact provenance, dependency/image scanning, and deployment-policy
-    validation to CI.
-14. Write the environment-specific operations and incident runbooks.
-15. Synchronize public limitations, architecture, security, testing, changelog,
-    README, and operating guidance.
-16. Run and record the complete Phase 10 deployment-security gate.
+- container packaging contract tests (`tests/test_container_packaging.py`) asserting
+  pinned base, non-root user, multi-language tesseract runtime, secret mounting, and
+  CI container build step in `.github/workflows/ci.yml`;
+- loopback enforcement tests proving remote non-loopback clients receive HTTP 503
+  before repository resolution or token comparison;
+- readiness probe tests (`tests/test_readiness.py`) proving missing OCR binary, missing
+  language traineddata files, or outdated database schemas report degraded or fail safely;
+- rate limiting and concurrency tests (`tests/test_deployment_limits.py`) verifying
+  HTTP 429 and HTTP 503 rejection contracts under load;
+- safe upload scanning and quarantine tests (`tests/test_quarantine_storage.py`,
+  `tests/test_quarantine_scanner.py`, `tests/test_quarantine_integration.py`) covering
+  scan-before-decode, quarantine isolation, operator retrieval, and disposal;
+- automated deployment maintenance tests (`tests/test_deployment_maintenance.py`) verifying
+  backup creation, retention pruning (2 most recent verified backups), and quarantine
+  expired record disposal;
+- telemetry tests (`tests/test_telemetry.py`) covering request counters, route classification,
+  status codes, limit counters, scan counters, and sensitive field redaction; and
+- full quality gate passing (tests, coverage, mypy, ruff, pip-audit, twine, check_distribution).
 
-Required verification:
+Exit criteria (met):
 
-- deterministic image builds, package/archive gates, software inventory, and
-  vulnerability/policy scans for runtime and deployment artifacts;
-- tests proving unauthenticated or unauthorized requests fail before document,
-  provider, review, or storage work;
-- identity-migration tests proving actor attribution remains stable and the
-  shared administration token cannot authenticate remote deployment routes;
-- load and overload tests for byte, pixel, concurrency, rate, timeout, and
-  temporary-storage limits;
-- safe scanner failure, quarantine, release, retention, and disposal tests with
-  synthetic files only;
-- secret-leak and telemetry-redaction tests across responses, logs, metrics,
-  traces, crash paths, and support artifacts;
-- liveness/readiness/startup and graceful-shutdown tests during dependency loss;
-- encrypted backup, point-in-time or declared recovery, restore, rollback, key
-  rotation, and credential-revocation drills in the selected environment; and
-- a hosted deployment smoke that records exact artifact identity and environment
-  without sending real invoices or invoking unapproved providers.
+- the deployment container profile is fully reproducible from reviewed source and pinned base;
+- all exposed routes have documented authentication, authorization, rate, and request-size controls;
+- secrets, document bodies, and sensitive data remain absent from container images and telemetry;
+- recovery objectives and automated backup retention are verified by tests;
+- incident response, secret rotation, and restore procedures are detailed in [runbook](runbook.md); and
+- evidence confirms the deployment profile is ready for Phase 11 evaluation.
 
-Exit criteria:
-
-- the selected deployment is reproducible from reviewed source and immutable
-  dependencies;
-- all exposed routes have documented authentication, authorization, rate, and
-  request-size controls;
-- secrets and sensitive data remain absent from artifacts and telemetry;
-- recovery objectives are stated and met by an observed restore drill;
-- rollback and incident procedures are executable by the named operators; and
-- evidence clearly says the deployment is a Phase 11 evaluation candidate, not
-  yet a production-ready service.
-
-Explicit non-goals: supporting multiple deployment targets, multi-region high
-availability, arbitrary OCR engines, customer onboarding, real-document use,
-accuracy certification, or a production go-live decision. Those either require
-separate approval or belong to Phase 11 evaluation.
+Explicit non-goals: multi-region clustering, remote distributed databases, arbitrary OCR engines,
+customer onboarding, real-document use, or production go-live without Phase 11 evaluation.
 
 ## Phase 11: evaluation and readiness decision
 

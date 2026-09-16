@@ -60,6 +60,97 @@ Status: `200 OK`
 
 The response uses the required OpenAPI schema `HealthResponse`.
 
+## `GET /ready`
+
+Reports whether the API process and all configured dependencies are ready to process traffic.
+It probes:
+- OCR executable availability (`TESSERACT_CMD`);
+- configured language traineddata files in `TESSDATA_PREFIX` (`eng` and `ara`);
+- reference-data SQLite repository existence and migration schema; and
+- review-store SQLite repository existence and migration schema.
+
+### Successful response
+
+Status: `200 OK`
+
+```json
+{
+  "status": "ready",
+  "checks": {
+    "ocr_engine": {
+      "status": "ready",
+      "detail": null
+    },
+    "reference_store": {
+      "status": "ready",
+      "detail": null
+    },
+    "review_store": {
+      "status": "ready",
+      "detail": null
+    }
+  }
+}
+```
+
+### Unready response
+
+Status: `503 Service Unavailable`
+
+```json
+{
+  "status": "not_ready",
+  "checks": {
+    "ocr_engine": {
+      "status": "degraded",
+      "detail": "missing language traineddata: ara"
+    },
+    "reference_store": {
+      "status": "ready",
+      "detail": null
+    },
+    "review_store": {
+      "status": "ready",
+      "detail": null
+    }
+  }
+}
+```
+
+The response uses OpenAPI schema `ReadyResponse`.
+
+## `GET /metrics`
+
+Exports an operational-only JSON snapshot of request counters, limits, and upload scan counts
+when enabled with `VERIDOC_METRICS_ENABLED=1`. When unset or disabled, returns `404 Not Found`.
+
+The snapshot strictly redacts document bodies, OCR text, extracted fields, PII, and credentials.
+
+### Successful response
+
+Status: `200 OK`
+
+```json
+{
+  "requests": {
+    "POST /process": {
+      "200": 42,
+      "422": 3
+    }
+  },
+  "limits": {
+    "rate_limited": 1,
+    "concurrency_limited": 0
+  },
+  "scans": {
+    "clean": 44,
+    "quarantined": 1
+  }
+}
+```
+
+The response uses OpenAPI schema `MetricsResponse`.
+
 ## `POST /ocr`
 
 Validates one multipart upload, rasterizes PDF pages when necessary, runs the
@@ -361,7 +452,9 @@ The token is independent of `OPENAI_API_KEY`. Missing or invalid server
 configuration returns `503`; missing, malformed, and incorrect request
 credentials all return the same `401` response with `WWW-Authenticate: Bearer`.
 The shared token has no user identity or role semantics and is not suitable for
-remote production administration.
+remote production administration. Furthermore, per ADR 0013, administrative routes
+refuse remote non-loopback callers with `503 admin_authentication_unavailable`
+before credential inspection or storage resolution.
 
 ### Record metadata and limits
 
@@ -713,15 +806,21 @@ browser regardless of what the source document contains.
 | `503` | `review_data_unavailable` | The review store cannot be opened, migrated, or decoded safely. |
 | `503` | `review_authentication_unavailable` | The actor file or `VERIDOC_REVIEW_ORIGIN` is missing or invalid. |
 
+### Deployment error responses
+
+| Status | Code | Meaning |
+| --- | --- | --- |
+| `429` | `rate_limit_exceeded` | The client has exceeded the configured per-minute request rate limit (`VERIDOC_RATE_LIMIT_PER_MINUTE`). |
+| `503` | `concurrency_limit_exceeded` | The service is currently executing the maximum allowed concurrent requests (`VERIDOC_MAX_CONCURRENT_REQUESTS`). |
+
 ## Current limitations
 
-Only the local reference-data administration routes and the Phase 9 review
-routes are authenticated; every other route (`/ocr`, `/extract`, `/process`,
-`GET /review`, `/health`) remains open. The review store reserves a
+Only the local reference-data administration routes (loopback callers only) and the
+Phase 9 review routes are authenticated; `/ocr`, `/extract`, and `/process` rely on
+network-level controls and proxy-terminated TLS. The review store reserves a
 `retention_until` column for future operator policy, but Phase 9 exposes no
-way to set it and performs no automated retention or purge (ADR 0010); the
-API also has no case-deletion route. The local actor file has no
-self-registration, password reset, or remote directory integration, and is
-not suitable for remote production deployment. `/process` and case creation
-are synchronous and do not treat `clear` as approval or a guarantee that a
-document is trustworthy.
+way to set it and performs no automated purge (ADR 0010); the API also has no
+case-deletion route. The local actor file has no self-registration, password
+reset, or remote directory integration. `/process` and case creation are synchronous
+and do not treat `clear` as approval or a guarantee that a document is trustworthy.
+The service is a deployment candidate ready for Phase 11 evaluation.

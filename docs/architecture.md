@@ -11,8 +11,13 @@ bounded atomic import plus online backup and stopped-service atomic restore.
 Phase 9 adds a per-actor authenticated human review workflow: an immutable
 processing snapshot and append-only event history per case, in a dedicated
 local SQLite store, behind session cookies, CSRF protection, and
-role-scoped authorization. Production identity providers, remote deployment
-controls, and automated retention/purge remain later work.
+role-scoped authorization. Phase 10 adds reproducible container packaging,
+proxy-terminated TLS guidance, local loopback isolation for reference-data
+administration, OCR engine readiness probing (`GET /ready`), deployment rate
+and concurrency limiting, pre-decode upload scanning and quarantine, automated
+backup retention via `veridoc-backup`, and operational telemetry export
+(`GET /metrics`). Remote identity providers, distributed databases, and
+multi-region infrastructure remain outside the scope.
 
 ## System boundary
 
@@ -480,8 +485,10 @@ record includes the ID, method, static route template (or `<unmatched>`), status
 code, and duration only; it never includes path parameters or query text. The
 header may carry a bounded safe client correlation value, but
 does not identify a document, reviewer, or approval decision. `GET /health` is
-a liveness signal for the HTTP application, not a readiness probe for OCR,
-provider, or SQLite dependencies.
+a liveness signal for the HTTP application. `GET /ready` probes OCR executable,
+language data (`eng` and `ara`), and database schemas. When enabled by
+`VERIDOC_METRICS_ENABLED=1`, `GET /metrics` exports a structured JSON snapshot
+of request, limit, and upload scan counters with sensitive fields strictly redacted.
 
 ## Current tradeoffs and limitations
 
@@ -502,8 +509,10 @@ provider, or SQLite dependencies.
   adds a per-actor authenticated, persistent review record with an immutable
   snapshot and append-only event history, but only two roles, a local
   operator-managed actor file (no self-registration, password reset, or
-  remote directory integration), and no automated retention/purge or
-  case-deletion route. The service still has no standalone verification or
-  explanation endpoint, malware scanning, or observability export. Its
-  request ID is useful for operational correlation but does not replace
-  those controls.
+  remote directory integration), and no automated purge or case-deletion route.
+  Phase 10 adds container packaging, reverse-proxy TLS termination guidance,
+  loopback administration isolation, rate and concurrency limiting, pre-decode
+  upload quarantine, readiness probing, automated backup retention, and
+  operational telemetry export. The service still has no standalone verification
+  or explanation endpoint, SSO/OAuth2 provider, or distributed database. The
+  deployment candidate is prepared for Phase 11 evaluation.

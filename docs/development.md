@@ -1,10 +1,10 @@
 # Development
 
 This guide covers product behavior implemented through Phase 6, completed
-Phase 7 release engineering, Phase 8 local reference-data administration, and
-Phase 9's per-actor authenticated review workflow. Remote identity providers,
-production deployment controls, and automated review retention/purge remain
-unimplemented.
+Phase 7 release engineering, Phase 8 local reference-data administration,
+Phase 9's per-actor authenticated review workflow, and Phase 10 deployment
+and operational security. Remote identity providers, distributed databases,
+and candidate evaluation remain later work.
 
 ## Prerequisites
 
@@ -198,8 +198,12 @@ Stop either process with `Ctrl+C`.
 ├── AGENTS.md                 coding-agent operating rules
 ├── README.md                 project entry point
 ├── docs/                     architecture, API, testing, and security guidance
+├── scripts/
+│   ├── entrypoint.sh         container runtime secret injection entrypoint
+│   ├── check_distribution.py package contents and metadata validator
+│   └── smoke_distribution.py isolated wheel and sdist smoke tester
 ├── src/veridoc/
-│   ├── ingestion/            bounded upload validation and temporary storage
+│   ├── ingestion/            bounded upload validation, scanning, and quarantine
 │   ├── administration/       admin schemas, auth, protocol, API, and CLI
 │   ├── ocr/                  typed boundary, decoder, and Tesseract adapter
 │   ├── extraction/           typed schema, graph, provider protocol, and adapter
@@ -217,11 +221,13 @@ Stop either process with `Ctrl+C`.
 │   │   ├── config.py          actor file, origin, and store settings
 │   │   ├── api.py             authenticated FastAPI router
 │   │   └── persistence/       dedicated review SQLite store, migrations, CLI
+│   ├── deployment/           limits, readiness, scope, telemetry, maintenance
 │   ├── __main__.py            console entry point
 │   └── app.py                FastAPI application and endpoints
 ├── tests/
 │   ├── fixtures/             deterministic fictional invoice generators
 │   ├── test_ingestion_*.py   validation and cleanup tests
+│   ├── test_quarantine_*.py  upload scanning and quarantine tests
 │   ├── test_administration_*.py authenticated CRUD, import, and CLI tests
 │   ├── test_ocr_*.py         OCR contracts, service, and API tests
 │   ├── test_extraction_*.py  extraction contracts, graph, service, and API tests
@@ -234,8 +240,13 @@ Stop either process with `Ctrl+C`.
 │   ├── test_request_context.py correlation header and safe-log tests
 │   ├── test_review_page.py   local /review demo-page route test
 │   ├── test_review_*.py      Phase 9 domain, persistence, auth, and API tests
-│   │                          (see the testing guide for the complete list)
+│   ├── test_deployment_*.py  limits and maintenance tests
+│   ├── test_readiness.py     readiness probe tests
+│   ├── test_telemetry.py     telemetry registry and metrics tests
+│   ├── test_container_packaging.py container packaging contract tests
 │   └── test_health.py         health behavior and schema tests
+├── Dockerfile                container runtime definition
+├── .dockerignore             container build exclusions
 ├── pyproject.toml            project and tool configuration
 └── uv.lock                   reproducible dependency resolution
 ```
@@ -372,6 +383,10 @@ The application has these process environment variables:
 | `VERIDOC_REVIEW_ACTORS_FILE` | none | Required path to the operator-managed review actor file; never commit it |
 | `VERIDOC_REVIEW_ORIGIN` | none | Required exact HTTPS browser origin allowed to authenticate to `/review/*` |
 | `VERIDOC_REVIEW_DATABASE` | `veridoc-review.sqlite3` | Local SQLite path for the dedicated review store; must differ from the reference database |
+| `VERIDOC_RATE_LIMIT_PER_MINUTE` | `120` | Maximum requests per minute per client IP |
+| `VERIDOC_MAX_CONCURRENT_REQUESTS` | `10` | Maximum requests processed concurrently |
+| `VERIDOC_METRICS_ENABLED` | `0` | Enable `GET /metrics` JSON operational telemetry export (`1` to enable) |
+| `VERIDOC_QUARANTINE_DIR` | none | Optional directory for isolated pre-decode upload quarantine |
 
 The application does not load `.env` files. Set variables in the process
 environment or an approved secret/configuration provider; keep `.env.example`
@@ -516,6 +531,28 @@ recovering the historical reference database that was live when a restored
 case was created — processing performed after a restore uses whichever
 reference database is currently configured (ADR 0010). Keep review backups
 outside the repository and protect them as review data.
+
+## Automated maintenance and container packaging
+
+Run deployment maintenance to create verified backups of both stores, prune
+historical backups to the 2 most recent verified copies, and dispose of expired
+quarantine records:
+
+```powershell
+uv run veridoc-backup `
+  --reference-db veridoc-reference.sqlite3 `
+  --review-db veridoc-review.sqlite3 `
+  --backup-dir backups
+```
+
+Build the deployment container image:
+
+```bash
+docker build -t veridoc:latest .
+```
+
+See the [operations runbook](runbook.md) for full deployment procedures, secret rotation,
+and disaster recovery drills.
 
 ## Operational guidance
 

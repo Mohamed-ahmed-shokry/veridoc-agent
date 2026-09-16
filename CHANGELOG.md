@@ -8,6 +8,17 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 10 deployment and operational security hardening:
+  - Reproducible container packaging (`Dockerfile`, non-root user `veridoc` UID 10001, pinned Debian base `python:3.12.12-slim-bookworm`, multi-language `tesseract-ocr-eng` and `tesseract-ocr-ara` trained data).
+  - Runtime secret injection via `scripts/entrypoint.sh` avoiding credential persistence in images or diagnostics (ADR 0014).
+  - Environment-specific operations, deployment, and incident runbook in `docs/runbook.md`.
+  - Deployment readiness probe `GET /ready` verifying OCR executable, configured language assets in `TESSDATA_PREFIX` (`eng` and `ara`), and database schemas for both reference and review stores (ADR 0017).
+  - Operational-only telemetry registry and structured, redacted JSON export at `GET /metrics` (ADR 0016, ADR 0017).
+  - Deployment rate limiting (`RateLimiter`) and request concurrency limiting (`ConcurrencyLimiter`) middleware with safe 429 and 503 error responses.
+  - Pre-decode upload scanning and encrypted quarantine storage abstraction (`QuarantineStore`, `ClamAVScannerStub`, `ScanStatus`) isolating suspicious files before parsing (ADR 0012, ADR 0016).
+  - Automated deployment maintenance and backup CLI `veridoc-backup` with retention policy preserving the 2 most recent verified backups per store and automatic disposal of expired quarantine records (ADR 0015).
+  - Architecture Decision Records 0011-0017 documenting containerization, threat modeling, local identity with proxy TLS, secret injection, encrypted storage, upload scanning, and operational telemetry.
+  - Container build step in `.github/workflows/ci.yml`.
 - A per-actor authenticated, persistent review workflow (Phase 9): session
   cookies (`HttpOnly`/`Secure`/`SameSite=Strict`), double-submit CSRF and
   exact-origin protection, and two roles (`reviewer`, `review_admin`).
@@ -60,6 +71,11 @@ semantic versions for tagged releases.
 
 ### Changed
 
+- Reference-data administration routes (`/admin/reference-data/*`) now strictly
+  enforce local loopback caller origin, returning HTTP 503 `admin_authentication_unavailable`
+  to remote clients before inspecting credentials or resolving storage (ADR 0013).
+- Distribution validation and smoke testing now require `deployment/maintenance.py`
+  and the `veridoc-backup` console script entry point.
 - Typed graph builders, provider inputs, numeric calculations, decoder values,
   SQLite insert identifiers, and request middleware now satisfy the strict gate.
 - Package metadata now uses `README.md` as its Markdown long description.

@@ -18,6 +18,12 @@ Phase 9 adds a per-actor authenticated review workflow: an immutable,
 digest-verified processing snapshot and append-only event history per case,
 in a dedicated local SQLite store, behind session cookies, CSRF protection,
 and role-scoped authorization, plus a browser console at `/review/console`.
+Phase 10 adds reproducible container packaging, proxy-terminated TLS guidance,
+local loopback isolation for reference-data administration, OCR engine readiness
+probing for configured languages (`eng` and `ara`), deployment rate and concurrency
+limiting, pre-decode upload scanning and quarantine, automated backup retention
+(keeping the 2 most recent verified backups per store) and disposal tooling
+via `veridoc-backup`, and operational telemetry export.
 
 ## Implemented capabilities
 
@@ -64,8 +70,16 @@ and role-scoped authorization, plus a browser console at `/review/console`.
 - optimistic-concurrency and idempotency-key guarded case creation,
   assignment/reassignment, escalation, and terminal decisions;
 - a build-free browser console at `/review/console` that renders every
-  fetched value through DOM text nodes only; and
-- a separate `veridoc-review` backup/restore maintenance command.
+  fetched value through DOM text nodes only;
+- a separate `veridoc-review` backup/restore maintenance command;
+- reproducible container packaging (`Dockerfile`, non-root user `veridoc` UID 10001, pinned Debian base, non-leaking runtime secret entrypoint);
+- OCR language asset and SQLite store readiness probe at `GET /ready`;
+- per-client rate limiting and bounded request concurrency;
+- loopback-only caller restriction for reference-data administration;
+- pre-decode upload malware scanning and quarantine storage abstraction;
+- automated backup retention pruning and quarantine expiration maintenance via `veridoc-backup`;
+- operational telemetry registry and structured metrics export at `GET /metrics`; and
+- environment-specific operations and incident runbook in [runbook](docs/runbook.md).
 
 ## Quick start
 
@@ -490,7 +504,7 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 7 | Release engineering and reproducible quality gates | Complete |
 | 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent, authenticated review and audit workflow | Complete |
-| 10 | Deployment and operational security | Planned; not approved |
+| 10 | Deployment and operational security | Complete |
 | 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
 
 Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
@@ -498,11 +512,14 @@ release evidence without adding endpoints or processing features. Phase 8
 completed controlled local reference-data operations with a verified release
 gate. Phase 9 completed a per-actor authenticated review workflow with
 immutable snapshots, an event history, and a browser console, with its own
-verified release gate. See the [project roadmap](docs/roadmap.md) for
+verified release gate. Phase 10 completed reproducible container packaging,
+proxy-terminated TLS guidance, OCR engine readiness probes, rate/concurrency
+limits, pre-decode quarantine scanning, automated backup retention CLI, and
+telemetry metrics export. See the [project roadmap](docs/roadmap.md) for
 deliverables and approval boundaries. The approved design and exact atomic
 implementation sequence are in the
-[Phase 9 approval plan](docs/phase-9-plan.md); Phases 10 and 11 remain
-unapproved.
+[Phase 9 approval plan](docs/phase-9-plan.md) and [Phase 10 operations runbook](docs/runbook.md);
+Phase 11 remains unapproved.
 
 ## Documentation
 
@@ -514,10 +531,12 @@ unapproved.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 9 scope and the
-  unapproved Phase 10 and Phase 11 candidates.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 10 scope and the
+  unapproved Phase 11 candidate.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
+- [Operations runbook](docs/runbook.md): deployment operations, container management,
+  incident response, backup/restore drills, and secret rotation.
 - [Release evidence](docs/release-evidence.md): verified local gates and evidence
   boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
@@ -525,24 +544,22 @@ unapproved.
 
 ## Current limitations
 
-Veridoc does not yet provide authoritative vendor identity resolution, token
-rotation, malware scanning, encrypted storage, a compliance-grade durable
-audit log, TLS termination, or remote/production deployment controls. Phase 8
-authenticates local reference-data administration with one shared token;
-Phase 9 authenticates the review workflow per actor with session cookies and
-two roles, but its actor file is local and operator-managed with no
-self-registration, password reset, or remote directory integration, and it
-performs no automated retention/purge or case deletion (ADR 0010). `/ocr`,
-`/extract`, `/process`, and the older `/review` demo page remain
-unauthenticated. The deterministic `clear` verdict means only that no
-implemented rule produced a finding; it is not an automated approval, and
-neither is a review case's `decided` status. The service remains a local
-development boundary and is not production ready.
+Veridoc does not yet provide authoritative vendor identity resolution, SSO/OAuth2
+identity provider integration, multi-region clustering, or distributed databases.
+Phase 8 authenticates local reference-data administration with one shared token
+restricted to loopback clients (ADR 0013); Phase 9 authenticates the review workflow
+per actor with session cookies and two roles, but its actor file is operator-managed
+with no self-registration or password reset. Phase 10 adds container packaging,
+pre-decode quarantine scanning, rate/concurrency limiting, readiness probes,
+automated backup retention, and operational telemetry. `/ocr`, `/extract`, and
+`/process` remain unauthenticated behind reverse proxy TLS. The deterministic
+`clear` verdict means only that no implemented rule produced a finding; it is not
+an automated approval, and neither is a review case's `decided` status. The
+deployment candidate is ready for Phase 11 evaluation.
 
 ## Future work
 
-Phase 9 completed a persistent, authenticated review/audit workflow after
-Phase 8's reference-data administration. Later candidates cover deployment
-security (including a production-grade identity provider and TLS profile)
-and evidence-based readiness evaluation. They are documented in the
-[roadmap](docs/roadmap.md) but remain unapproved and unimplemented.
+Phase 10 completed deployment and operational security hardening. The final candidate
+phase covers evidence-based evaluation, performance benchmarking, and production-readiness
+decision against a preregistered protocol and labeled corpus. It is documented in the
+[roadmap](docs/roadmap.md) but remains unapproved and unimplemented.

@@ -354,21 +354,47 @@ database is currently configured, which may differ from what was in effect
 originally. Store review backups with the same confidentiality, access,
 retention, encryption, and disposal controls as the review database itself.
 
+### Deployment container security and secret injection
+
+Per ADR 0011 and ADR 0014, container deployment adheres to least privilege:
+- execution as non-root user `veridoc` (UID 10001);
+- pinned minimal base image `python:3.12.12-slim-bookworm`;
+- no secrets or customer documents stored in image layers;
+- runtime secrets injected securely via `scripts/entrypoint.sh` from `/secrets` mount,
+  preventing credentials from appearing in build history, image manifests, or diagnostics; and
+- persistence volumes mounted at `/data` (encrypted storage) with single-writer SQLite locking.
+
+### Administration loopback enforcement
+
+Per ADR 0013, `/admin/reference-data/*` routes strictly refuse remote non-loopback callers
+with HTTP 503 `admin_authentication_unavailable` before inspecting tokens or connecting to SQLite.
+Administrative access is permitted only from `127.0.0.1`, `::1`, or `localhost`.
+
+### Upload scanning, quarantine, and disposal
+
+Per ADR 0012 and ADR 0016, uploads undergo pre-decode signature and malware scanning
+before rasterization or image decoding. Uploads detected as malicious or suspicious are
+isolated in encrypted quarantine storage (`VERIDOC_QUARANTINE_DIR`) with strict retention
+metadata. The `veridoc-backup` CLI automatically purges expired quarantine files.
+
+### Automated backup retention
+
+Per ADR 0015, scheduled maintenance (`veridoc-backup`) generates non-mutating online backups
+of both reference and review databases, verifying schema and integrity before atomic replacement.
+The retention policy keeps the 2 most recent verified backups per database store and prunes
+older snapshots.
+
+### Telemetry redaction
+
+Per ADR 0017, the telemetry registry at `/metrics` exports only aggregated counts by route and
+status code, limit counters, and scan outcomes. Document bytes, OCR text, extracted names/amounts,
+PII, and credentials are strictly redacted.
+
 ## Current security limitations
 
-Phase 8 authenticates local reference-data administration with one shared
-Bearer token; Phase 9 authenticates the review workflow per actor with
-session cookies, CSRF protection, and two roles (`reviewer`,
-`review_admin`). Neither has token rotation/revocation service, TLS
-termination, rate limiting, malware scanning, encrypted storage, a secret
-manager, a durable compliance-grade audit log, a privacy workflow, provider
-data-residency controls, database access control, or a managed backup
-policy. The local actor file has no self-registration, password reset, or
-remote directory integration and is an operator-managed local control, not a
-production identity system. `POST /ocr`, `POST /extract`, `POST /process`,
-and the older `GET /review` demo page remain unauthenticated. The request ID
-and record/event timestamps are operational metadata, not a compliance-grade
-audit trail. Tesseract availability, model selection, provider account
-controls, and trained-data selection are deployment responsibilities. The
-service is not production ready, enterprise grade, fraud proof, or safe for
-real documents.
+Reference-data administration uses a shared Bearer token restricted to local loopback clients (ADR 0013).
+Review uses session cookies and two roles, but its actor file is local and operator-managed
+without self-registration or directory federation. Document processing endpoints (`/ocr`,
+`/extract`, `/process`) rely on reverse-proxy TLS termination. Phase 10 adds container packaging,
+pre-decode quarantine scanning, rate/concurrency limiting, readiness probes, automated backup
+retention, and operational telemetry. The deployment candidate is prepared for Phase 11 evaluation.

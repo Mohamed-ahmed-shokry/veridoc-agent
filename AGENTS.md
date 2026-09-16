@@ -15,16 +15,16 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 9 are complete. Phase 10 and later are not approved. The
+Phase 0 through Phase 10 are complete. Phase 11 is not approved. The
 runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
 - `src/veridoc/app.py` creates the FastAPI application, pre-parser body limits,
-  validation-first dependencies, safe request correlation, `GET /health`,
-  `POST /ocr`, `POST /extract`, `POST /process`, and `GET /review`, and includes
-  the authenticated reference-data administration router and the Phase 9
-  review router.
+  rate/concurrency limiting, validation-first dependencies, safe request correlation,
+  `GET /health`, `GET /ready`, `GET /metrics`, `POST /ocr`, `POST /extract`,
+  `POST /process`, and `GET /review`, and includes the authenticated reference-data
+  administration router and the Phase 9 review router.
 - `src/veridoc/ingestion/dependencies.py` and
   `src/veridoc/processing/dependencies.py` own the shared validated-upload and
   OCR/extraction/processing dependency composition, so `app.py` and
@@ -33,6 +33,9 @@ runtime implementation remains deliberately small:
 - `src/veridoc/ingestion/validation.py` bounds and validates PDF, PNG, and JPEG
   uploads before decoding.
 - `src/veridoc/ingestion/storage.py` owns ephemeral temporary upload files.
+- `src/veridoc/ingestion/quarantine.py` and
+  `src/veridoc/ingestion/scanner.py` own the pre-decode upload scanning and
+  encrypted quarantine isolation boundary.
 - `src/veridoc/ocr/service.py` decodes raster images, rasterizes PDF pages, and
   can return normalized in-memory page images with OCR output.
 - `src/veridoc/ocr/protocol.py` defines the replaceable typed OCR boundary.
@@ -94,6 +97,15 @@ runtime implementation remains deliberately small:
   ordering.
 - `src/veridoc/review/console_page.py` renders the no-build authenticated
   review console.
+- `src/veridoc/deployment/` owns rate limiting, concurrency limiting, readiness
+  probes, loopback administration restrictions, operational telemetry, and the
+  `veridoc-backup` maintenance CLI.
+- `Dockerfile`, `.dockerignore`, and `scripts/entrypoint.sh` own reproducible
+  non-root container packaging with multi-language Tesseract assets and runtime
+  secret injection.
+- `docs/runbook.md` provides environment-specific operations, container deployment,
+  backup retention, disaster recovery restore drills, secret rotation, and
+  incident response procedures.
 - `tests/test_app.py` verifies application imports, metadata, and the safe 404
   response.
 - `tests/test_health.py` verifies health behavior and its required OpenAPI schema
@@ -158,6 +170,13 @@ runtime implementation remains deliberately small:
   processing graph behind a real login, rejected-actor dependency
   short-circuiting, and retry/concurrency/backup-restore/snapshot-
   independence properties end to end.
+- `tests/test_deployment_limits.py`, `tests/test_quarantine_storage.py`,
+  `tests/test_quarantine_scanner.py`, `tests/test_quarantine_integration.py`,
+  `tests/test_readiness.py`, `tests/test_telemetry.py`,
+  `tests/test_container_packaging.py`, and `tests/test_deployment_maintenance.py`
+  cover rate and concurrency limiting, scan-before-decode quarantine, readiness
+  probes, operational telemetry, container packaging contracts, loopback
+  enforcement, and automated backup/retention/quarantine maintenance.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -168,7 +187,12 @@ infrastructure. Phase 9 adds a per-actor authenticated, persistent review
 workflow — immutable snapshots, append-only events, session/CSRF-protected
 routes, and a browser console — in a store fully independent of reference
 data, without adding a production identity provider, deployment
-infrastructure, or automated retention/purge.
+infrastructure, or automated retention/purge. Phase 10 adds a reproducible
+container deployment profile, proxy-terminated TLS guidance, loopback
+administration isolation, language asset readiness probes, rate and concurrency
+limiting, pre-decode upload quarantine, automated backup retention (2 most
+recent verified backups per store), and operational telemetry without adding a
+remote identity provider or multi-region infrastructure.
 
 The current and planned workflow is:
 
@@ -314,12 +338,23 @@ uv run pytest tests/test_review_console_page.py
 uv run pytest tests/test_review_case_creation_integration.py
 uv run pytest tests/test_review_authorization_integration.py
 uv run pytest tests/test_review_retry_recovery_integration.py
+uv run pytest tests/test_deployment_limits.py
+uv run pytest tests/test_quarantine_storage.py
+uv run pytest tests/test_quarantine_scanner.py
+uv run pytest tests/test_quarantine_integration.py
+uv run pytest tests/test_readiness.py
+uv run pytest tests/test_telemetry.py
+uv run pytest tests/test_container_packaging.py
+uv run pytest tests/test_deployment_maintenance.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
 
 # Inspect the review-store maintenance interface.
 uv run veridoc-review --help
+
+# Inspect the automated backup and deployment maintenance interface.
+uv run veridoc-backup --help
 
 # Check lint and formatting.
 uv run ruff check .
@@ -462,6 +497,22 @@ documentation set is:
   immutable versioned review-record decision.
 - `docs/decisions/0010-defer-automated-review-retention-and-purge.md` for the
   deferred review retention/purge decision.
+- `docs/decisions/0011-use-local-container-for-phase-10-deployment.md` for the
+  container runtime deployment decision.
+- `docs/decisions/0012-threat-model-and-data-classification.md` for the
+  threat model and data classification decision.
+- `docs/decisions/0013-local-identity-with-proxy-tls.md` for the
+  proxy-terminated TLS, local identity, and loopback administration decision.
+- `docs/decisions/0014-runtime-secret-injection-and-rotation.md` for the
+  runtime secret injection and rotation decision.
+- `docs/decisions/0015-encrypted-single-writer-storage.md` for the
+  encrypted single-writer SQLite storage and backup retention decision.
+- `docs/decisions/0016-scan-uploads-before-decoding.md` for the
+  pre-decode upload scanning and quarantine decision.
+- `docs/decisions/0017-operational-only-telemetry.md` for the
+  operational telemetry export and redaction decision.
+- `docs/runbook.md` for deployment operations, container management, incident
+  response, backup/restore drills, and secret rotation.
 - `tests/fixtures/README.md` for deterministic fictional fixture use and
   extension guidance.
 
@@ -507,7 +558,8 @@ following documentation commit.
 - Require `VERIDOC_ADMIN_TOKEN` only at the administration boundary, hash both
   credential values to fixed-length SHA-256 digests before constant-time
   comparison, never accept it in URLs or bodies, and resolve storage only after
-  authentication succeeds.
+  authentication succeeds. Restrict reference-data administration to loopback
+  callers (`127.0.0.1`, `::1`, `localhost`) to prevent remote exposure.
 - Bound administration create/update JSON bodies and import files to 1 MiB
   before parsing; imports allow 500 total records and 200 line items per record.
   Preserve immutable provenance and apply bulk writes in one transaction.
@@ -516,7 +568,7 @@ following documentation commit.
   keep online backup sources and published snapshots at their original schema
   version, and replace a database or backup only after database and foreign-key
   integrity, migration-history, required-schema, and persisted-row semantic
-  checks pass.
+  checks pass. Keep the 2 most recent verified backups per store when pruning.
 - Require `VERIDOC_REVIEW_ACTORS_FILE` and `VERIDOC_REVIEW_ORIGIN` (an exact
   HTTPS origin) at the review boundary; compare presented credentials to
   stored digests with a constant-time scan over every actor, never
@@ -540,6 +592,13 @@ following documentation commit.
 - Render every value a review route returns with DOM text nodes only
   (`textContent`/`createTextNode`); never use `innerHTML` in the review
   console, since extracted document content is untrusted.
+- Container runtime artifacts must use a pinned base image, non-root execution
+  (`veridoc` UID 10001), non-leaking runtime secret injection via entrypoint,
+  and dedicated `/data` and `/secrets` mounts.
+- Quarantine suspicious uploads in isolated storage with declared retention
+  and automatic expired disposal before document decoding.
+- Telemetry exported at `/metrics` must contain operational counts and latencies
+  only; document bytes, extracted text, PII, and credentials must be redacted.
 
 ## Phase boundaries
 
@@ -560,12 +619,11 @@ following documentation commit.
   immutable snapshots, append-only events, session/CSRF-protected routes,
   and a browser console, in a store independent of reference data.
   **Complete.**
-- Phase 10 through Phase 11: candidate deployment security and readiness
-  evaluation. **Planned; not approved.** See `docs/roadmap.md` for their
-  boundaries.
+- Phase 10: deployment and operational security. **Complete.**
+- Phase 11: candidate evaluation and production-readiness decision.
+  **Planned; not approved.** See `docs/roadmap.md` for its boundaries.
 
-Do not begin Phase 10. Before Phase 10 or any later phase, inspect the
-repository, run the existing suite, present the implementation and commit
-plan, identify documentation changes, and wait for explicit approval. Phase
-9's approval identified `docs/phase-9-plan.md` and did not extend to Phase 10
-or Phase 11; the same rule applies to any future phase's approval.
+Do not begin Phase 11. Before Phase 11, inspect the repository, run the
+existing suite, present the implementation and commit plan, identify
+documentation changes, and wait for explicit approval. Phase 10's approval
+did not extend to Phase 11; the same rule applies to any future phase's approval.
