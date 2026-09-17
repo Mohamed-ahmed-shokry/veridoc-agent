@@ -122,6 +122,7 @@ tests/
 ├── test_evaluation_models.py        Phase 11 evaluation domain schemas and threshold contracts
 ├── test_evaluation_manifest.py      Phase 11 corpus manifest integrity and provenance validation
 ├── test_evaluation_ocr_metrics.py   Phase 11 OCR CER and WER error rate metrics
+├── test_evaluation_extraction_metrics.py Phase 11 extraction precision, recall, and evidence metrics
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
