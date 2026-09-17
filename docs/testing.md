@@ -123,6 +123,7 @@ tests/
 ├── test_evaluation_manifest.py      Phase 11 corpus manifest integrity and provenance validation
 ├── test_evaluation_ocr_metrics.py   Phase 11 OCR CER and WER error rate metrics
 ├── test_evaluation_extraction_metrics.py Phase 11 extraction precision, recall, and evidence metrics
+├── test_evaluation_verification_metrics.py Phase 11 verification accuracy and explanation metrics
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
