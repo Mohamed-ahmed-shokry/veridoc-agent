@@ -550,6 +550,47 @@ quarantine, automated backup retention, operational telemetry registry, and oper
 runbook) are fully verified and documented. No hosted CI run, live cloud provider call,
 or Phase 11 corpus evaluation was executed.
 
+## Phase 11 completion snapshot
+
+The local Phase 11 completion gate was recorded on 2026-09-17 against commit
+`f5e477c` before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run --no-sync pip-audit` | No known third-party vulnerabilities |
+| `uv run --no-sync ruff check .` | Passed |
+| `uv run --no-sync ruff format --check .` | 247 files already formatted |
+| `uv run --no-sync mypy` | No issues in 101 production source files |
+| `uv run --no-sync pytest --cov=veridoc` | 1001 passed; 94.42% branch coverage against a 90% floor |
+| `uv run --no-sync pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run --no-sync twine check dist/*` | Both distributions passed metadata validation |
+| `uv run --no-sync python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Cache-free isolated-wheel smoke | The wheel passed `scripts/smoke_distribution.py` |
+| Cache-free isolated-source-distribution smoke | The source distribution built, installed, and passed the same smoke script |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help`, `veridoc-review --help`, `veridoc-quarantine --help`, `veridoc-backup --help`, and `veridoc-evaluate --help` |
+| Evaluation benchmark run | `veridoc-evaluate` verified offline synthetic corpus benchmark in `tests/fixtures/corpus` |
+| Working-tree whitespace and merge-conflict scans | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. The Phase 11
+deliverables (preregistered evaluation protocol, synthetic corpus governance,
+OCR CER/WER metrics, extraction exact-match/F1/grounding metrics, verification
+confusion and verdict concordance metrics, explanation guardrail metrics,
+artifact and provider drift detection, deterministic runner with Wilson score
+confidence intervals, threshold-driven decision evaluation, `veridoc-evaluate`
+CLI, and baseline benchmark evaluation report) are fully verified and documented.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
