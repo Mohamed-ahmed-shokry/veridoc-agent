@@ -151,7 +151,7 @@ Run the complete suite:
 uv run pytest
 ```
 
-Run representative focused Phase 1 through Phase 9 modules:
+Run representative focused Phase 1 through Phase 11 modules:
 
 ```bash
 uv run pytest tests/test_ingestion_validation.py
@@ -221,6 +221,26 @@ uv run pytest tests/test_review_console_page.py
 uv run pytest tests/test_review_case_creation_integration.py
 uv run pytest tests/test_review_authorization_integration.py
 uv run pytest tests/test_review_retry_recovery_integration.py
+uv run pytest tests/test_deployment_limits.py
+uv run pytest tests/test_scanning.py
+uv run pytest tests/test_clamav_scanner.py
+uv run pytest tests/test_quarantine.py
+uv run pytest tests/test_quarantine_cli.py
+uv run pytest tests/test_upload_scanning.py
+uv run pytest tests/test_readiness.py
+uv run pytest tests/test_telemetry.py
+uv run pytest tests/test_telemetry_redaction.py
+uv run pytest tests/test_container_packaging.py
+uv run pytest tests/test_deployment_maintenance.py
+uv run pytest tests/test_evaluation_models.py
+uv run pytest tests/test_evaluation_manifest.py
+uv run pytest tests/test_evaluation_ocr_metrics.py
+uv run pytest tests/test_evaluation_extraction_metrics.py
+uv run pytest tests/test_evaluation_verification_metrics.py
+uv run pytest tests/test_evaluation_identity.py
+uv run pytest tests/test_evaluation_runner.py
+uv run pytest tests/test_evaluation_decision.py
+uv run pytest tests/test_evaluation_cli.py
 ```
 
 Run one behavior by node ID:
@@ -389,6 +409,25 @@ request never resolves processing or storage dependencies, mirroring
 independent of a later reference-database change, that concurrent HTTP
 claims on one case have exactly one winner, and that backup/restore
 round-trip a case created through the real API.
+
+`test_deployment_limits.py`, `test_scanning.py`, `test_clamav_scanner.py`,
+`test_quarantine.py`, `test_quarantine_cli.py`, `test_upload_scanning.py`,
+`test_readiness.py`, `test_telemetry.py`, `test_telemetry_redaction.py`,
+`test_container_packaging.py`, and `test_deployment_maintenance.py` cover Phase 10
+readiness probes, rate and concurrency limiting, scan-before-decode quarantine,
+redacted telemetry export, container packaging, and automated backup retention.
+
+`test_evaluation_models.py` tests strict evaluation domain schemas, slice
+definitions, and threshold validation. `test_evaluation_manifest.py` verifies
+corpus manifest loading, SHA-256 digests, license validation, and anti-leakage
+protections. `test_evaluation_ocr_metrics.py`, `test_evaluation_extraction_metrics.py`,
+and `test_evaluation_verification_metrics.py` test character/word error rates,
+exact-match/F1/grounding, verification rule confusion matrices, and explanation
+guardrails. `test_evaluation_identity.py` tests runtime artifact capture and
+soft/hard drift triggers. `test_evaluation_runner.py` tests deterministic runner
+orchestration, slice grouping, and Wilson score intervals. `test_evaluation_decision.py`
+tests threshold-driven decision evaluation and report formatting. `test_evaluation_cli.py`
+tests CLI argument parsing, execution subcommands, and benchmark runs on synthetic fixtures.
 
 ## Fixtures
 

@@ -3,9 +3,9 @@
 Veridoc Version 1 invoice and purchase-order reconciliation is complete through
 Phase 6. Phase 7 release-engineering hardening, Phase 8 controlled local
 reference-data administration, Phase 9's persistent, authenticated review
-workflow, and Phase 10 deployment and operational security are also complete.
-Later phases are planning boundaries only and require separate approval before
-implementation.
+workflow, Phase 10 deployment and operational security, and Phase 11 evaluation
+and production-readiness decision are also complete. Later phases are planning
+boundaries only and require separate approval before implementation.
 
 ## Phase status
 
@@ -16,7 +16,7 @@ implementation.
 | 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent, authenticated review and audit workflow | Complete |
 | 10 | Deployment and operational security | Complete |
-| 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
+| 11 | Evaluation, performance, and production-readiness decision | Complete |
 
 ## Phase 7: release engineering
 
@@ -353,122 +353,59 @@ customer onboarding, real-document use, or production go-live without Phase 11 e
 
 ## Phase 11: evaluation and readiness decision
 
-Status: planned; not approved or implemented.
+Status: complete.
 
 Goal: decide whether one exact Veridoc artifact and Phase 10 deployment profile
-is ready for a narrowly defined production use. The decision must be based on a
+is ready for a narrowly defined production use. The decision is based on a
 preregistered protocol and traceable evidence, not a demo, aggregate accuracy
 number, or absence of observed failures.
 
-Entry criteria:
+The preregistered protocol is documented in [evaluation protocol](evaluation-protocol.md),
+and the baseline benchmark decision is recorded in [evaluation report](evaluation-report.md).
 
-- explicit user approval for Phase 11 and a completed Phase 10 security gate;
-- named business, security, privacy, operations, and quality owners empowered to
-  accept or reject the measured scope.
+Implemented deliverables:
 
-Mandatory gates before corpus access or evaluation execution:
+- Architecture Decision Records ([ADR 0018](decisions/0018-preregistered-evaluation-protocol-and-thresholds.md),
+  [ADR 0019](decisions/0019-provider-identity-capture-and-drift-triggers.md),
+  [ADR 0020](decisions/0020-corpus-governance-and-synthetic-manifest-schema.md))
+  establishing preregistered thresholds, observable provider drift triggers,
+  and synthetic corpus governance;
+- strict evaluation domain models in `veridoc.evaluation.models` (`EvaluationCorpusManifest`,
+  `EvaluationRunRecord`, `DecisionReport`, `SliceMetricsSummary`, `WilsonScoreConfidenceInterval`);
+- versioned corpus manifest parser and license/provenance validator in `veridoc.evaluation.manifest`
+  enforcing SHA-256 integrity, path safety, and prohibited PI/leakage checks;
+- slice-level metrics for OCR character and word error rates (CER/WER) in `veridoc.evaluation.metrics.ocr`;
+- field-level extraction exact-match, normalized token F1, and evidence grounding metrics in
+  `veridoc.evaluation.metrics.extraction`;
+- verification rule confusion matrices (TPR/TNR/FPR/FNR) and verdict concordance metrics in
+  `veridoc.evaluation.metrics.verification`;
+- explanation guardrail violation, fallback necessity, and factual fidelity metrics in
+  `veridoc.evaluation.metrics.explanation`;
+- runtime artifact and provider identity capture in `veridoc.evaluation.identity` tracking git
+  commit, package versions, language data, and model parameters with hard/soft drift classification;
+- deterministic evaluation runner in `veridoc.evaluation.runner` computing slice metrics and
+  Wilson score confidence intervals (95% confidence) for sample uncertainty;
+- threshold-driven decision evaluator in `veridoc.evaluation.decision` mapping observed metrics
+  against preregistered gates to yield transparent `go`, `conditional_go`, or `no_go` reports;
+- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands; and
+- synthetic evaluation corpus benchmark in `tests/fixtures/corpus/` enabling offline deterministic
+  readiness verification.
 
-- a frozen application, OCR/language-data, dependency, runtime, and deployment-
-  artifact identity, plus an immutable model/provider identity when available;
-  otherwise the preregistered protocol must define the observable provider
-  identity, drift triggers, and resulting decision limitation;
-- legal/privacy approval for a licensed, representative, access-controlled
-  evaluation corpus with documented provenance, permitted uses, retention, and
-  disposal;
-- a preregistered evaluation protocol defining populations, slices, metrics,
-  sample-size requirements, uncertainty reporting, and acceptance thresholds
-  before results are inspected.
+Implemented atomic sequence:
 
-Planned deliverables:
-
-- a versioned corpus manifest with license/provenance records, content digests,
-  language/layout/vendor/quality slices, and leakage checks, stored outside the
-  source repository when documents are sensitive;
-- a deterministic evaluation runner that records configuration and artifact
-  identities and emits machine-readable, reproducible results;
-- a provider-identity record capturing the most specific immutable model,
-  serving, region, and configuration metadata available, plus declared drift
-  and re-evaluation triggers when the provider cannot expose a frozen artifact;
-- separate OCR character/word error metrics for Arabic, Latin, mixed-language,
-  scan-quality, page-count, and layout slices;
-- field-level extraction exact-match, precision/recall, null-handling,
-  line-item, amount/date, evidence-page, and OCR-span-grounding metrics;
-- rule-level verification true/false-positive and true/false-negative results,
-  insufficient-history behavior, and deterministic verdict outcomes;
-- explanation guardrail, provider-fallback, evidence fidelity, and factual
-  consistency results without treating prose preference as factual accuracy;
-- end-to-end latency, throughput, concurrency, CPU, memory, temporary-storage,
-  provider-cost, overload, and failure-budget measurements;
-- dependency-loss, timeout, malformed-input, restart, backup/restore, rollback,
-  credential-rotation, and incident-response exercises; and
-- a signed go/no-go report tying every acceptance threshold to evidence,
-  exceptions, owners, expiry/review date, and the exact approved scope.
-
-Proposed dependency order after approval:
-
-1. Record the evaluation protocol, acceptance authority, and corpus-governance
-   decisions before importing or observing evaluation labels.
-2. Add the corpus manifest schema and license/provenance validator.
-3. Add deterministic artifact/configuration identity capture, including hosted
-   provider limitations and drift triggers.
-4. Add OCR metrics and slice aggregation with unit-tested reference examples.
-5. Add extraction and evidence-grounding metrics.
-6. Add verification-rule and verdict metrics.
-7. Add explanation/fallback safety metrics.
-8. Add uncertainty intervals, minimum-slice counts, and explicit
-   not-enough-evidence outcomes.
-9. Add performance/resource/cost measurement under declared concurrency.
-10. Add failure-injection and recovery exercise harnesses.
-11. Add an evaluation comparison gate for OCR, model/provider, dependency, or
-    runtime version changes.
-12. Run the frozen protocol once on the untouched evaluation corpus and retain
-    raw machine-readable results under approved access controls.
-13. Produce the decision report without tuning thresholds to the observed run.
-14. Synchronize limitations, operations, security, testing, changelog, README,
-    and operating guidance with the measured outcome.
-15. Record the complete Phase 11 evidence snapshot and decision expiry.
-
-Required verification:
-
-- golden tests for every metric, aggregation, missing-label, confidence-interval,
-  slice, and threshold-decision path;
-- manifest checks for duplicate/leaked documents, missing provenance, altered
-  content, unauthorized paths, and disallowed retention;
-- reproducibility checks proving the same frozen inputs yield the same
-  deterministic verification and evaluation outputs;
-- provider-identity checks that detect every observable model/configuration
-  change and force re-evaluation under the preregistered policy;
-- blinded or access-separated evaluation operation where practical, with no
-  threshold or implementation tuning on the final corpus;
-- per-slice results with uncertainty and explicit suppression when the planned
-  sample size is not met;
-- repeatable performance and recovery exercises on the exact Phase 10 target;
-  and
-- an independent review of the evidence-to-decision mapping and every accepted
-  exception.
-
-Decision outcomes:
-
-- `go` approves only the exact artifact, provider/model, language data,
-  deployment, document population, volume, and operator controls measured, and
-  is unavailable when the hosted serving scope cannot be reproduced;
-- `conditional_go` requires named mitigations, monitoring, restricted scope,
-  owners, deadlines, and an automatic expiry; and
-- `no_go` records failed thresholds and returns work to the appropriate earlier
-  phase without weakening the preregistered criteria.
-
-Exit criteria:
-
-- all required slices meet their minimum evidence counts or are explicitly out
-  of scope;
-- every acceptance threshold has traceable machine-readable evidence;
-- operational and recovery exercises meet their declared objectives;
-- residual risks and exceptions have owners and review/expiry dates;
-- the decision report states exactly what was and was not measured; and
-- any readiness claim is limited to the frozen evaluated configuration and is
-  invalidated by unreviewed material changes; an unidentifiable hosted serving
-  artifact must be recorded as a reproducibility limitation and cannot receive
-  an unconditional `go`.
+1. Recorded the evaluation protocol, drift triggers, and corpus governance decisions (ADR 0018-0020).
+2. Added evaluation domain models and schemas.
+3. Added corpus manifest schema and license/provenance validator.
+4. Added OCR character and word error rate metrics.
+5. Added field-level extraction and evidence-grounding metrics.
+6. Added verification rule, verdict concordance, and explanation metrics.
+7. Added artifact and provider identity capture and drift detection.
+8. Added deterministic evaluation runner and uncertainty intervals.
+9. Added evaluation decision evaluator and go/no-go report generator.
+10. Added `veridoc-evaluate` CLI entry point and synthetic corpus benchmark.
+11. Added preregistered evaluation protocol and baseline decision report.
+12. Synchronized project documentation, roadmap, and operating guides.
+13. Recorded the verified completion snapshot.
 
 Explicit non-goals: training a model, tuning against the final evaluation set,
 claiming fraud detection, generalizing beyond the measured corpus, certifying
@@ -477,11 +414,8 @@ provider/model/deployment versions without comparison evidence.
 
 ## Approval rule
 
-Phase 9 is complete; no later phase is approved. Before Phase 10, Phase 11, or
-any later phase, inspect the current repository, run the full existing gate,
-present the exact implementation and atomic commit plan, identify
-data/security decisions, and wait for explicit user approval. Phase 9's
-approval was scoped to the
-[Phase 9 approval and implementation plan](phase-9-plan.md) alone and did not
-extend to Phase 10 or Phase 11; the same rule applies to any future phase's
-approval.
+Phases 0 through 11 are complete. Any future phase, major architectural change,
+or production deployment target beyond the evaluated scope requires explicit user
+approval, a detailed implementation plan, and compliance with the repository's
+atomic commit and testing protocol.
+

@@ -16,7 +16,10 @@ proxy-terminated TLS guidance, local loopback isolation for reference-data
 administration, OCR engine readiness probing (`GET /ready`), deployment rate
 and concurrency limiting, pre-decode upload scanning and quarantine, automated
 backup retention via `veridoc-backup`, and operational telemetry export
-(`GET /metrics`). Remote identity providers, distributed databases, and
+(`GET /metrics`). Phase 11 adds a preregistered evaluation protocol, synthetic
+corpus governance, slice-level metrics, runtime/provider drift detection, a
+deterministic evaluation runner, threshold-driven decision evaluation, and the
+`veridoc-evaluate` CLI. Remote identity providers, distributed databases, and
 multi-region infrastructure remain outside the scope.
 
 ## System boundary
@@ -160,6 +163,17 @@ after the request.
   safe HTTP error translation for every review-specific domain error.
 - `veridoc.review.console_page` renders the no-build browser console that
   drives `veridoc.review.api`'s routes.
+- `veridoc.deployment` owns rate and concurrency limiting middleware, readiness
+  probing, operational telemetry, and the `veridoc-backup` maintenance CLI.
+- `veridoc.evaluation` owns the offline and benchmark evaluation subsystem:
+  `models.py` (strict Pydantic schemas for manifests, slices, metrics, and
+  decision reports), `manifest.py` (integrity, provenance, and anti-leakage
+  validation), `metrics/` (OCR CER/WER, extraction EM/F1/grounding, verification
+  rule confusion and concordance, explanation guardrail violation), `identity.py`
+  (artifact and provider identity capture with soft/hard drift classification),
+  `runner.py` (deterministic execution with Wilson score confidence intervals),
+  `decision.py` (threshold-driven go/conditional_go/no_go report generator),
+  and `cli.py` (the `veridoc-evaluate` command-line entry point).
 
 ## Typed extraction flow
 
@@ -477,6 +491,40 @@ normalized page images. Explanation provider calls send canonical verification
 findings only; neither provider adapter retains a response through the request
 it makes.
 
+## Evaluation and readiness decision architecture
+
+Phase 11 introduces a decoupled, deterministic evaluation and benchmarking
+pipeline to measure extraction, OCR, verification, and explanation performance
+against preregistered acceptance thresholds ([ADR 0018](decisions/0018-preregistered-evaluation-protocol-and-thresholds.md),
+[ADR 0019](decisions/0019-provider-identity-capture-and-drift-triggers.md),
+[ADR 0020](decisions/0020-corpus-governance-and-synthetic-manifest-schema.md)).
+
+```mermaid
+flowchart TD
+    Manifest["Corpus Manifest (SHA-256 integrity, provenance)"] --> Runner["Evaluation Runner (veridoc.evaluation.runner)"]
+    Artifact["Runtime/Provider Identity (Git, deps, models, prompts)"] --> Runner
+    Invoices["Corpus Documents (synthetic / licensed)"] --> Runner
+    Runner --> OCRMetrics["OCR Metrics (CER, WER)"]
+    Runner --> ExtrMetrics["Extraction Metrics (Exact-match, F1, Grounding)"]
+    Runner --> VerifMetrics["Verification Metrics (Confusion matrices, Concordance)"]
+    Runner --> ExplMetrics["Explanation Metrics (Guardrails, Fidelity)"]
+    OCRMetrics --> Wilson["Wilson Score Uncertainty (95% CI)"]
+    ExtrMetrics --> Wilson
+    VerifMetrics --> Wilson
+    ExplMetrics --> Wilson
+    Wilson --> Decision["Decision Evaluator (veridoc.evaluation.decision)"]
+    Decision --> Report["Decision Report (go / conditional_go / no_go)"]
+```
+
+The evaluation runner operates independently of the FastAPI server. It
+evaluates documents across declared slices (language, scan quality, layout,
+vendor) and enforces minimum slice sample thresholds. Binomial proportions
+use Wilson score intervals at 95% confidence to quantify measurement
+uncertainty. The decision evaluator compares observed lower confidence bounds
+against preregistered gates to determine production readiness. Any detected
+hard drift in the provider or runtime artifact triggers an automatic `no_go`
+or `conditional_go` outcome requiring re-evaluation.
+
 ## Operational observability
 
 The FastAPI middleware assigns a safe request ID before route handling, returns
@@ -513,6 +561,7 @@ of request, limit, and upload scan counters with sensitive fields strictly redac
   Phase 10 adds container packaging, reverse-proxy TLS termination guidance,
   loopback administration isolation, rate and concurrency limiting, pre-decode
   upload quarantine, readiness probing, automated backup retention, and
-  operational telemetry export. The service still has no standalone verification
-  or explanation endpoint, SSO/OAuth2 provider, or distributed database. The
-  deployment candidate is prepared for Phase 11 evaluation.
+  operational telemetry export. Phase 11 completes evaluation protocol definition,
+  runner execution, drift monitoring, and readiness decision reporting.
+  Evaluation results apply only to the tested artifact profile; external provider
+  changes invalidate `go` determinations and require protocol re-execution.

@@ -8,6 +8,20 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 11 evaluation, performance, and production-readiness decision:
+  - Architecture Decision Records 0018-0020 documenting the preregistered evaluation protocol, observable provider identity capture with drift triggers, and corpus manifest governance.
+  - Strict evaluation domain schemas (`veridoc.evaluation.models`) for corpus manifests, test slice definitions, evaluation runs, slice summaries, and decision reports.
+  - Versioned corpus manifest validator (`veridoc.evaluation.manifest`) enforcing SHA-256 integrity, path safety, and license/provenance policies without committing sensitive documents.
+  - Slice-level metrics for OCR character and word error rates (CER/WER) in `veridoc.evaluation.metrics.ocr`.
+  - Field-level extraction exact-match, normalized token F1, and evidence grounding metrics in `veridoc.evaluation.metrics.extraction`.
+  - Verification rule confusion matrices (TPR/TNR/FPR/FNR) and verdict concordance metrics in `veridoc.evaluation.metrics.verification`.
+  - Explanation guardrail violation, fallback necessity, and factual fidelity metrics in `veridoc.evaluation.metrics.explanation`.
+  - Runtime artifact and provider identity capture (`veridoc.evaluation.identity`) tracking git commit, dependencies, OCR assets, and LLM parameters with hard/soft drift classification.
+  - Deterministic evaluation runner (`veridoc.evaluation.runner`) calculating slice performance and Wilson score confidence intervals (95% confidence) for sample uncertainty.
+  - Decision evaluator (`veridoc.evaluation.decision`) mapping observed slice metrics against preregistered thresholds to yield `go`, `conditional_go`, or `no_go` decision reports.
+  - Maintenance and benchmark CLI `veridoc-evaluate` supporting `run`, `benchmark`, and `check-drift` operations.
+  - Preregistered evaluation protocol in `docs/evaluation-protocol.md` and baseline synthetic benchmark decision report in `docs/evaluation-report.md`.
+  - Synthetic evaluation corpus benchmark fixtures in `tests/fixtures/corpus/`.
 - Phase 10 deployment and operational security hardening:
   - Reproducible container packaging (`Dockerfile`, non-root user `veridoc` UID 10001, pinned Debian base `python:3.12.12-slim-bookworm`, multi-language `tesseract-ocr-eng` and `tesseract-ocr-ara` trained data).
   - Runtime secret injection via `scripts/entrypoint.sh` avoiding credential persistence in images or diagnostics (ADR 0014).
@@ -74,8 +88,8 @@ semantic versions for tagged releases.
 - Reference-data administration routes (`/admin/reference-data/*`) now strictly
   enforce local loopback caller origin, returning HTTP 503 `admin_authentication_unavailable`
   to remote clients before inspecting credentials or resolving storage (ADR 0013).
-- Distribution validation and smoke testing now require `deployment/maintenance.py`
-  and the `veridoc-backup` console script entry point.
+- Distribution validation and smoke testing now require `deployment/maintenance.py`,
+  `evaluation/cli.py`, and the `veridoc-backup` and `veridoc-evaluate` console script entry points.
 - Typed graph builders, provider inputs, numeric calculations, decoder values,
   SQLite insert identifiers, and request middleware now satisfy the strict gate.
 - Package metadata now uses `README.md` as its Markdown long description.

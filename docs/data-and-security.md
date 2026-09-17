@@ -390,6 +390,21 @@ Per ADR 0017, the telemetry registry at `/metrics` exports only aggregated count
 status code, limit counters, and scan outcomes. Document bytes, OCR text, extracted names/amounts,
 PII, and credentials are strictly redacted.
 
+### Evaluation corpus governance and synthetic test data
+
+Per [ADR 0020](decisions/0020-corpus-governance-and-synthetic-manifest-schema.md), evaluation data is strictly governed to prevent leakage of commercial or personal data:
+- Corpus manifests must strictly prohibit real customer PII, confidential vendor bank details, or unmasked documents.
+- Manifests validate SHA-256 digest integrity, explicit license terms, and provenance paths.
+- Relative document paths must remain within the manifest root directory to prevent directory traversal.
+- Automated tests and repository benchmarks use exclusively synthetic, programmatically generated fixtures in `tests/fixtures/corpus/`.
+
+### Provider and artifact drift controls
+
+Per [ADR 0019](decisions/0019-provider-identity-capture-and-drift-triggers.md), evaluation records tie readiness decisions to an immutable runtime snapshot:
+- Captured identity freezes git commit, dependency lockfile, OCR engine and trained language data, LLM model identifier, and prompt template digests.
+- Drift detection categorizes differences as compatible, soft drift (informational warnings such as minor patch versions), or hard drift.
+- Hard drift (model changes, prompt template modifications, or major version updates) invalidates the evaluated decision and mandates a full protocol re-run before production deployment.
+
 ## Current security limitations
 
 Reference-data administration uses a shared Bearer token restricted to local loopback clients (ADR 0013).
@@ -397,4 +412,6 @@ Review uses session cookies and two roles, but its actor file is local and opera
 without self-registration or directory federation. Document processing endpoints (`/ocr`,
 `/extract`, `/process`) rely on reverse-proxy TLS termination. Phase 10 adds container packaging,
 pre-decode quarantine scanning, rate/concurrency limiting, readiness probes, automated backup
-retention, and operational telemetry. The deployment candidate is prepared for Phase 11 evaluation.
+retention, and operational telemetry. Phase 11 completes evaluation protocol and decision governance;
+evaluated `go` decisions are strictly bound to the evaluated artifact and provider identity, and
+any upstream provider changes invalidate the decision until re-evaluated.

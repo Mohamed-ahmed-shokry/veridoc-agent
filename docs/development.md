@@ -2,9 +2,10 @@
 
 This guide covers product behavior implemented through Phase 6, completed
 Phase 7 release engineering, Phase 8 local reference-data administration,
-Phase 9's per-actor authenticated review workflow, and Phase 10 deployment
-and operational security. Remote identity providers, distributed databases,
-and candidate evaluation remain later work.
+Phase 9's per-actor authenticated review workflow, Phase 10 deployment
+and operational security, and Phase 11 evaluation and readiness decision.
+Remote identity providers, distributed databases, and post-V1 features
+remain future work.
 
 ## Prerequisites
 
@@ -553,6 +554,41 @@ docker build -t veridoc:latest .
 
 See the [operations runbook](runbook.md) for full deployment procedures, secret rotation,
 and disaster recovery drills.
+
+## Evaluation and readiness benchmark
+
+Run the evaluation CLI against the synthetic corpus benchmark to verify
+performance metrics across OCR, extraction, verification, and explanation
+slices:
+
+```powershell
+uv run veridoc-evaluate benchmark `
+  --corpus-dir tests/fixtures/corpus `
+  --output evaluation-report.json
+```
+
+Run a full evaluation on a specified corpus manifest and ground-truth directory:
+
+```powershell
+uv run veridoc-evaluate run `
+  --manifest tests/fixtures/corpus/manifest.json `
+  --invoices-dir tests/fixtures/corpus/invoices `
+  --ground-truth tests/fixtures/corpus/ground_truth `
+  --output evaluation-report.json
+```
+
+Check runtime artifact and provider drift against a baseline run record:
+
+```powershell
+uv run veridoc-evaluate check-drift `
+  --baseline baseline-evaluation-run.json
+```
+
+The evaluation runner calculates Wilson score confidence intervals for binomial
+proportions at the 95% confidence level and evaluates slice metrics against
+preregistered thresholds to yield a transparent `go`, `conditional_go`, or `no_go`
+decision report. See the [evaluation protocol](evaluation-protocol.md) and
+[evaluation report](evaluation-report.md) for full details.
 
 ## Operational guidance
 

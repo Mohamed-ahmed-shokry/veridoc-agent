@@ -15,8 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 10 are complete. Phase 11 is not approved. The
-runtime implementation remains deliberately small:
+Phase 0 through Phase 11 are complete. The runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -100,6 +99,20 @@ runtime implementation remains deliberately small:
 - `src/veridoc/deployment/` owns rate limiting, concurrency limiting, readiness
   probes, loopback administration restrictions, operational telemetry, and the
   `veridoc-backup` maintenance CLI.
+- `src/veridoc/evaluation/models.py` defines strict evaluation manifests, slice
+  summaries, uncertainty confidence intervals, and decision reports.
+- `src/veridoc/evaluation/manifest.py` validates corpus manifest schema,
+  SHA-256 integrity, path safety, and license/provenance policies.
+- `src/veridoc/evaluation/metrics/` computes character/word error rates for OCR,
+  exact-match/F1/grounding for extraction, rule confusion matrices and verdict
+  concordance for verification, and guardrail/fidelity metrics for explanation.
+- `src/veridoc/evaluation/identity.py` captures runtime artifact and provider
+  identities and classifies model/prompt drift triggers.
+- `src/veridoc/evaluation/runner.py` executes deterministic slice evaluation and
+  Wilson score intervals for sample uncertainty.
+- `src/veridoc/evaluation/decision.py` maps observed metrics against preregistered
+  gates to yield transparent `go`, `conditional_go`, or `no_go` reports.
+- `src/veridoc/evaluation/cli.py` provides the `veridoc-evaluate` CLI entry point.
 - `Dockerfile`, `.dockerignore`, and `scripts/entrypoint.sh` own reproducible
   non-root container packaging with multi-language Tesseract assets and runtime
   secret injection.
@@ -170,13 +183,25 @@ runtime implementation remains deliberately small:
   processing graph behind a real login, rejected-actor dependency
   short-circuiting, and retry/concurrency/backup-restore/snapshot-
   independence properties end to end.
-- `tests/test_deployment_limits.py`, `tests/test_quarantine_storage.py`,
-  `tests/test_quarantine_scanner.py`, `tests/test_quarantine_integration.py`,
+- `tests/test_deployment_limits.py`, `tests/test_scanning.py`,
+  `tests/test_clamav_scanner.py`, `tests/test_quarantine.py`,
+  `tests/test_quarantine_cli.py`, `tests/test_upload_scanning.py`,
   `tests/test_readiness.py`, `tests/test_telemetry.py`,
-  `tests/test_container_packaging.py`, and `tests/test_deployment_maintenance.py`
+  `tests/test_telemetry_redaction.py`, `tests/test_container_packaging.py`,
+  and `tests/test_deployment_maintenance.py`
   cover rate and concurrency limiting, scan-before-decode quarantine, readiness
   probes, operational telemetry, container packaging contracts, loopback
   enforcement, and automated backup/retention/quarantine maintenance.
+- `tests/test_evaluation_models.py`, `tests/test_evaluation_manifest.py`,
+  `tests/test_evaluation_ocr_metrics.py`,
+  `tests/test_evaluation_extraction_metrics.py`,
+  `tests/test_evaluation_verification_metrics.py`,
+  `tests/test_evaluation_identity.py`, `tests/test_evaluation_runner.py`,
+  `tests/test_evaluation_decision.py`, and `tests/test_evaluation_cli.py`
+  cover evaluation domain models, manifest validation, OCR CER/WER, extraction
+  and grounding metrics, rule accuracy and explanation guardrails, drift
+  triggers, deterministic runner orchestration, uncertainty intervals, decision
+  gate reporting, and the evaluation CLI.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -192,7 +217,12 @@ container deployment profile, proxy-terminated TLS guidance, loopback
 administration isolation, language asset readiness probes, rate and concurrency
 limiting, pre-decode upload quarantine, automated backup retention (2 most
 recent verified backups per store), and operational telemetry without adding a
-remote identity provider or multi-region infrastructure.
+remote identity provider or multi-region infrastructure. Phase 11 adds a
+preregistered evaluation protocol, synthetic corpus governance,
+OCR/extraction/verification/explanation slice metrics, runtime/provider drift
+detection, a deterministic evaluation runner with Wilson score uncertainty,
+a threshold-driven decision evaluator yielding reproducible go/conditional_go/no_go
+reports, and the `veridoc-evaluate` maintenance and benchmark CLI.
 
 The current and planned workflow is:
 
@@ -339,13 +369,25 @@ uv run pytest tests/test_review_case_creation_integration.py
 uv run pytest tests/test_review_authorization_integration.py
 uv run pytest tests/test_review_retry_recovery_integration.py
 uv run pytest tests/test_deployment_limits.py
-uv run pytest tests/test_quarantine_storage.py
-uv run pytest tests/test_quarantine_scanner.py
-uv run pytest tests/test_quarantine_integration.py
+uv run pytest tests/test_scanning.py
+uv run pytest tests/test_clamav_scanner.py
+uv run pytest tests/test_quarantine.py
+uv run pytest tests/test_quarantine_cli.py
+uv run pytest tests/test_upload_scanning.py
 uv run pytest tests/test_readiness.py
 uv run pytest tests/test_telemetry.py
+uv run pytest tests/test_telemetry_redaction.py
 uv run pytest tests/test_container_packaging.py
 uv run pytest tests/test_deployment_maintenance.py
+uv run pytest tests/test_evaluation_models.py
+uv run pytest tests/test_evaluation_manifest.py
+uv run pytest tests/test_evaluation_ocr_metrics.py
+uv run pytest tests/test_evaluation_extraction_metrics.py
+uv run pytest tests/test_evaluation_verification_metrics.py
+uv run pytest tests/test_evaluation_identity.py
+uv run pytest tests/test_evaluation_runner.py
+uv run pytest tests/test_evaluation_decision.py
+uv run pytest tests/test_evaluation_cli.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -355,6 +397,9 @@ uv run veridoc-review --help
 
 # Inspect the automated backup and deployment maintenance interface.
 uv run veridoc-backup --help
+
+# Inspect the evaluation and benchmark interface.
+uv run veridoc-evaluate --help
 
 # Check lint and formatting.
 uv run ruff check .

@@ -23,7 +23,12 @@ local loopback isolation for reference-data administration, OCR engine readiness
 probing for configured languages (`eng` and `ara`), deployment rate and concurrency
 limiting, pre-decode upload scanning and quarantine, automated backup retention
 (keeping the 2 most recent verified backups per store) and disposal tooling
-via `veridoc-backup`, and operational telemetry export.
+via `veridoc-backup`, and operational telemetry export. Phase 11 adds a
+preregistered evaluation protocol, synthetic corpus governance,
+OCR/extraction/verification/explanation slice metrics, runtime and provider drift
+detection, a deterministic evaluation runner with Wilson score uncertainty,
+a threshold-driven decision evaluator yielding reproducible go/conditional_go/no_go
+reports, and the `veridoc-evaluate` maintenance and benchmark CLI.
 
 ## Implemented capabilities
 
@@ -78,8 +83,15 @@ via `veridoc-backup`, and operational telemetry export.
 - loopback-only caller restriction for reference-data administration;
 - pre-decode upload malware scanning and quarantine storage abstraction;
 - automated backup retention pruning and quarantine expiration maintenance via `veridoc-backup`;
-- operational telemetry registry and structured metrics export at `GET /metrics`; and
-- environment-specific operations and incident runbook in [runbook](docs/runbook.md).
+- operational telemetry registry and structured metrics export at `GET /metrics`;
+- environment-specific operations and incident runbook in [runbook](docs/runbook.md);
+- preregistered evaluation protocol with explicit acceptance thresholds ([ADR 0018](docs/decisions/0018-preregistered-evaluation-protocol-and-thresholds.md), [protocol](docs/evaluation-protocol.md));
+- runtime artifact and provider drift classification ([ADR 0019](docs/decisions/0019-provider-identity-capture-and-drift-triggers.md));
+- corpus governance with SHA-256 integrity and license/provenance validation ([ADR 0020](docs/decisions/0020-corpus-governance-and-synthetic-manifest-schema.md));
+- slice-level metrics for OCR (CER/WER), extraction (exact-match, token F1, evidence grounding), verification (confusion matrices, concordance), and explanation (guardrail, fidelity);
+- deterministic evaluation runner with Wilson score confidence intervals for sample uncertainty;
+- threshold-driven decision evaluation generating structured `go`, `conditional_go`, or `no_go` reports ([baseline report](docs/evaluation-report.md)); and
+- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands.
 
 ## Quick start
 
@@ -505,7 +517,7 @@ business data. Tests use deterministic fictional fixtures only; see the
 | 8 | Controlled reference-data administration | Complete |
 | 9 | Persistent, authenticated review and audit workflow | Complete |
 | 10 | Deployment and operational security | Complete |
-| 11 | Evaluation, performance, and production-readiness decision | Planned; not approved |
+| 11 | Evaluation, performance, and production-readiness decision | Complete |
 
 Version 1 processing behavior is complete through Phase 6. Phase 7 strengthened
 release evidence without adding endpoints or processing features. Phase 8
@@ -515,11 +527,11 @@ immutable snapshots, an event history, and a browser console, with its own
 verified release gate. Phase 10 completed reproducible container packaging,
 proxy-terminated TLS guidance, OCR engine readiness probes, rate/concurrency
 limits, pre-decode quarantine scanning, automated backup retention CLI, and
-telemetry metrics export. See the [project roadmap](docs/roadmap.md) for
-deliverables and approval boundaries. The approved design and exact atomic
-implementation sequence are in the
-[Phase 9 approval plan](docs/phase-9-plan.md) and [Phase 10 operations runbook](docs/runbook.md);
-Phase 11 remains unapproved.
+telemetry metrics export. Phase 11 completed preregistered evaluation protocol
+definition, synthetic corpus governance, slice-level metrics across all pipeline
+stages, runtime artifact and provider drift detection, a deterministic evaluation
+runner, threshold-driven decision evaluation, and the `veridoc-evaluate` CLI.
+See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
 ## Documentation
 
@@ -531,12 +543,15 @@ Phase 11 remains unapproved.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 10 scope and the
-  unapproved Phase 11 candidate.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 11 scope and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
   incident response, backup/restore drills, and secret rotation.
+- [Evaluation protocol](docs/evaluation-protocol.md): preregistered metrics, slices,
+  sample size requirements, and acceptance thresholds.
+- [Evaluation report](docs/evaluation-report.md): baseline benchmark decision report
+  with slice-level evidence and drift evaluation.
 - [Release evidence](docs/release-evidence.md): verified local gates and evidence
   boundaries.
 - [Decision records](docs/decisions/README.md): ADR format and index.
@@ -554,12 +569,15 @@ pre-decode quarantine scanning, rate/concurrency limiting, readiness probes,
 automated backup retention, and operational telemetry. `/ocr`, `/extract`, and
 `/process` remain unauthenticated behind reverse proxy TLS. The deterministic
 `clear` verdict means only that no implemented rule produced a finding; it is not
-an automated approval, and neither is a review case's `decided` status. The
-deployment candidate is ready for Phase 11 evaluation.
+an automated approval, and neither is a review case's `decided` status. Phase 11
+evaluation decisions (`go` / `conditional_go` / `no_go`) apply strictly to the
+frozen artifact and provider identity evaluated; any provider drift or model change
+invalidates the decision and triggers mandatory re-evaluation (ADR 0019).
 
 ## Future work
 
-Phase 10 completed deployment and operational security hardening. The final candidate
-phase covers evidence-based evaluation, performance benchmarking, and production-readiness
-decision against a preregistered protocol and labeled corpus. It is documented in the
-[roadmap](docs/roadmap.md) but remains unapproved and unimplemented.
+Phase 11 completed evaluation, performance benchmarking, and production-readiness
+decision reporting against the preregistered protocol. Post-Version-1 enhancements
+(e.g., enterprise single sign-on, external message queues, multi-region clustering,
+or custom fine-tuned OCR/extraction models) remain subject to separate stakeholder
+review and approval.
