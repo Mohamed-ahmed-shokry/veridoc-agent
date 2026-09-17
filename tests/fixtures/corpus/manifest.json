@@ -1,0 +1,49 @@
+{
+  "manifest_version": "1.0",
+  "corpus_name": "veridoc-synthetic-benchmark-v1",
+  "description": "Deterministic synthetic invoice corpus for Phase 11 evaluation benchmark.",
+  "documents": [
+    {
+      "document_id": "doc-001",
+      "file_path": "invoices/doc_001.png",
+      "file_sha256": "6f6c194fa3527a34d64085d1d4cf00feb7adee8337c6a4f39f77de616b65a28c",
+      "mime_type": "image/png",
+      "page_count": 1,
+      "license": "synthetic",
+      "provenance": "synthetic-fictional-v1",
+      "language": "eng",
+      "quality": "clean",
+      "layout": "standard",
+      "ground_truth_path": "ground_truth/doc_001.json",
+      "ground_truth_sha256": "f528381a655f1389478287e40f5c68dcad8cb5e55e2ad0eeba900f646fa65d50"
+    },
+    {
+      "document_id": "doc-002",
+      "file_path": "invoices/doc_002.pdf",
+      "file_sha256": "ae16d3460bb6608e472caeed8976f37a9727494cfda4da51f623c9038591e4ff",
+      "mime_type": "application/pdf",
+      "page_count": 2,
+      "license": "synthetic",
+      "provenance": "synthetic-fictional-v1",
+      "language": "eng",
+      "quality": "clean",
+      "layout": "standard",
+      "ground_truth_path": "ground_truth/doc_002.json",
+      "ground_truth_sha256": "b8a56fd31955ee6e08dc85b9c5ec04134a5b91b2b389df60cf969a924b4a8f2f"
+    },
+    {
+      "document_id": "doc-003",
+      "file_path": "invoices/doc_003.png",
+      "file_sha256": "bbc2850ce7b730c44dbea223fb05b5dccd060888d2386fc0706833afaba52932",
+      "mime_type": "image/png",
+      "page_count": 1,
+      "license": "synthetic",
+      "provenance": "synthetic-fictional-v1",
+      "language": "ara",
+      "quality": "noisy",
+      "layout": "dense",
+      "ground_truth_path": "ground_truth/doc_003.json",
+      "ground_truth_sha256": "51765b4909783772db9221757947a9767e13837b71277a5b5e668f81c9ff5802"
+    }
+  ]
+}

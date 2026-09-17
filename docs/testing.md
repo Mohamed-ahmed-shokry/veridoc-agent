@@ -127,6 +127,7 @@ tests/
 ├── test_evaluation_identity.py     Phase 11 runtime artifact and provider drift detection
 ├── test_evaluation_runner.py       Phase 11 deterministic runner and uncertainty intervals
 ├── test_evaluation_decision.py     Phase 11 threshold evaluation and go/no-go report generator
+├── test_evaluation_cli.py          Phase 11 veridoc-evaluate CLI contract and benchmark run
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

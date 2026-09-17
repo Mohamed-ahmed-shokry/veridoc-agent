@@ -1,0 +1,22 @@
+{
+  "invoice_number": "INV-2026-0001",
+  "invoice_date": "2026-03-01",
+  "due_date": "2026-03-31",
+  "vendor_name": "Acme Industrial Supplies",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "110.00",
+  "subtotal_amount": "100.00",
+  "tax_amount": "10.00",
+  "line_items": [
+    {
+      "description": "Consulting Service",
+      "quantity": "1",
+      "unit_price": "100.00",
+      "total_amount": "100.00"
+    }
+  ],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Acme Industrial Supplies\nInvoice INV-2026-0001\nPurchase Order PO-2026-01\nSubtotal 100.00 USD   Tax 10.00 USD   Total 110.00 USD"
+}

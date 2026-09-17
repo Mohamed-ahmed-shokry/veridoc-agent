@@ -141,6 +141,7 @@ def _check_console_scripts(contents: bytes, archive: Path) -> None:
         "veridoc-review": "veridoc.review.persistence.cli:main",
         "veridoc-quarantine": "veridoc.scanning.cli:main",
         "veridoc-backup": "veridoc.deployment.maintenance:main",
+        "veridoc-evaluate": "veridoc.evaluation.cli:main",
     }
 
     actual = (

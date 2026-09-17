@@ -7,6 +7,7 @@ from veridoc.__main__ import main as api_main
 from veridoc.administration.cli import main as reference_main
 from veridoc.app import app
 from veridoc.deployment.maintenance import main as backup_main
+from veridoc.evaluation.cli import main as evaluate_main
 from veridoc.review.persistence.cli import main as review_main
 from veridoc.scanning.cli import main as quarantine_main
 
@@ -16,6 +17,7 @@ _EXPECTED_SCRIPTS = {
     "veridoc-review": "veridoc.review.persistence.cli:main",
     "veridoc-quarantine": "veridoc.scanning.cli:main",
     "veridoc-backup": "veridoc.deployment.maintenance:main",
+    "veridoc-evaluate": "veridoc.evaluation.cli:main",
 }
 
 _REQUIRED_SCHEMA_PATHS = {
@@ -79,6 +81,7 @@ def main() -> None:
     assert callable(review_main)
     assert callable(quarantine_main)
     assert callable(backup_main)
+    assert callable(evaluate_main)
 
     assert _REQUIRED_SCHEMA_PATHS <= schema_paths
     assert "/review" in runtime_paths

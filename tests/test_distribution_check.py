@@ -141,6 +141,7 @@ def test_distribution_check_requires_all_console_scripts() -> None:
         b"veridoc-review = veridoc.review.persistence.cli:main\n"
         b"veridoc-quarantine = veridoc.scanning.cli:main\n"
         b"veridoc-backup = veridoc.deployment.maintenance:main\n"
+        b"veridoc-evaluate = veridoc.evaluation.cli:main\n"
     )
 
     _check_console_scripts(valid, Path("dist/veridoc.whl"))
