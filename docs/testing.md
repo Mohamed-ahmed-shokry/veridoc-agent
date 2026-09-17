@@ -120,6 +120,7 @@ tests/
 ├── test_telemetry_redaction.py      Phase 10 redaction across every telemetry sink
 ├── test_container_packaging.py      Phase 10 reproducible container packaging contracts
 ├── test_evaluation_models.py        Phase 11 evaluation domain schemas and threshold contracts
+├── test_evaluation_manifest.py      Phase 11 corpus manifest integrity and provenance validation
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
