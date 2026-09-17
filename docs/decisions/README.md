@@ -34,3 +34,6 @@ Accepted decisions:
 - [0015: Keep SQLite on encrypted single-writer storage with drilled recovery](0015-encrypted-single-writer-storage.md)
 - [0016: Scan uploads before decoding with operator-held quarantine](0016-scan-uploads-before-decoding.md)
 - [0017: Export operational-only telemetry with redaction tests](0017-operational-only-telemetry.md)
+- [0018: Use a preregistered evaluation protocol with explicit acceptance thresholds and slice governance](0018-preregistered-evaluation-protocol-and-thresholds.md)
+- [0019: Capture frozen provider and artifact identity with drift detection triggers](0019-provider-identity-capture-and-drift-triggers.md)
+- [0020: Enforce corpus governance with SHA-256 manifests and synthetic evaluation data](0020-corpus-governance-and-synthetic-manifest-schema.md)
