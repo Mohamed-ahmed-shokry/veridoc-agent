@@ -13,6 +13,7 @@ ComparisonSource = Literal[
     "purchase_order",
     "vendor_history",
     "invoice_register",
+    "vendor_registry",
 ]
 FindingSeverity = Literal["info", "low", "medium", "high"]
 FindingType = Literal[
@@ -30,6 +31,10 @@ FindingType = Literal[
     "payment_terms_changed",
     "missing_historical_field",
     "insufficient_history",
+    "unregistered_vendor",
+    "suspended_vendor",
+    "vendor_bank_account_mismatch",
+    "vendor_tax_id_mismatch",
 ]
 
 

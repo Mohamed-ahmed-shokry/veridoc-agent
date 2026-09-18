@@ -128,6 +128,7 @@ tests/
 ├── test_evaluation_runner.py       Phase 11 deterministic runner and uncertainty intervals
 ├── test_evaluation_decision.py     Phase 11 threshold evaluation and go/no-go report generator
 ├── test_evaluation_cli.py          Phase 11 veridoc-evaluate CLI contract and benchmark run
+├── test_vendor_models.py           Phase 12 vendor master schemas and resolution models
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
@@ -241,6 +242,7 @@ uv run pytest tests/test_evaluation_identity.py
 uv run pytest tests/test_evaluation_runner.py
 uv run pytest tests/test_evaluation_decision.py
 uv run pytest tests/test_evaluation_cli.py
+uv run pytest tests/test_vendor_models.py
 ```
 
 Run one behavior by node ID:
@@ -428,6 +430,9 @@ soft/hard drift triggers. `test_evaluation_runner.py` tests deterministic runner
 orchestration, slice grouping, and Wilson score intervals. `test_evaluation_decision.py`
 tests threshold-driven decision evaluation and report formatting. `test_evaluation_cli.py`
 tests CLI argument parsing, execution subcommands, and benchmark runs on synthetic fixtures.
+`test_vendor_models.py` tests strict Phase 12 vendor master domain models,
+canonical key derivation, bank account formatting, tax ID patterns, resolution results,
+and match confidence tiers.
 
 ## Fixtures
 

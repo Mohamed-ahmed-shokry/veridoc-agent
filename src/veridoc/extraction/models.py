@@ -53,6 +53,8 @@ class InvoiceExtraction(BaseModel):
     document_type: DocumentType
     vendor_name: str | None = None
     vendor_identifier: str | None = None
+    vendor_tax_id: str | None = None
+    vendor_bank_account: str | None = None
     invoice_number: str | None = None
     purchase_order_number: str | None = None
     invoice_date: date | None = None
