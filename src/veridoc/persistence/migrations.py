@@ -188,11 +188,111 @@ _UNIQUE_LINE_ITEM_POSITIONS = Migration(
     ),
 )
 
+_VENDOR_MASTER_DATA = Migration(
+    version=5,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS vendors (
+            id INTEGER PRIMARY KEY,
+            vendor_id TEXT NOT NULL,
+            legal_name TEXT NOT NULL,
+            canonical_key TEXT NOT NULL,
+            status TEXT NOT NULL,
+            record_id TEXT,
+            source TEXT,
+            external_id TEXT,
+            created_at TEXT,
+            updated_at TEXT,
+            retention_until TEXT
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendors_vendor_id_index
+        ON vendors(vendor_id)
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendors_record_id_index
+        ON vendors(record_id)
+        WHERE record_id IS NOT NULL
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendors_source_external_id_index
+        ON vendors(source, external_id)
+        WHERE source IS NOT NULL AND external_id IS NOT NULL
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS vendors_canonical_key_index
+        ON vendors(canonical_key)
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS vendor_aliases (
+            id INTEGER PRIMARY KEY,
+            vendor_id INTEGER NOT NULL
+                REFERENCES vendors(id) ON DELETE CASCADE,
+            alias TEXT NOT NULL,
+            canonical_key TEXT NOT NULL
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendor_aliases_vendor_alias_index
+        ON vendor_aliases(vendor_id, alias)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS vendor_aliases_canonical_key_index
+        ON vendor_aliases(canonical_key)
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS vendor_bank_accounts (
+            id INTEGER PRIMARY KEY,
+            vendor_id INTEGER NOT NULL
+                REFERENCES vendors(id) ON DELETE CASCADE,
+            account_number TEXT NOT NULL,
+            bank_code TEXT,
+            routing_number TEXT,
+            iban TEXT,
+            currency TEXT,
+            is_primary INTEGER NOT NULL
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendor_bank_accounts_vendor_account_index
+        ON vendor_bank_accounts(vendor_id, account_number)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS vendor_bank_accounts_account_number_index
+        ON vendor_bank_accounts(account_number)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS vendor_bank_accounts_iban_index
+        ON vendor_bank_accounts(iban)
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS vendor_tax_ids (
+            id INTEGER PRIMARY KEY,
+            vendor_id INTEGER NOT NULL
+                REFERENCES vendors(id) ON DELETE CASCADE,
+            tax_id TEXT NOT NULL,
+            tax_type TEXT NOT NULL,
+            country TEXT
+        )
+        """,
+        """
+        CREATE UNIQUE INDEX IF NOT EXISTS vendor_tax_ids_vendor_tax_type_index
+        ON vendor_tax_ids(vendor_id, tax_type)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS vendor_tax_ids_tax_id_index
+        ON vendor_tax_ids(tax_id)
+        """,
+    ),
+)
+
 MIGRATIONS = (
     _INITIAL_SCHEMA,
     _ADMINISTRATION_METADATA,
     _BACKFILL_MISSING_METADATA,
     _UNIQUE_LINE_ITEM_POSITIONS,
+    _VENDOR_MASTER_DATA,
 )
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 

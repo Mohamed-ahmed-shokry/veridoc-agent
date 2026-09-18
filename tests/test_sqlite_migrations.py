@@ -11,6 +11,7 @@ from veridoc.persistence.migrations import (
     UnsupportedSchemaVersionError,
     migrate,
 )
+from veridoc.persistence.schema import validate_current_schema
 
 
 def test_migrations_create_the_latest_schema_and_are_idempotent(tmp_path) -> None:
@@ -25,6 +26,10 @@ def test_migrations_create_the_latest_schema_and_are_idempotent(tmp_path) -> Non
         invoice_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(vendor_invoices)")
         }
+        vendor_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(vendors)")
+        }
+        validate_current_schema(connection)
 
     assert versions == [(version,) for version in range(1, LATEST_SCHEMA_VERSION + 1)]
     assert {
@@ -35,6 +40,18 @@ def test_migrations_create_the_latest_schema_and_are_idempotent(tmp_path) -> Non
         "updated_at",
         "retention_until",
     } <= invoice_columns
+    assert {
+        "vendor_id",
+        "legal_name",
+        "canonical_key",
+        "status",
+        "record_id",
+        "source",
+        "external_id",
+        "created_at",
+        "updated_at",
+        "retention_until",
+    } <= vendor_columns
 
 
 def test_migrations_index_unique_child_positions(tmp_path) -> None:
@@ -224,3 +241,78 @@ def test_migrations_backfill_writes_created_after_metadata_upgrade(tmp_path) -> 
         "1970-01-01T00:00:00Z",
         "1970-01-01T00:00:00Z",
     )
+
+
+def test_migrations_create_vendor_registry_tables_and_cascade_deletes(
+    tmp_path,
+) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    with sqlite3.connect(database_path) as connection:
+        connection.execute("PRAGMA foreign_keys = ON")
+        migrate(connection, validate=validate_current_schema)
+
+        cursor = connection.execute(
+            """
+            INSERT INTO vendors (
+                vendor_id, legal_name, canonical_key, status,
+                record_id, source, external_id, created_at, updated_at
+            ) VALUES (
+                'vnd_01', 'Acme Corp', 'acme-corp', 'active',
+                'rec_01', 'manual', 'ext_01', '2026-09-18T00:00:00Z', '2026-09-18T00:00:00Z'
+            )
+            """
+        )
+        vendor_row_id = cursor.lastrowid
+
+        connection.execute(
+            "INSERT INTO vendor_aliases (vendor_id, alias, canonical_key) VALUES (?, 'Acme Inc', 'acme-inc')",
+            (vendor_row_id,),
+        )
+        connection.execute(
+            """
+            INSERT INTO vendor_bank_accounts (
+                vendor_id, account_number, bank_code, iban, is_primary
+            ) VALUES (?, '12345678', 'CHASUS33', 'GB82WEST12345678', 1)
+            """,
+            (vendor_row_id,),
+        )
+        connection.execute(
+            """
+            INSERT INTO vendor_tax_ids (
+                vendor_id, tax_id, tax_type, country
+            ) VALUES (?, 'GB123456789', 'vat', 'GB')
+            """,
+            (vendor_row_id,),
+        )
+        connection.commit()
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                """
+                INSERT INTO vendors (
+                    vendor_id, legal_name, canonical_key, status, created_at, updated_at
+                ) VALUES ('vnd_01', 'Duplicate', 'dup', 'active', '2026-09-18T00:00:00Z', '2026-09-18T00:00:00Z')
+                """
+            )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            connection.execute(
+                "INSERT INTO vendor_aliases (vendor_id, alias, canonical_key) VALUES (?, 'Acme Inc', 'acme-inc')",
+                (vendor_row_id,),
+            )
+
+        connection.execute("DELETE FROM vendors WHERE id = ?", (vendor_row_id,))
+        connection.commit()
+
+        assert (
+            connection.execute("SELECT COUNT(*) FROM vendor_aliases").fetchone()[0] == 0
+        )
+        assert (
+            connection.execute("SELECT COUNT(*) FROM vendor_bank_accounts").fetchone()[
+                0
+            ]
+            == 0
+        )
+        assert (
+            connection.execute("SELECT COUNT(*) FROM vendor_tax_ids").fetchone()[0] == 0
+        )

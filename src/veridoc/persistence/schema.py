@@ -69,6 +69,50 @@ _REQUIRED_SCHEMA_COLUMNS = {
             "total_price",
         }
     ),
+    "vendors": frozenset(
+        {
+            "id",
+            "vendor_id",
+            "legal_name",
+            "canonical_key",
+            "status",
+            "record_id",
+            "source",
+            "external_id",
+            "created_at",
+            "updated_at",
+            "retention_until",
+        }
+    ),
+    "vendor_aliases": frozenset(
+        {
+            "id",
+            "vendor_id",
+            "alias",
+            "canonical_key",
+        }
+    ),
+    "vendor_bank_accounts": frozenset(
+        {
+            "id",
+            "vendor_id",
+            "account_number",
+            "bank_code",
+            "routing_number",
+            "iban",
+            "currency",
+            "is_primary",
+        }
+    ),
+    "vendor_tax_ids": frozenset(
+        {
+            "id",
+            "vendor_id",
+            "tax_id",
+            "tax_type",
+            "country",
+        }
+    ),
 }
 _REQUIRED_PRIMARY_KEYS = {
     "schema_migrations": ("version",),
@@ -76,6 +120,10 @@ _REQUIRED_PRIMARY_KEYS = {
     "invoice_line_items": ("id",),
     "purchase_orders": ("id",),
     "purchase_order_line_items": ("id",),
+    "vendors": ("id",),
+    "vendor_aliases": ("id",),
+    "vendor_bank_accounts": ("id",),
+    "vendor_tax_ids": ("id",),
 }
 _REQUIRED_INTEGER_COLUMNS = {
     "schema_migrations": frozenset({"version"}),
@@ -83,6 +131,10 @@ _REQUIRED_INTEGER_COLUMNS = {
     "invoice_line_items": frozenset({"id", "invoice_id", "position"}),
     "purchase_orders": frozenset({"id"}),
     "purchase_order_line_items": frozenset({"id", "purchase_order_id", "position"}),
+    "vendors": frozenset({"id"}),
+    "vendor_aliases": frozenset({"id", "vendor_id"}),
+    "vendor_bank_accounts": frozenset({"id", "vendor_id", "is_primary"}),
+    "vendor_tax_ids": frozenset({"id", "vendor_id"}),
 }
 _REQUIRED_NOT_NULL_COLUMNS = {
     "schema_migrations": frozenset({"applied_at"}),
@@ -90,6 +142,10 @@ _REQUIRED_NOT_NULL_COLUMNS = {
     "invoice_line_items": frozenset({"invoice_id", "position"}),
     "purchase_orders": frozenset({"vendor_key", "purchase_order_number"}),
     "purchase_order_line_items": frozenset({"purchase_order_id", "position"}),
+    "vendors": frozenset({"vendor_id", "legal_name", "canonical_key", "status"}),
+    "vendor_aliases": frozenset({"vendor_id", "alias", "canonical_key"}),
+    "vendor_bank_accounts": frozenset({"vendor_id", "account_number", "is_primary"}),
+    "vendor_tax_ids": frozenset({"vendor_id", "tax_id", "tax_type"}),
 }
 _REQUIRED_FOREIGN_KEYS = {
     "invoice_line_items": frozenset(
@@ -98,6 +154,9 @@ _REQUIRED_FOREIGN_KEYS = {
     "purchase_order_line_items": frozenset(
         {("purchase_order_id", "purchase_orders", "id", "CASCADE")}
     ),
+    "vendor_aliases": frozenset({("vendor_id", "vendors", "id", "CASCADE")}),
+    "vendor_bank_accounts": frozenset({("vendor_id", "vendors", "id", "CASCADE")}),
+    "vendor_tax_ids": frozenset({("vendor_id", "vendors", "id", "CASCADE")}),
 }
 _REQUIRED_NAMED_UNIQUE_INDEXES: dict[
     str,
@@ -135,6 +194,38 @@ _REQUIRED_NAMED_UNIQUE_INDEXES: dict[
             None,
         ),
     },
+    "vendors": {
+        "vendors_vendor_id_index": (
+            ("vendor_id",),
+            None,
+        ),
+        "vendors_record_id_index": (
+            ("record_id",),
+            "WHERE RECORD_ID IS NOT NULL",
+        ),
+        "vendors_source_external_id_index": (
+            ("source", "external_id"),
+            "WHERE SOURCE IS NOT NULL AND EXTERNAL_ID IS NOT NULL",
+        ),
+    },
+    "vendor_aliases": {
+        "vendor_aliases_vendor_alias_index": (
+            ("vendor_id", "alias"),
+            None,
+        ),
+    },
+    "vendor_bank_accounts": {
+        "vendor_bank_accounts_vendor_account_index": (
+            ("vendor_id", "account_number"),
+            None,
+        ),
+    },
+    "vendor_tax_ids": {
+        "vendor_tax_ids_vendor_tax_type_index": (
+            ("vendor_id", "tax_type"),
+            None,
+        ),
+    },
 }
 _REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
     "vendor_invoices": {
@@ -143,6 +234,19 @@ _REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
             "vendor_key",
             "invoice_number",
         ),
+    },
+    "vendors": {
+        "vendors_canonical_key_index": ("canonical_key",),
+    },
+    "vendor_aliases": {
+        "vendor_aliases_canonical_key_index": ("canonical_key",),
+    },
+    "vendor_bank_accounts": {
+        "vendor_bank_accounts_account_number_index": ("account_number",),
+        "vendor_bank_accounts_iban_index": ("iban",),
+    },
+    "vendor_tax_ids": {
+        "vendor_tax_ids_tax_id_index": ("tax_id",),
     },
 }
 _ALLOWED_ANONYMOUS_UNIQUE_INDEXES = {
