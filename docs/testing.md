@@ -130,6 +130,7 @@ tests/
 ├── test_evaluation_cli.py          Phase 11 veridoc-evaluate CLI contract and benchmark run
 ├── test_vendor_models.py           Phase 12 vendor master schemas and resolution models
 ├── test_sqlite_vendor_repository.py Phase 12 SQLite vendor repository persistence and lookups
+├── test_vendor_resolution.py       Phase 12 multi-attribute vendor entity resolution engine
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
@@ -245,6 +246,7 @@ uv run pytest tests/test_evaluation_decision.py
 uv run pytest tests/test_evaluation_cli.py
 uv run pytest tests/test_vendor_models.py
 uv run pytest tests/test_sqlite_vendor_repository.py
+uv run pytest tests/test_vendor_resolution.py
 ```
 
 Run one behavior by node ID:
@@ -436,6 +438,8 @@ tests CLI argument parsing, execution subcommands, and benchmark runs on synthet
 canonical key derivation, bank account formatting, tax ID patterns, resolution results,
 and match confidence tiers. `test_sqlite_vendor_repository.py` tests SQLite vendor
 master data persistence, alias/tax/bank lookups, status filtering, and semantic validation.
+`test_vendor_resolution.py` tests cascading multi-attribute vendor entity resolution across
+tax IDs, bank coordinates, canonical keys, aliases, and bounded token similarity.
 
 ## Fixtures
 
