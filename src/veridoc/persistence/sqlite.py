@@ -34,6 +34,15 @@ from veridoc.persistence.schema import (
     InvalidReferenceSchemaError,
     validate_current_schema,
 )
+from veridoc.vendors.models import (
+    VendorBankAccount,
+    VendorEntity,
+    VendorStatus,
+    VendorTaxId,
+    normalize_bank_account,
+    normalize_tax_id,
+    normalize_vendor_name,
+)
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -60,6 +69,9 @@ def validate_persisted_reference_data(connection: sqlite3.Connection) -> None:
         ).fetchall()
         for row in purchase_order_rows:
             _admin_purchase_order_from_row(connection, row)
+        vendor_rows = connection.execute("SELECT * FROM vendors ORDER BY id").fetchall()
+        for row in vendor_rows:
+            _vendor_entity_from_row(connection, row)
     finally:
         connection.row_factory = original_row_factory
 
@@ -385,6 +397,134 @@ class SQLiteInvoiceRepository:
             if row is None:
                 return None
             return _purchase_order_from_row(connection, row)
+
+    def get_vendor_by_id(self, vendor_id: str) -> VendorEntity | None:
+        """Return one vendor by its unique vendor identifier, if any."""
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM vendors WHERE vendor_id = ?", (vendor_id,)
+            ).fetchone()
+            return _vendor_entity_from_row(connection, row) if row is not None else None
+
+    def get_vendor_by_canonical_key(self, canonical_key: str) -> VendorEntity | None:
+        """Return one vendor by its canonical slugified key, if any."""
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM vendors WHERE canonical_key = ?", (canonical_key,)
+            ).fetchone()
+            return _vendor_entity_from_row(connection, row) if row is not None else None
+
+    def find_vendors_by_alias(self, alias_key: str) -> list[VendorEntity]:
+        """Return vendors that have an alias matching this canonical key."""
+        with self._read_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT v.* FROM vendors v
+                JOIN vendor_aliases a ON a.vendor_id = v.id
+                WHERE a.canonical_key = ?
+                ORDER BY v.id
+                """,
+                (alias_key,),
+            ).fetchall()
+            seen: set[str] = set()
+            result: list[VendorEntity] = []
+            for row in rows:
+                entity = _vendor_entity_from_row(connection, row)
+                if entity.vendor_id not in seen:
+                    seen.add(entity.vendor_id)
+                    result.append(entity)
+            return result
+
+    def find_vendors_by_tax_id(
+        self, tax_id: str, tax_type: str | None = None
+    ) -> list[VendorEntity]:
+        """Return vendors registered with this tax identifier."""
+        clean_tax = normalize_tax_id(tax_id)
+        with self._read_connection() as connection:
+            if tax_type is not None:
+                rows = connection.execute(
+                    """
+                    SELECT v.* FROM vendors v
+                    JOIN vendor_tax_ids t ON t.vendor_id = v.id
+                    WHERE REPLACE(REPLACE(REPLACE(UPPER(t.tax_id), ' ', ''), '-', ''), '.', '') = ?
+                      AND UPPER(t.tax_type) = UPPER(?)
+                    ORDER BY v.id
+                    """,
+                    (clean_tax, tax_type),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT v.* FROM vendors v
+                    JOIN vendor_tax_ids t ON t.vendor_id = v.id
+                    WHERE REPLACE(REPLACE(REPLACE(UPPER(t.tax_id), ' ', ''), '-', ''), '.', '') = ?
+                    ORDER BY v.id
+                    """,
+                    (clean_tax,),
+                ).fetchall()
+            seen: set[str] = set()
+            result: list[VendorEntity] = []
+            for row in rows:
+                entity = _vendor_entity_from_row(connection, row)
+                if entity.vendor_id not in seen:
+                    seen.add(entity.vendor_id)
+                    result.append(entity)
+            return result
+
+    def find_vendors_by_bank_account(self, account_number: str) -> list[VendorEntity]:
+        """Return vendors with this account number or IBAN."""
+        clean_acct = normalize_bank_account(account_number)
+        with self._read_connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT v.* FROM vendors v
+                JOIN vendor_bank_accounts b ON b.vendor_id = v.id
+                WHERE REPLACE(REPLACE(REPLACE(UPPER(b.account_number), ' ', ''), '-', ''), '.', '') = ?
+                   OR (b.iban IS NOT NULL AND REPLACE(REPLACE(REPLACE(UPPER(b.iban), ' ', ''), '-', ''), '.', '') = ?)
+                ORDER BY v.id
+                """,
+                (clean_acct, clean_acct),
+            ).fetchall()
+            seen: set[str] = set()
+            result: list[VendorEntity] = []
+            for row in rows:
+                entity = _vendor_entity_from_row(connection, row)
+                if entity.vendor_id not in seen:
+                    seen.add(entity.vendor_id)
+                    result.append(entity)
+            return result
+
+    def list_vendors(self, *, status: VendorStatus | None = None) -> list[VendorEntity]:
+        """Return all registered vendors, optionally filtered by status."""
+        with self._read_connection() as connection:
+            if status is not None:
+                rows = connection.execute(
+                    "SELECT * FROM vendors WHERE status = ? ORDER BY id",
+                    (status,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    "SELECT * FROM vendors ORDER BY id"
+                ).fetchall()
+            return [_vendor_entity_from_row(connection, row) for row in rows]
+
+    def add_vendor(self, vendor: VendorEntity) -> None:
+        """Persist one vendor entity and its child records."""
+        timestamp = _timestamp()
+        created_at = vendor.created_at or timestamp
+        updated_at = vendor.updated_at or timestamp
+        record_id = vendor.record_id or uuid4().hex
+        with self._connection() as connection:
+            _insert_vendor(
+                connection,
+                vendor,
+                record_id=record_id,
+                source=vendor.source or "application",
+                external_id=vendor.external_id or f"vendor-{vendor.vendor_id}",
+                created_at=created_at,
+                updated_at=updated_at,
+                retention_until=vendor.retention_until,
+            )
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
@@ -873,3 +1013,157 @@ def _text_to_date(value: str | None) -> date | None:
 
 def _timestamp() -> str:
     return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _vendor_entity_from_row(
+    connection: sqlite3.Connection, row: sqlite3.Row
+) -> VendorEntity:
+    vendor_row_id = row["id"]
+    try:
+        alias_rows = connection.execute(
+            "SELECT alias FROM vendor_aliases WHERE vendor_id = ? ORDER BY id",
+            (vendor_row_id,),
+        ).fetchall()
+        aliases = [str(r["alias"]) for r in alias_rows]
+
+        bank_rows = connection.execute(
+            """
+            SELECT account_number, bank_code, routing_number, iban
+            FROM vendor_bank_accounts WHERE vendor_id = ? ORDER BY id
+            """,
+            (vendor_row_id,),
+        ).fetchall()
+        bank_accounts = [
+            VendorBankAccount(
+                account_number=str(r["account_number"]),
+                bank_code=str(r["bank_code"]) if r["bank_code"] is not None else None,
+                routing_number=str(r["routing_number"])
+                if r["routing_number"] is not None
+                else None,
+                iban=str(r["iban"]) if r["iban"] is not None else None,
+            )
+            for r in bank_rows
+        ]
+
+        tax_rows = connection.execute(
+            """
+            SELECT tax_id, tax_type, country
+            FROM vendor_tax_ids WHERE vendor_id = ? ORDER BY id
+            """,
+            (vendor_row_id,),
+        ).fetchall()
+        tax_ids = [
+            VendorTaxId(
+                tax_id=str(r["tax_id"]),
+                tax_type=str(r["tax_type"]),
+                country_code=str(r["country"]) if r["country"] is not None else None,
+            )
+            for r in tax_rows
+        ]
+
+        return VendorEntity(
+            vendor_id=str(row["vendor_id"]),
+            legal_name=str(row["legal_name"]),
+            canonical_key=str(row["canonical_key"]),
+            status=cast(VendorStatus, str(row["status"])),
+            aliases=aliases,
+            bank_accounts=bank_accounts,
+            tax_ids=tax_ids,
+            record_id=str(row["record_id"]) if row["record_id"] is not None else None,
+            source=str(row["source"]) if row["source"] is not None else None,
+            external_id=str(row["external_id"])
+            if row["external_id"] is not None
+            else None,
+            created_at=str(row["created_at"])
+            if row["created_at"] is not None
+            else None,
+            updated_at=str(row["updated_at"])
+            if row["updated_at"] is not None
+            else None,
+            retention_until=str(row["retention_until"])
+            if row["retention_until"] is not None
+            else None,
+        )
+    except Exception as exc:
+        raise InvalidPersistedReferenceDataError from exc
+
+
+def _insert_vendor(
+    connection: sqlite3.Connection,
+    vendor: VendorEntity,
+    *,
+    record_id: str,
+    source: str,
+    external_id: str,
+    created_at: str,
+    updated_at: str,
+    retention_until: str | None,
+) -> int:
+    cursor = connection.execute(
+        """
+        INSERT INTO vendors (
+            vendor_id, legal_name, canonical_key, status,
+            record_id, source, external_id, created_at, updated_at, retention_until
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            vendor.vendor_id,
+            vendor.legal_name,
+            vendor.canonical_key,
+            vendor.status,
+            record_id,
+            source,
+            external_id,
+            created_at,
+            updated_at,
+            retention_until,
+        ),
+    )
+    vendor_row_id = cast(int, cursor.lastrowid)
+
+    for alias in vendor.aliases:
+        alias_key = normalize_vendor_name(alias)
+        connection.execute(
+            """
+            INSERT INTO vendor_aliases (vendor_id, alias, canonical_key)
+            VALUES (?, ?, ?)
+            """,
+            (vendor_row_id, alias, alias_key),
+        )
+
+    for idx, bank in enumerate(vendor.bank_accounts):
+        connection.execute(
+            """
+            INSERT INTO vendor_bank_accounts (
+                vendor_id, account_number, bank_code, routing_number, iban, is_primary
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                vendor_row_id,
+                bank.account_number,
+                bank.bank_code,
+                bank.routing_number,
+                bank.iban,
+                1 if idx == 0 else 0,
+            ),
+        )
+
+    for tax in vendor.tax_ids:
+        connection.execute(
+            """
+            INSERT INTO vendor_tax_ids (
+                vendor_id, tax_id, tax_type, country
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                vendor_row_id,
+                tax.tax_id,
+                tax.tax_type,
+                tax.country_code,
+            ),
+        )
+
+    return vendor_row_id
+
+
+SQLiteVendorRepository = SQLiteInvoiceRepository

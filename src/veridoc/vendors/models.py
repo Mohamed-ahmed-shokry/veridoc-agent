@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -69,3 +70,26 @@ class VendorResolutionResult(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
     matched_attribute: str | None = None
     status: VendorStatus | None = None
+
+
+_PUNCTUATION_AND_SPACE = re.compile(r"[\s\-_.]+")
+
+
+def normalize_vendor_name(name: str) -> str:
+    """Derive canonical vendor slug key."""
+    return _PUNCTUATION_AND_SPACE.sub("-", name.strip().lower()).strip("-")
+
+
+def derive_canonical_vendor_key(name: str) -> str:
+    """Derive canonical vendor key from legal name or trading alias."""
+    return normalize_vendor_name(name)
+
+
+def normalize_bank_account(account: str) -> str:
+    """Normalize bank account or IBAN by removing spaces and punctuation."""
+    return _PUNCTUATION_AND_SPACE.sub("", account.strip().upper())
+
+
+def normalize_tax_id(tax_id: str) -> str:
+    """Normalize tax registration identifier by removing spaces and punctuation."""
+    return _PUNCTUATION_AND_SPACE.sub("", tax_id.strip().upper())

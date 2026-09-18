@@ -129,6 +129,7 @@ tests/
 ├── test_evaluation_decision.py     Phase 11 threshold evaluation and go/no-go report generator
 ├── test_evaluation_cli.py          Phase 11 veridoc-evaluate CLI contract and benchmark run
 ├── test_vendor_models.py           Phase 12 vendor master schemas and resolution models
+├── test_sqlite_vendor_repository.py Phase 12 SQLite vendor repository persistence and lookups
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
@@ -243,6 +244,7 @@ uv run pytest tests/test_evaluation_runner.py
 uv run pytest tests/test_evaluation_decision.py
 uv run pytest tests/test_evaluation_cli.py
 uv run pytest tests/test_vendor_models.py
+uv run pytest tests/test_sqlite_vendor_repository.py
 ```
 
 Run one behavior by node ID:
@@ -432,7 +434,8 @@ tests threshold-driven decision evaluation and report formatting. `test_evaluati
 tests CLI argument parsing, execution subcommands, and benchmark runs on synthetic fixtures.
 `test_vendor_models.py` tests strict Phase 12 vendor master domain models,
 canonical key derivation, bank account formatting, tax ID patterns, resolution results,
-and match confidence tiers.
+and match confidence tiers. `test_sqlite_vendor_repository.py` tests SQLite vendor
+master data persistence, alias/tax/bank lookups, status filtering, and semantic validation.
 
 ## Fixtures
 
