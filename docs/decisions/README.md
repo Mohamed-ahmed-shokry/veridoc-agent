@@ -37,3 +37,6 @@ Accepted decisions:
 - [0018: Use a preregistered evaluation protocol with explicit acceptance thresholds and slice governance](0018-preregistered-evaluation-protocol-and-thresholds.md)
 - [0019: Capture frozen provider and artifact identity with drift detection triggers](0019-provider-identity-capture-and-drift-triggers.md)
 - [0020: Enforce corpus governance with SHA-256 manifests and synthetic evaluation data](0020-corpus-governance-and-synthetic-manifest-schema.md)
+- [0021: Vendor master registry and schema](0021-vendor-master-registry-and-schema.md)
+- [0022: Multi-attribute vendor entity resolution](0022-multi-attribute-vendor-entity-resolution.md)
+- [0023: Deterministic vendor and bank reconciliation rules](0023-deterministic-vendor-and-bank-reconciliation-rules.md)
