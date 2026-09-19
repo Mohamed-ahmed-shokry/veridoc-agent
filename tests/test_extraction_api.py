@@ -102,6 +102,8 @@ async def test_extract_endpoint_returns_typed_evidence_linked_data() -> None:
         "document_type": "invoice",
         "vendor_name": "Fictional Supplies Ltd.",
         "vendor_identifier": None,
+        "vendor_tax_id": None,
+        "vendor_bank_account": None,
         "invoice_number": "INV-001",
         "purchase_order_number": None,
         "invoice_date": None,
