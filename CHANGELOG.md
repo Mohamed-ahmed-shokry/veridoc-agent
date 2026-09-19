@@ -8,6 +8,17 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 12 authoritative vendor registry, entity resolution, and bank reconciliation:
+  - Architecture Decision Records 0021-0023 documenting vendor master schema, cascading multi-attribute entity resolution, and deterministic remit-to bank account/tax ID reconciliation rules.
+  - Strict vendor master domain schemas (`veridoc.vendors.models`) for `VendorEntity`, `VendorBankAccount`, `VendorTaxId`, `VendorResolutionResult`, and `VendorMatchConfidence`.
+  - SQLite Migration 5 establishing `vendors`, `vendor_aliases`, `vendor_bank_accounts`, and `vendor_tax_ids` tables with unique indexes, foreign key constraints, and schema validation.
+  - Vendor repository protocol `VendorRepository` and SQLite persistence implementation in `veridoc.persistence.sqlite`.
+  - Deterministic cascading entity resolution engine (`veridoc.vendors.resolution.resolve_vendor`) matching across tax IDs, bank accounts, canonical keys, aliases, and bounded token similarity (>= 0.85).
+  - Deterministic verification rules in `veridoc.verification.vendor_rules` for `unregistered_vendor`, `suspended_vendor`, `vendor_bank_account_mismatch`, and `vendor_tax_id_mismatch`.
+  - Integration of `vendor_resolution` into `ProcessingResult`, processing graph, and service.
+  - Authenticated reference-data administration API (`POST/GET/PUT/DELETE /admin/reference-data/vendors`) and batch JSON import support.
+  - `veridoc-reference vendors` CLI subcommands (`list`, `get`, `delete`).
+  - Authenticated review console integration displaying vendor resolution badges and bank account mismatch warnings safely without `innerHTML`.
 - Phase 11 evaluation, performance, and production-readiness decision:
   - Architecture Decision Records 0018-0020 documenting the preregistered evaluation protocol, observable provider identity capture with drift triggers, and corpus manifest governance.
   - Strict evaluation domain schemas (`veridoc.evaluation.models`) for corpus manifests, test slice definitions, evaluation runs, slice summaries, and decision reports.

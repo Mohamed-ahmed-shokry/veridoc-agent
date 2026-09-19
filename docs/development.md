@@ -3,7 +3,8 @@
 This guide covers product behavior implemented through Phase 6, completed
 Phase 7 release engineering, Phase 8 local reference-data administration,
 Phase 9's per-actor authenticated review workflow, Phase 10 deployment
-and operational security, and Phase 11 evaluation and readiness decision.
+and operational security, Phase 11 evaluation and readiness decision, and
+Phase 12 authoritative vendor registry, entity resolution, and bank reconciliation.
 Remote identity providers, distributed databases, and post-V1 features
 remain future work.
 
@@ -590,6 +591,24 @@ preregistered thresholds to yield a transparent `go`, `conditional_go`, or `no_g
 decision report. See the [evaluation protocol](evaluation-protocol.md) and
 [evaluation report](evaluation-report.md) for full details.
 
+## Vendor master management
+
+Inspect and manage authoritative vendor master records using the reference-data CLI:
+
+```powershell
+# List all registered vendors
+uv run veridoc-reference vendors list
+
+# Filter vendors by status
+uv run veridoc-reference vendors list --status active
+
+# Fetch one vendor with aliases, bank accounts, and tax IDs
+uv run veridoc-reference vendors get <record_id>
+
+# Delete one vendor entity and its child records
+uv run veridoc-reference vendors delete <record_id>
+```
+
 ## Operational guidance
 
 `GET /health` is a liveness check only: it confirms that the API can serve a
@@ -673,4 +692,6 @@ protocol.
 15. Update the affected documentation in the same commit when inseparable or in
    the immediately following focused documentation commit.
 16. Update `AGENTS.md` if commands, package boundaries, conventions, or required
-   checks changed.
+    checks changed.
+17. Keep vendor resolution behind `VendorRepository`; match across tax/bank/alias/similarity
+    cascading tiers, and keep bank account mismatch and tax ID verification rules deterministic.

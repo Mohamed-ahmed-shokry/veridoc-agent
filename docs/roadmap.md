@@ -17,6 +17,7 @@ boundaries only and require separate approval before implementation.
 | 9 | Persistent, authenticated review and audit workflow | Complete |
 | 10 | Deployment and operational security | Complete |
 | 11 | Evaluation, performance, and production-readiness decision | Complete |
+| 12 | Authoritative vendor registry, entity resolution, and bank reconciliation | Complete |
 
 ## Phase 7: release engineering
 
@@ -412,9 +413,49 @@ claiming fraud detection, generalizing beyond the measured corpus, certifying
 legal/accounting compliance, autonomous payment approval, or approving future
 provider/model/deployment versions without comparison evidence.
 
+## Phase 12: authoritative vendor registry, entity resolution, and bank reconciliation
+
+Status: complete.
+
+Goal: establish authoritative vendor master data, multi-attribute entity
+resolution, and deterministic remit-to bank account and tax reconciliation rules
+to prevent payment redirection fraud.
+
+Implemented deliverables:
+
+- Architecture Decision Records ([ADR 0021](decisions/0021-vendor-master-registry-and-schema.md),
+  [ADR 0022](decisions/0022-multi-attribute-vendor-entity-resolution.md),
+  [ADR 0023](decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md))
+  governing vendor master schema, cascading resolution tiers, and deterministic
+  bank/tax reconciliation rules;
+- strict vendor master domain schemas in `veridoc.vendors.models` (`VendorEntity`,
+  `VendorBankAccount`, `VendorTaxId`, `VendorResolutionResult`, `VendorMatchConfidence`);
+- SQLite Migration 5 establishing `vendors`, `vendor_aliases`, `vendor_bank_accounts`,
+  and `vendor_tax_ids` tables with unique indexes, foreign key constraints, and
+  schema validation;
+- repository protocol `VendorRepository` and SQLite persistence implementation in
+  `veridoc.persistence.sqlite`;
+- deterministic cascading multi-attribute entity resolution engine in
+  `veridoc.vendors.resolution` matching across tax IDs, bank accounts, canonical keys,
+  aliases, and token similarity;
+- deterministic verification rules in `veridoc.verification.vendor_rules` for
+  `unregistered_vendor`, `suspended_vendor`, `vendor_bank_account_mismatch`, and
+  `vendor_tax_id_mismatch`;
+- integration into `ProcessingResult`, processing graph, and service attaching
+  authoritative vendor resolution outcomes to every processed invoice;
+- loopback-isolated, Bearer-authenticated vendor master data administration API
+  (`/admin/reference-data/vendors`) and bulk JSON import support;
+- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `delete`); and
+- authenticated review console integration rendering vendor entity resolution badges
+  and bank account verification indicators safely without `innerHTML`.
+
+Explicit non-goals: remote enterprise ERP synchronization, automated ACH/wire
+execution, external bank API integration, dynamic fuzzy threshold tuning, or
+speculative machine learning classifiers.
+
 ## Approval rule
 
-Phases 0 through 11 are complete. Any future phase, major architectural change,
+Phases 0 through 12 are complete. Any future phase, major architectural change,
 or production deployment target beyond the evaluated scope requires explicit user
 approval, a detailed implementation plan, and compliance with the repository's
 atomic commit and testing protocol.

@@ -363,7 +363,7 @@ curl.exe -X POST http://127.0.0.1:8000/process \
 
 Status: `200 OK`
 
-The response has four typed sections. `extraction` uses the same complete
+The response has five typed sections. `extraction` uses the same complete
 schema as `/extract`, including its evidence map. The abbreviated example below
 omits unrelated nullable and repeated nested fields for readability:
 
@@ -408,6 +408,20 @@ omits unrelated nullable and repeated nested fields for readability:
     "summary": "1 deterministic verification finding requires review.",
     "finding_count": 1,
     "highest_severity": "high"
+  },
+  "vendor_resolution": {
+    "status": "resolved",
+    "vendor_entity": {
+      "record_id": "ven-001",
+      "canonical_key": "fictional-supplies",
+      "display_name": "Fictional Supplies Ltd.",
+      "status": "active"
+    },
+    "confidence": "exact_tax",
+    "match_score": 1.0,
+    "matched_attribute": "tax_id",
+    "matched_value": "US123456789",
+    "explanation": "Matched registered tax ID US123456789 of vendor Fictional Supplies Ltd."
   }
 }
 ```
@@ -416,6 +430,9 @@ omits unrelated nullable and repeated nested fields for readability:
 contains its canonical finding and application-rendered numerical context.
 `verdict.status` is `review_required` when findings exist and `clear` when they
 do not. `clear` is not approval or a guarantee that the invoice is trustworthy.
+`vendor_resolution` captures the outcome of authoritative vendor master entity
+resolution across cascading tiers (tax ID, bank account, aliases, token
+similarity) against the configured reference database.
 
 ### Error responses
 
@@ -480,14 +497,19 @@ removed. The canonical result must contain 1-128 characters. The optional
 
 ### CRUD routes
 
-Invoice and purchase-order create/update JSON request bodies are limited to
-1 MiB before parsing.
+Invoice, purchase-order, and vendor entity create/update JSON request bodies are
+limited to 1 MiB before parsing.
 
 List requests accept a non-negative `offset` no greater than SQLite's signed
 64-bit maximum (`9,223,372,036,854,775,807`), and a `limit` of at most 200.
 
 | Method and path | Result |
 | --- | --- |
+| `POST /admin/reference-data/vendors` | Create one managed vendor entity; returns `201`. |
+| `GET /admin/reference-data/vendors` | List vendor entities with optional `status`, `offset`, and `limit`. |
+| `GET /admin/reference-data/vendors/{record_id}` | Fetch one vendor entity and its child records. |
+| `PUT /admin/reference-data/vendors/{record_id}` | Replace vendor facts, aliases, bank accounts, and tax IDs while preserving provenance. |
+| `DELETE /admin/reference-data/vendors/{record_id}` | Delete one vendor entity and its child records; returns `204`. |
 | `POST /admin/reference-data/invoices` | Create one managed invoice; returns `201`. |
 | `GET /admin/reference-data/invoices` | List invoices with optional `vendor_key`, `offset`, and `limit`. |
 | `GET /admin/reference-data/invoices/{record_id}` | Fetch one invoice. |
@@ -530,7 +552,7 @@ Create requests conflict when the same record type already owns the supplied
 
 `POST /admin/reference-data/import` accepts one multipart `file` with
 `application/json`. The service reads at most 1 MiB before parsing, accepts at
-most 500 combined invoice and purchase-order records, validates the complete
+most 500 combined vendor, invoice, and purchase-order records, validates the complete
 batch, and then uses one SQLite transaction.
 
 Query parameters:

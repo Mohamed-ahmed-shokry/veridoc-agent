@@ -45,6 +45,9 @@ fictional records and pytest temporary databases only.
 Phase 9 review tests use fictional actor secrets (never real credentials),
 synthetic uploaded documents, and pytest temporary review databases only; no
 review database or actor file is committed.
+Phase 12 vendor registry and bank reconciliation tests construct fictional vendor
+entities, synthetic tax identifiers, and mock bank account numbers in memory or
+temporary databases only; never commit real corporate banking details.
 
 ## Prohibited data
 
@@ -202,6 +205,13 @@ Migration 4 enforces one row per `(parent_id, position)` in both line-item
 tables. This prevents ambiguous child ordering and supplies the index used by
 ordered parent hydration; schema validation rejects a current ledger if either
 index is missing or has a different shape.
+
+Migration 5 establishes the authoritative vendor master registry (`vendors`,
+`vendor_aliases`, `vendor_bank_accounts`, `vendor_tax_ids`) with strict foreign
+keys, unique constraints on `(source, external_id)`, unique canonical keys,
+unique normalized aliases, unique normalized bank accounts, and unique tax IDs
+scoped to country code. Schema validation asserts exact table schemas, declared
+types, and index definitions before write operations.
 
 Reference-store initialization and maintenance require the exact managed column
 sets and both invoice lookup indexes. Both store validators reject unexpected
@@ -415,3 +425,6 @@ pre-decode quarantine scanning, rate/concurrency limiting, readiness probes, aut
 retention, and operational telemetry. Phase 11 completes evaluation protocol and decision governance;
 evaluated `go` decisions are strictly bound to the evaluated artifact and provider identity, and
 any upstream provider changes invalidate the decision until re-evaluated.
+Phase 12 introduces authoritative vendor master data persistence, cascading entity
+resolution, and deterministic remit-to bank account reconciliation rules, but deliberately
+excludes remote enterprise ERP integration, dynamic ML entity resolution, or automated payment execution.

@@ -28,7 +28,11 @@ preregistered evaluation protocol, synthetic corpus governance,
 OCR/extraction/verification/explanation slice metrics, runtime and provider drift
 detection, a deterministic evaluation runner with Wilson score uncertainty,
 a threshold-driven decision evaluator yielding reproducible go/conditional_go/no_go
-reports, and the `veridoc-evaluate` maintenance and benchmark CLI.
+reports, and the `veridoc-evaluate` maintenance and benchmark CLI. Phase 12 adds
+an authoritative vendor entity master registry, multi-attribute cascading entity
+resolution, deterministic remit-to bank account and tax reconciliation rules to prevent
+payment redirection fraud, authenticated loopback vendor administration APIs,
+and review console integration.
 
 ## Implemented capabilities
 
@@ -90,8 +94,13 @@ reports, and the `veridoc-evaluate` maintenance and benchmark CLI.
 - corpus governance with SHA-256 integrity and license/provenance validation ([ADR 0020](docs/decisions/0020-corpus-governance-and-synthetic-manifest-schema.md));
 - slice-level metrics for OCR (CER/WER), extraction (exact-match, token F1, evidence grounding), verification (confusion matrices, concordance), and explanation (guardrail, fidelity);
 - deterministic evaluation runner with Wilson score confidence intervals for sample uncertainty;
-- threshold-driven decision evaluation generating structured `go`, `conditional_go`, or `no_go` reports ([baseline report](docs/evaluation-report.md)); and
-- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands.
+- threshold-driven decision evaluation generating structured `go`, `conditional_go`, or `no_go` reports ([baseline report](docs/evaluation-report.md));
+- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands;
+- authoritative vendor entity master registry with multi-attribute entity resolution ([ADR 0021](docs/decisions/0021-vendor-master-registry-and-schema.md), [ADR 0022](docs/decisions/0022-multi-attribute-vendor-entity-resolution.md));
+- deterministic remit-to bank account mismatch and tax ID verification rules to protect against invoice redirection fraud ([ADR 0023](docs/decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md));
+- loopback-isolated, Bearer-authenticated vendor master data administration API (`/admin/reference-data/vendors`) and bulk JSON import support;
+- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `delete`); and
+- authenticated review console integration rendering vendor entity resolution badges and bank mismatch warnings safely without `innerHTML`.
 
 ## Quick start
 

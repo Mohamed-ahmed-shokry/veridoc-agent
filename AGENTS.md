@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 11 are complete. The runtime implementation remains deliberately small:
+Phase 0 through Phase 12 are complete. The runtime implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -47,11 +47,14 @@ Phase 0 through Phase 11 are complete. The runtime implementation remains delibe
 - `src/veridoc/extraction/service.py` composes OCR with the graph.
 - `src/veridoc/extraction/openai_responses.py` adapts the configured OpenAI
   Responses API through the typed boundary.
-- `src/veridoc/persistence/protocol.py` defines the SQLite-independent invoice
-  and purchase-order reference-data repository boundary.
+- `src/veridoc/persistence/protocol.py` defines the SQLite-independent invoice,
+  purchase-order, and vendor master reference-data repository boundaries.
+- `src/veridoc/vendors/` owns strict vendor master domain schemas (`VendorEntity`,
+  `VendorBankAccount`, `VendorTaxId`), matching confidence types, and the
+  cascading multi-attribute entity resolution engine.
 - `src/veridoc/administration/` owns strict administration schemas with
   canonical vendor keys, the repository protocol, local Bearer authentication,
-  FastAPI routes, and the maintenance CLI.
+  FastAPI routes (including vendor master management), and the maintenance CLI.
 - `src/veridoc/persistence/migrations.py` applies numbered forward-only SQLite
   migrations, validates current schemas without a write lock, validates upgrades
   before commit, adds unique parent/position child indexes in migration 4, and
@@ -202,6 +205,13 @@ Phase 0 through Phase 11 are complete. The runtime implementation remains delibe
   and grounding metrics, rule accuracy and explanation guardrails, drift
   triggers, deterministic runner orchestration, uncertainty intervals, decision
   gate reporting, and the evaluation CLI.
+- `tests/test_vendor_models.py`, `tests/test_sqlite_vendor_repository.py`,
+  `tests/test_vendor_resolution.py`, `tests/test_verification_vendor_rules.py`,
+  `tests/test_administration_sqlite_vendors.py`, and
+  `tests/test_administration_vendor_api.py` cover vendor entity domain schemas,
+  multi-attribute resolution cascading logic, SQLite vendor persistence,
+  deterministic bank account mismatch and tax ID verification rules, and
+  authenticated vendor master administration routes.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -222,7 +232,10 @@ preregistered evaluation protocol, synthetic corpus governance,
 OCR/extraction/verification/explanation slice metrics, runtime/provider drift
 detection, a deterministic evaluation runner with Wilson score uncertainty,
 a threshold-driven decision evaluator yielding reproducible go/conditional_go/no_go
-reports, and the `veridoc-evaluate` maintenance and benchmark CLI.
+reports, and the `veridoc-evaluate` maintenance and benchmark CLI. Phase 12 adds
+an authoritative vendor master registry, multi-attribute cascading entity
+resolution, and deterministic remit-to bank account and tax reconciliation rules
+to protect against invoice redirection fraud.
 
 The current and planned workflow is:
 
@@ -388,6 +401,12 @@ uv run pytest tests/test_evaluation_identity.py
 uv run pytest tests/test_evaluation_runner.py
 uv run pytest tests/test_evaluation_decision.py
 uv run pytest tests/test_evaluation_cli.py
+uv run pytest tests/test_vendor_models.py
+uv run pytest tests/test_sqlite_vendor_repository.py
+uv run pytest tests/test_vendor_resolution.py
+uv run pytest tests/test_verification_vendor_rules.py
+uv run pytest tests/test_administration_sqlite_vendors.py
+uv run pytest tests/test_administration_vendor_api.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help

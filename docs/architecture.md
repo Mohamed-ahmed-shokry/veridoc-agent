@@ -19,7 +19,9 @@ backup retention via `veridoc-backup`, and operational telemetry export
 (`GET /metrics`). Phase 11 adds a preregistered evaluation protocol, synthetic
 corpus governance, slice-level metrics, runtime/provider drift detection, a
 deterministic evaluation runner, threshold-driven decision evaluation, and the
-`veridoc-evaluate` CLI. Remote identity providers, distributed databases, and
+`veridoc-evaluate` CLI. Phase 12 adds an authoritative vendor master registry,
+multi-attribute entity resolution, and deterministic remit-to bank account and tax
+verification rules. Remote identity providers, distributed databases, and
 multi-region infrastructure remain outside the scope.
 
 ## System boundary
@@ -525,6 +527,40 @@ against preregistered gates to determine production readiness. Any detected
 hard drift in the provider or runtime artifact triggers an automatic `no_go`
 or `conditional_go` outcome requiring re-evaluation.
 
+## Authoritative vendor registry and entity resolution
+
+Phase 12 introduces an authoritative vendor master registry and entity resolution
+engine to combat invoice redirection fraud ([ADR 0021](decisions/0021-vendor-master-registry-and-schema.md),
+[ADR 0022](decisions/0022-multi-attribute-vendor-entity-resolution.md),
+[ADR 0023](decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md)).
+
+```mermaid
+flowchart TD
+    Extracted["Extracted Invoice Facts (Name, Tax ID, Bank Account)"] --> Engine["Entity Resolution Engine (veridoc.vendors.resolution)"]
+    Registry[("SQLite Vendor Registry (vendors, aliases, banks, taxes)")] --> Engine
+    Engine --> Tier1{"1. Exact Tax ID Match?"}
+    Tier1 -- Yes --> ResolvedTax["Exact Tax Match (confidence: exact_tax, score: 1.0)"]
+    Tier1 -- No --> Tier2{"2. Exact Bank Account Match?"}
+    Tier2 -- Yes --> ResolvedBank["Exact Bank Match (confidence: exact_bank, score: 1.0)"]
+    Tier2 -- No --> Tier3{"3. Exact Name or Alias Match?"}
+    Tier3 -- Yes --> ResolvedAlias["Exact Alias Match (confidence: exact_alias, score: 0.95)"]
+    Tier3 -- No --> Tier4{"4. Token Similarity >= 0.85?"}
+    Tier4 -- Yes --> ResolvedFuzzy["Fuzzy Match (confidence: fuzzy_name, score: >= 0.85)"]
+    Tier4 -- No --> Unresolved["Unresolved (confidence: unresolved, score: 0.0)"]
+    ResolvedTax --> Rules["Deterministic Verification Rules"]
+    ResolvedBank --> Rules
+    ResolvedAlias --> Rules
+    ResolvedFuzzy --> Rules
+    Unresolved --> Rules
+    Rules --> Findings["Verification Findings (unregistered_vendor, suspended_vendor, vendor_bank_account_mismatch, vendor_tax_id_mismatch)"]
+```
+
+The cascading engine deterministically resolves incoming invoices against registered
+vendor master entities. Remit-to bank coordinates are strictly reconciled against
+the resolved vendor's registered accounts; any discrepancy generates a high-severity
+`vendor_bank_account_mismatch` finding, triggering human review and a prominent
+warning banner in the review console.
+
 ## Operational observability
 
 The FastAPI middleware assigns a safe request ID before route handling, returns
@@ -546,8 +582,12 @@ of request, limit, and upload scan counters with sensitive fields strictly redac
   workflow state or separate background queue.
 - Pydantic structured parsing rejects malformed provider output instead of
   attempting an OCR-only or heuristic fallback.
-- Phase 3 uses extracted vendor names or identifiers as normalized local lookup
-  keys; it does not provide authoritative vendor identity resolution.
+- While Phase 3 used extracted vendor names as purely syntactic lookup keys,
+  Phase 12 resolves authoritative vendor master entities through cascading
+  multi-attribute matching (tax, bank, alias, fuzzy) and reconciles remit-to
+  bank accounts deterministically. Fuzzy matching uses an evidence-grounded
+  0.85 threshold; dynamic machine-learning entity resolution is outside
+  version 1 scope.
 - Explanation-provider prose is deliberately constrained. Any invalid, unsafe,
   or unavailable provider output yields a deterministic result rather than an
   unsupported claim.
@@ -565,3 +605,7 @@ of request, limit, and upload scan counters with sensitive fields strictly redac
   runner execution, drift monitoring, and readiness decision reporting.
   Evaluation results apply only to the tested artifact profile; external provider
   changes invalidate `go` determinations and require protocol re-execution.
+- Phase 12 adds authoritative vendor master data persistence, cascading entity
+  resolution, and deterministic bank account/tax ID reconciliation rules, but
+  deliberately excludes remote enterprise ERP synchronization, automated ACH/wire
+  execution, external banking APIs, or dynamic ML classifiers.
