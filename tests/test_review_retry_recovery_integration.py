@@ -44,6 +44,7 @@ from veridoc.review.config import (
 from veridoc.review.models import CaseAssignmentRequest
 from veridoc.review.persistence.maintenance import backup_database, restore_database
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
+from veridoc.vendors.models import VendorEntity
 from veridoc.verification.references import HistoricalInvoice
 
 _REVIEWER_SECRET = "reviewer-secret-value"
@@ -138,11 +139,28 @@ async def test_case_snapshot_is_independent_of_later_reference_data_changes(
     reference_v1 = tmp_path / "reference-v1.sqlite"
     repository_v1 = SQLiteInvoiceRepository(reference_v1)
     repository_v1.initialize()
+    repository_v1.add_vendor(
+        VendorEntity(
+            vendor_id="vnd_fictional",
+            legal_name="Fictional Supplies Ltd.",
+            canonical_key="fictional-supplies-ltd",
+            status="active",
+        )
+    )
     repository_v1.add_invoice(
         HistoricalInvoice(vendor_key="fictional-supplies-ltd", invoice_number="INV-002")
     )
     reference_v2 = tmp_path / "reference-v2.sqlite"
-    SQLiteInvoiceRepository(reference_v2).initialize()
+    repository_v2 = SQLiteInvoiceRepository(reference_v2)
+    repository_v2.initialize()
+    repository_v2.add_vendor(
+        VendorEntity(
+            vendor_id="vnd_fictional",
+            legal_name="Fictional Supplies Ltd.",
+            canonical_key="fictional-supplies-ltd",
+            status="active",
+        )
+    )
 
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("VERIDOC_LLM_MODEL", raising=False)

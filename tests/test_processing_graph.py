@@ -72,3 +72,45 @@ async def test_processing_graph_runs_every_phase_to_a_typed_result() -> None:
     assert state["verification"].findings == []
     assert state["explanations"].explanations == []
     assert state["result"].verdict.status == "clear"
+
+
+@pytest.mark.anyio
+async def test_processing_graph_attaches_vendor_resolution(tmp_path) -> None:
+    from veridoc.persistence.sqlite import SQLiteVendorRepository
+    from veridoc.vendors.models import VendorEntity
+
+    repo = SQLiteVendorRepository(tmp_path / "reference.sqlite")
+    repo.initialize()
+    repo.add_vendor(
+        VendorEntity(
+            vendor_id="vnd_001",
+            legal_name="Acme Corp",
+            canonical_key="acme-corp",
+            status="active",
+        )
+    )
+
+    class _VendorExtractor:
+        async def extract(self, request: ExtractionRequest) -> InvoiceExtraction:
+            return InvoiceExtraction(
+                document_type="invoice",
+                invoice_number="INV-001",
+                vendor_name="Acme Corp",
+            )
+
+    graph = build_processing_graph(
+        _FakeOCREngine(),
+        _VendorExtractor(),
+        VerificationService(repo),
+        ExplanationService(),
+    )
+    upload = validate_upload(
+        _png_bytes(),
+        filename="fictional-invoice.png",
+        declared_content_type="image/png",
+    )
+
+    state = await graph.ainvoke({"upload": upload})
+    assert state["result"].vendor_resolution is not None
+    assert state["result"].vendor_resolution.resolved_vendor_id == "vnd_001"
+    assert state["result"].vendor_resolution.confidence == "exact_alias"

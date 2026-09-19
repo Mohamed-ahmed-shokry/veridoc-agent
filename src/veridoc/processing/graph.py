@@ -104,6 +104,7 @@ def build_processing_graph(
                 findings=verification.findings,
                 explanations=state["explanations"].explanations,
                 verdict=verdict,
+                vendor_resolution=verification.vendor_resolution,
             ),
         }
 

@@ -55,6 +55,16 @@ async def test_process_endpoint_runs_the_complete_dependency_graph(
     database_path = tmp_path / "reference-data.sqlite"
     repository = SQLiteInvoiceRepository(database_path)
     repository.initialize()
+    from veridoc.vendors.models import VendorEntity
+
+    repository.add_vendor(
+        VendorEntity(
+            vendor_id="vnd_fictional",
+            legal_name="Fictional Supplies Ltd.",
+            canonical_key="fictional-supplies-ltd",
+            status="active",
+        )
+    )
     repository.add_invoice(
         HistoricalInvoice(
             vendor_key="fictional-supplies-ltd",
@@ -91,6 +101,8 @@ async def test_process_endpoint_runs_the_complete_dependency_graph(
         "finding_count": 1,
         "highest_severity": "high",
     }
+    assert body["vendor_resolution"] is not None
+    assert body["vendor_resolution"]["resolved_vendor_id"] == "vnd_fictional"
     assert repository.list_vendor_invoices("fictional-supplies-ltd") == [
         HistoricalInvoice(
             vendor_key="fictional-supplies-ltd",

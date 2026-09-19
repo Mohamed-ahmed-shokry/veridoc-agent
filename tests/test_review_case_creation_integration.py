@@ -37,6 +37,7 @@ from veridoc.review.config import (
     ReviewOriginSettings,
 )
 from veridoc.review.persistence.sqlite import SQLiteReviewRepository
+from veridoc.vendors.models import VendorEntity
 from veridoc.verification.references import HistoricalInvoice
 
 _REVIEWER_SECRET = "reviewer-secret-value"
@@ -96,6 +97,14 @@ async def test_create_review_case_runs_the_complete_dependency_graph(
     reference_database = tmp_path / "reference-data.sqlite"
     reference_repository = SQLiteInvoiceRepository(reference_database)
     reference_repository.initialize()
+    reference_repository.add_vendor(
+        VendorEntity(
+            vendor_id="vnd_fictional",
+            legal_name="Fictional Supplies Ltd.",
+            canonical_key="fictional-supplies-ltd",
+            status="active",
+        )
+    )
     reference_repository.add_invoice(
         HistoricalInvoice(
             vendor_key="fictional-supplies-ltd",

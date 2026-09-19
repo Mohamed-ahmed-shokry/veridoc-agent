@@ -44,3 +44,30 @@ def test_processing_verdict_rejects_unknown_fields() -> None:
             finding_count=0,
             unsupported=True,
         )
+
+
+def test_processing_result_holds_vendor_resolution() -> None:
+    from veridoc.vendors.models import VendorResolutionResult
+
+    resolution = VendorResolutionResult(
+        resolved_vendor_id="vnd_001",
+        canonical_key="acme-corp",
+        legal_name="Acme Corporation Ltd",
+        confidence="exact_tax",
+        score=1.0,
+        matched_attribute="tax_id:GB123456789",
+        status="active",
+    )
+    result = ProcessingResult(
+        extraction=InvoiceExtraction(document_type="invoice"),
+        verdict=ProcessingVerdict(
+            status="clear",
+            summary="Clear",
+            finding_count=0,
+        ),
+        vendor_resolution=resolution,
+    )
+
+    assert result.vendor_resolution is not None
+    assert result.vendor_resolution.resolved_vendor_id == "vnd_001"
+    assert result.vendor_resolution.confidence == "exact_tax"

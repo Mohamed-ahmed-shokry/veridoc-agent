@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from veridoc.explanation.models import FindingExplanation
 from veridoc.extraction.models import InvoiceExtraction
+from veridoc.vendors.models import VendorResolutionResult
 from veridoc.verification.models import FindingSeverity, VerificationFinding
 
 VerdictStatus = Literal["clear", "review_required"]
@@ -33,3 +34,4 @@ class ProcessingResult(BaseModel):
     findings: list[VerificationFinding] = Field(default_factory=list)
     explanations: list[FindingExplanation] = Field(default_factory=list)
     verdict: ProcessingVerdict
+    vendor_resolution: VendorResolutionResult | None = None
