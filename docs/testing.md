@@ -131,6 +131,7 @@ tests/
 ├── test_vendor_models.py           Phase 12 vendor master schemas and resolution models
 ├── test_sqlite_vendor_repository.py Phase 12 SQLite vendor repository persistence and lookups
 ├── test_vendor_resolution.py       Phase 12 multi-attribute vendor entity resolution engine
+├── test_verification_vendor_rules.py Phase 12 vendor and bank account reconciliation rules
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
@@ -247,6 +248,7 @@ uv run pytest tests/test_evaluation_cli.py
 uv run pytest tests/test_vendor_models.py
 uv run pytest tests/test_sqlite_vendor_repository.py
 uv run pytest tests/test_vendor_resolution.py
+uv run pytest tests/test_verification_vendor_rules.py
 ```
 
 Run one behavior by node ID:
@@ -440,6 +442,8 @@ and match confidence tiers. `test_sqlite_vendor_repository.py` tests SQLite vend
 master data persistence, alias/tax/bank lookups, status filtering, and semantic validation.
 `test_vendor_resolution.py` tests cascading multi-attribute vendor entity resolution across
 tax IDs, bank coordinates, canonical keys, aliases, and bounded token similarity.
+`test_verification_vendor_rules.py` tests deterministic verification rules for unregistered
+vendors, suspended suppliers, remit-to bank account mismatches, and tax ID mismatches.
 
 ## Fixtures
 

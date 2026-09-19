@@ -7,6 +7,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from veridoc.vendors.models import VendorResolutionResult
+
 ComparisonSource = Literal[
     "invoice_fields",
     "invoice_line_items",
@@ -64,3 +66,4 @@ class VerificationResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     findings: list[VerificationFinding] = Field(default_factory=list)
+    vendor_resolution: VendorResolutionResult | None = None
