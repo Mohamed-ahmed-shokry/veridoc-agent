@@ -29,6 +29,8 @@ _REQUIRED_SCHEMA_PATHS = {
     "/admin/reference-data/invoices/{record_id}",
     "/admin/reference-data/purchase-orders",
     "/admin/reference-data/purchase-orders/{record_id}",
+    "/admin/reference-data/vendors",
+    "/admin/reference-data/vendors/{record_id}",
     "/admin/reference-data/import",
     "/review/session",
     "/review/cases",
