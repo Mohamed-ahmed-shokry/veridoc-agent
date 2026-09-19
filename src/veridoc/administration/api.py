@@ -42,6 +42,10 @@ from veridoc.administration.models import (
     PurchaseOrderRecordUpdate,
     ReferenceDataImport,
     VendorKey,
+    VendorRecord,
+    VendorRecordInput,
+    VendorRecordPage,
+    VendorRecordUpdate,
 )
 from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
@@ -299,6 +303,95 @@ def delete_purchase_order(
 ) -> Response:
     """Delete one managed purchase order and its line items."""
     if not repository.delete_admin_purchase_order(record_id):
+        raise _not_found()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/vendors",
+    response_model=VendorRecord,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_vendor(
+    record: VendorRecordInput,
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> VendorRecord:
+    """Create one provenance-tracked vendor master record."""
+    try:
+        return repository.create_vendor(record)
+    except ReferenceDataConflictError as exc:
+        raise _conflict(exc) from exc
+
+
+@router.get("/vendors", response_model=VendorRecordPage)
+def list_vendors(
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+    status: Annotated[str | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0, le=_MAX_SQLITE_INTEGER)] = 0,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+) -> VendorRecordPage:
+    """Return a bounded page of managed vendors."""
+    return repository.list_admin_vendors(
+        status=status,
+        offset=offset,
+        limit=limit,
+    )
+
+
+@router.get("/vendors/{record_id}", response_model=VendorRecord)
+def get_vendor(
+    record_id: Annotated[str, _RECORD_ID],
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> VendorRecord:
+    """Return one managed vendor master record."""
+    record = repository.get_admin_vendor(record_id)
+    if record is None:
+        raise _not_found()
+    return record
+
+
+@router.put("/vendors/{record_id}", response_model=VendorRecord)
+def update_vendor(
+    record_id: Annotated[str, _RECORD_ID],
+    update: VendorRecordUpdate,
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> VendorRecord:
+    """Replace mutable vendor master facts while preserving provenance."""
+    try:
+        record = repository.update_admin_vendor(record_id, update)
+    except ReferenceDataConflictError as exc:
+        raise _conflict(exc) from exc
+    if record is None:
+        raise _not_found()
+    return record
+
+
+@router.delete(
+    "/vendors/{record_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+)
+def delete_vendor(
+    record_id: Annotated[str, _RECORD_ID],
+    repository: Annotated[
+        ReferenceDataAdminRepository,
+        Depends(get_authorized_admin_repository),
+    ],
+) -> Response:
+    """Delete one managed vendor and its child records."""
+    if not repository.delete_admin_vendor(record_id):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 

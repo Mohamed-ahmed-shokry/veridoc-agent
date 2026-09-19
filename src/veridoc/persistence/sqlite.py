@@ -26,6 +26,13 @@ from veridoc.administration.models import (
     PurchaseOrderReferenceInput,
     ReferenceDataImport,
     ReferenceRecordMetadata,
+    VendorBankAccountInput,
+    VendorInput,
+    VendorRecord,
+    VendorRecordInput,
+    VendorRecordPage,
+    VendorRecordUpdate,
+    VendorTaxIdInput,
 )
 from veridoc.administration.protocol import ReferenceDataConflictError
 from veridoc.persistence.migrations import UnsupportedSchemaVersionError, migrate
@@ -72,6 +79,8 @@ def validate_persisted_reference_data(connection: sqlite3.Connection) -> None:
         vendor_rows = connection.execute("SELECT * FROM vendors ORDER BY id").fetchall()
         for row in vendor_rows:
             _vendor_entity_from_row(connection, row)
+            if row["record_id"] is not None:
+                _admin_vendor_from_row(connection, row)
     finally:
         connection.row_factory = original_row_factory
 
@@ -322,6 +331,100 @@ class SQLiteInvoiceRepository:
             )
             return cursor.rowcount > 0
 
+    def create_vendor(self, record: VendorRecordInput) -> VendorRecord:
+        """Create one managed vendor master record."""
+        record_id = uuid4().hex
+        timestamp = _timestamp()
+        with self._connection() as connection:
+            try:
+                vendor_id = _insert_vendor(
+                    connection,
+                    record.vendor.to_domain(),
+                    record_id=record_id,
+                    source=record.metadata.source,
+                    external_id=record.metadata.external_id,
+                    created_at=timestamp,
+                    updated_at=timestamp,
+                    retention_until=_date_to_text(record.metadata.retention_until),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ReferenceDataConflictError from exc
+            row = connection.execute(
+                "SELECT * FROM vendors WHERE id = ?", (vendor_id,)
+            ).fetchone()
+            return _admin_vendor_from_row(connection, row)
+
+    def list_admin_vendors(
+        self, *, status: str | None, offset: int, limit: int
+    ) -> VendorRecordPage:
+        """Return managed vendors in stable insertion order."""
+        where_clause = " WHERE status = ?" if status is not None else ""
+        parameters: tuple[object, ...] = (status,) if status is not None else ()
+        with self._read_connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM vendors{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM vendors{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return VendorRecordPage(
+                records=[_admin_vendor_from_row(connection, row) for row in rows],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
+
+    def get_admin_vendor(self, record_id: str) -> VendorRecord | None:
+        """Return one managed vendor by its server identifier."""
+        with self._read_connection() as connection:
+            row = connection.execute(
+                "SELECT * FROM vendors WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            return _admin_vendor_from_row(connection, row) if row is not None else None
+
+    def update_admin_vendor(
+        self, record_id: str, update: VendorRecordUpdate
+    ) -> VendorRecord | None:
+        """Replace vendor master facts while preserving identity and provenance."""
+        with self._connection() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT id FROM vendors WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return None
+            vendor_row_id = int(row["id"])
+            try:
+                _update_vendor(
+                    connection,
+                    vendor_row_id,
+                    update.vendor.to_domain(),
+                    retention_until=_date_to_text(update.retention_until),
+                    updated_at=_timestamp(),
+                )
+            except sqlite3.IntegrityError as exc:
+                raise ReferenceDataConflictError from exc
+            updated_row = connection.execute(
+                "SELECT * FROM vendors WHERE id = ?", (vendor_row_id,)
+            ).fetchone()
+            return _admin_vendor_from_row(connection, updated_row)
+
+    def delete_admin_vendor(self, record_id: str) -> bool:
+        """Delete one managed vendor and its child records."""
+        with self._connection() as connection:
+            cursor = connection.execute(
+                "DELETE FROM vendors WHERE record_id = ?", (record_id,)
+            )
+            return cursor.rowcount > 0
+
     def import_reference_data(
         self,
         batch: ReferenceDataImport,
@@ -341,6 +444,10 @@ class SQLiteInvoiceRepository:
                 actions.extend(
                     _import_purchase_order(connection, record, conflict=conflict)
                     for record in batch.purchase_orders
+                )
+                actions.extend(
+                    _import_vendor(connection, record, conflict=conflict)
+                    for record in batch.vendors
                 )
             except Exception:
                 connection.rollback()
@@ -697,6 +804,71 @@ def _import_purchase_order(
     return "created"
 
 
+def _import_vendor(
+    connection: sqlite3.Connection,
+    record: VendorRecordInput,
+    *,
+    conflict: ConflictPolicy,
+) -> ImportAction:
+    existing = connection.execute(
+        """
+        SELECT id FROM vendors
+        WHERE source = ? AND external_id = ?
+        """,
+        (record.metadata.source, record.metadata.external_id),
+    ).fetchone()
+    vendor = record.vendor.to_domain()
+    natural_conflict = connection.execute(
+        """
+        SELECT id FROM vendors
+        WHERE vendor_id = ?
+        """,
+        (vendor.vendor_id,),
+    ).fetchone()
+
+    if existing is not None:
+        if conflict == "reject":
+            raise ReferenceDataConflictError
+        if conflict == "skip":
+            return "skipped"
+        existing_id = int(existing["id"])
+        if natural_conflict is not None and int(natural_conflict["id"]) != existing_id:
+            raise ReferenceDataConflictError
+        try:
+            _update_vendor(
+                connection,
+                existing_id,
+                vendor,
+                retention_until=_date_to_text(record.metadata.retention_until),
+                updated_at=_timestamp(),
+            )
+        except sqlite3.IntegrityError as exc:
+            raise ReferenceDataConflictError from exc
+        return "replaced"
+
+    if natural_conflict is not None:
+        if conflict == "skip":
+            return "skipped"
+        raise ReferenceDataConflictError
+
+    record_id = uuid4().hex
+    timestamp = _timestamp()
+    try:
+        _insert_vendor(
+            connection,
+            vendor,
+            record_id=record_id,
+            source=record.metadata.source,
+            external_id=record.metadata.external_id,
+            created_at=timestamp,
+            updated_at=timestamp,
+            retention_until=_date_to_text(record.metadata.retention_until),
+        )
+    except sqlite3.IntegrityError as exc:
+        raise ReferenceDataConflictError from exc
+    return "created"
+
+
 def _insert_invoice(
     connection: sqlite3.Connection,
     invoice: HistoricalInvoice,
@@ -873,6 +1045,83 @@ def _update_purchase_order(
     )
 
 
+def _update_vendor(
+    connection: sqlite3.Connection,
+    vendor_row_id: int,
+    vendor: VendorEntity,
+    *,
+    retention_until: str | None,
+    updated_at: str,
+) -> None:
+    connection.execute(
+        """
+        UPDATE vendors
+        SET vendor_id = ?, legal_name = ?, canonical_key = ?, status = ?,
+            updated_at = ?, retention_until = ?
+        WHERE id = ?
+        """,
+        (
+            vendor.vendor_id,
+            vendor.legal_name,
+            vendor.canonical_key,
+            vendor.status,
+            updated_at,
+            retention_until,
+            vendor_row_id,
+        ),
+    )
+    connection.execute(
+        "DELETE FROM vendor_aliases WHERE vendor_id = ?", (vendor_row_id,)
+    )
+    for alias in vendor.aliases:
+        alias_key = normalize_vendor_name(alias)
+        connection.execute(
+            """
+            INSERT INTO vendor_aliases (vendor_id, alias, canonical_key)
+            VALUES (?, ?, ?)
+            """,
+            (vendor_row_id, alias, alias_key),
+        )
+
+    connection.execute(
+        "DELETE FROM vendor_bank_accounts WHERE vendor_id = ?", (vendor_row_id,)
+    )
+    for idx, bank in enumerate(vendor.bank_accounts):
+        connection.execute(
+            """
+            INSERT INTO vendor_bank_accounts (
+                vendor_id, account_number, bank_code, routing_number, iban, is_primary
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                vendor_row_id,
+                bank.account_number,
+                bank.bank_code,
+                bank.routing_number,
+                bank.iban,
+                1 if idx == 0 else 0,
+            ),
+        )
+
+    connection.execute(
+        "DELETE FROM vendor_tax_ids WHERE vendor_id = ?", (vendor_row_id,)
+    )
+    for tax in vendor.tax_ids:
+        connection.execute(
+            """
+            INSERT INTO vendor_tax_ids (
+                vendor_id, tax_id, tax_type, country
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                vendor_row_id,
+                tax.tax_id,
+                tax.tax_type,
+                tax.country_code,
+            ),
+        )
+
+
 def _invoice_from_row(
     connection: sqlite3.Connection, row: sqlite3.Row
 ) -> HistoricalInvoice:
@@ -968,6 +1217,49 @@ def _admin_purchase_order_from_row(
             ),
         )
     except (InvalidOperation, TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
+
+
+def _admin_vendor_from_row(
+    connection: sqlite3.Connection, row: sqlite3.Row
+) -> VendorRecord:
+    vendor = _vendor_entity_from_row(connection, row)
+    try:
+        return VendorRecord(
+            metadata=ReferenceRecordMetadata(
+                record_id=row["record_id"],
+                source=row["source"],
+                external_id=row["external_id"],
+                created_at=row["created_at"],
+                updated_at=row["updated_at"],
+                retention_until=_text_to_date(row["retention_until"]),
+            ),
+            vendor=VendorInput(
+                vendor_id=vendor.vendor_id,
+                legal_name=vendor.legal_name,
+                canonical_key=vendor.canonical_key,
+                status=vendor.status,
+                aliases=vendor.aliases,
+                bank_accounts=[
+                    VendorBankAccountInput(
+                        account_number=b.account_number,
+                        bank_code=b.bank_code,
+                        iban=b.iban,
+                        routing_number=b.routing_number,
+                    )
+                    for b in vendor.bank_accounts
+                ],
+                tax_ids=[
+                    VendorTaxIdInput(
+                        tax_id=t.tax_id,
+                        tax_type=t.tax_type,
+                        country_code=t.country_code,
+                    )
+                    for t in vendor.tax_ids
+                ],
+            ),
+        )
+    except (TypeError, ValueError) as exc:
         raise InvalidPersistedReferenceDataError from exc
 
 

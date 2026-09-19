@@ -15,6 +15,12 @@ from pydantic import (
     model_validator,
 )
 
+from veridoc.vendors.models import (
+    VendorBankAccount,
+    VendorEntity,
+    VendorStatus,
+    VendorTaxId,
+)
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -104,6 +110,72 @@ class PurchaseOrderReferenceInput(AdministrationModel):
         return PurchaseOrder.model_validate(self.model_dump())
 
 
+class VendorBankAccountInput(AdministrationModel):
+    """One verified bank account or remittance coordinates."""
+
+    account_number: str = Field(min_length=1, max_length=64)
+    bank_code: str | None = Field(default=None, max_length=32)
+    iban: str | None = Field(default=None, max_length=64)
+    routing_number: str | None = Field(default=None, max_length=32)
+
+
+class VendorTaxIdInput(AdministrationModel):
+    """One official tax or registration identifier."""
+
+    tax_id: str = Field(min_length=1, max_length=64)
+    tax_type: str = Field(default="VAT", min_length=1, max_length=32)
+    country_code: str | None = Field(default=None, min_length=2, max_length=3)
+
+
+class VendorInput(AdministrationModel):
+    """Validated vendor master facts managed in the vendor registry."""
+
+    vendor_id: str = Field(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$",
+    )
+    legal_name: str = Field(min_length=1, max_length=256)
+    canonical_key: VendorKey
+    status: VendorStatus = "active"
+    aliases: list[str] = Field(default_factory=list, max_length=50)
+    bank_accounts: list[VendorBankAccountInput] = Field(
+        default_factory=list,
+        max_length=50,
+    )
+    tax_ids: list[VendorTaxIdInput] = Field(
+        default_factory=list,
+        max_length=50,
+    )
+
+    def to_domain(self) -> VendorEntity:
+        """Convert validated administrative input to vendor master entity."""
+        return VendorEntity(
+            vendor_id=self.vendor_id,
+            legal_name=self.legal_name,
+            canonical_key=self.canonical_key,
+            status=self.status,
+            aliases=list(self.aliases),
+            bank_accounts=[
+                VendorBankAccount(
+                    account_number=b.account_number,
+                    bank_code=b.bank_code,
+                    iban=b.iban,
+                    routing_number=b.routing_number,
+                )
+                for b in self.bank_accounts
+            ],
+            tax_ids=[
+                VendorTaxId(
+                    tax_id=t.tax_id,
+                    tax_type=t.tax_type,
+                    country_code=t.country_code,
+                )
+                for t in self.tax_ids
+            ],
+        )
+
+
 class ReferenceMetadataInput(AdministrationModel):
     """Client-supplied provenance and retention metadata."""
 
@@ -146,6 +218,13 @@ class PurchaseOrderRecordInput(AdministrationModel):
     purchase_order: PurchaseOrderReferenceInput
 
 
+class VendorRecordInput(AdministrationModel):
+    """One vendor master record accepted for create or import."""
+
+    metadata: ReferenceMetadataInput
+    vendor: VendorInput
+
+
 class InvoiceRecordUpdate(AdministrationModel):
     """Mutable invoice facts and retention metadata."""
 
@@ -157,6 +236,13 @@ class PurchaseOrderRecordUpdate(AdministrationModel):
     """Mutable purchase-order facts and retention metadata."""
 
     purchase_order: PurchaseOrderReferenceInput
+    retention_until: date | None = None
+
+
+class VendorRecordUpdate(AdministrationModel):
+    """Mutable vendor master facts and retention metadata."""
+
+    vendor: VendorInput
     retention_until: date | None = None
 
 
@@ -174,8 +260,15 @@ class PurchaseOrderRecord(AdministrationModel):
     purchase_order: PurchaseOrderReferenceInput
 
 
+class VendorRecord(AdministrationModel):
+    """One stored vendor with safe administrative metadata."""
+
+    metadata: ReferenceRecordMetadata
+    vendor: VendorInput
+
+
 class ReferenceDataImport(AdministrationModel):
-    """One bounded invoice and purchase-order import batch."""
+    """One bounded invoice, purchase-order, and vendor import batch."""
 
     invoices: list[InvoiceRecordInput] = Field(
         default_factory=list,
@@ -185,10 +278,14 @@ class ReferenceDataImport(AdministrationModel):
         default_factory=list,
         max_length=MAX_IMPORT_RECORDS,
     )
+    vendors: list[VendorRecordInput] = Field(
+        default_factory=list,
+        max_length=MAX_IMPORT_RECORDS,
+    )
 
     @model_validator(mode="after")
     def validate_record_count(self) -> Self:
-        count = len(self.invoices) + len(self.purchase_orders)
+        count = len(self.invoices) + len(self.purchase_orders) + len(self.vendors)
         if count == 0:
             raise ValueError("Import must contain at least one reference record.")
         if count > MAX_IMPORT_RECORDS:
@@ -220,6 +317,15 @@ class PurchaseOrderRecordPage(AdministrationModel):
     """One bounded page of managed purchase orders."""
 
     records: list[PurchaseOrderRecord]
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=200)
+    total: int = Field(ge=0)
+
+
+class VendorRecordPage(AdministrationModel):
+    """One bounded page of managed vendors."""
+
+    records: list[VendorRecord]
     offset: int = Field(ge=0)
     limit: int = Field(ge=1, le=200)
     total: int = Field(ge=0)

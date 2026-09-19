@@ -216,3 +216,49 @@ async def test_import_api_rejects_media_type_size_and_malformed_data_safely(
     assert malformed.json()["detail"]["code"] == "invalid_reference_data_import"
     assert "secret-fragment" not in malformed.text
     assert invalid.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_import_api_accepts_and_processes_vendor_records(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repository = _repository(tmp_path)
+    monkeypatch.setenv("VERIDOC_ADMIN_TOKEN", _TOKEN)
+    vendor_payload = {
+        "vendors": [
+            {
+                "metadata": {"source": "fixture", "external_id": "vendor-1"},
+                "vendor": {
+                    "vendor_id": "vnd_001",
+                    "legal_name": "Acme API Import Ltd",
+                    "canonical_key": "acme-api-import",
+                    "status": "active",
+                    "aliases": ["Acme API"],
+                    "bank_accounts": [
+                        {
+                            "account_number": "12345678",
+                            "iban": "GB29NWBK60161331926819",
+                        }
+                    ],
+                    "tax_ids": [
+                        {
+                            "tax_id": "GB123456789",
+                            "tax_type": "VAT",
+                            "country_code": "GB",
+                        }
+                    ],
+                },
+            }
+        ]
+    }
+    async with _client(repository) as client:
+        response = await _import(client, json.dumps(vendor_payload).encode())
+
+    assert response.status_code == 200
+    assert response.json()["created"] == 1
+    assert response.json()["dry_run"] is False
+
+    vendor = repository.get_vendor_by_id("vnd_001")
+    assert vendor is not None
+    assert vendor.legal_name == "Acme API Import Ltd"
+    assert len(repository.find_vendors_by_bank_account("12345678")) == 1

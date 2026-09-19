@@ -9,6 +9,8 @@ from veridoc.administration.models import (
     PurchaseOrderReferenceInput,
     ReferenceDataImport,
     ReferenceMetadataInput,
+    VendorInput,
+    VendorRecordInput,
 )
 from veridoc.administration.protocol import (
     ReferenceDataAdminRepository,
@@ -43,6 +45,18 @@ def _purchase_order(
             vendor_key="fictional-supplies",
             purchase_order_number=purchase_order_number,
             total="42.00",
+        ),
+    )
+
+
+def _vendor(external_id: str, vendor_id: str, legal_name: str) -> VendorRecordInput:
+    return VendorRecordInput(
+        metadata=ReferenceMetadataInput(source="fixture", external_id=external_id),
+        vendor=VendorInput(
+            vendor_id=vendor_id,
+            legal_name=legal_name,
+            canonical_key="fictional-supplies",
+            status="active",
         ),
     )
 
@@ -152,3 +166,27 @@ def test_replace_import_rejects_purchase_order_owned_by_other_provenance(
         repository.import_reference_data(batch, conflict="replace", dry_run=False)
 
     assert repository.list_invoices(vendor_key=None, offset=0, limit=100).total == 0
+
+
+def test_import_creates_and_replaces_vendor_records(tmp_path) -> None:
+    repository = _repository(tmp_path)
+    batch1 = ReferenceDataImport(
+        vendors=[_vendor("vendor-1", "vnd_001", "Acme Original")]
+    )
+    result1 = repository.import_reference_data(batch1, conflict="reject", dry_run=False)
+    assert result1.created == 1
+    assert result1.replaced == 0
+
+    # Replace vendor
+    batch2 = ReferenceDataImport(
+        vendors=[_vendor("vendor-1", "vnd_001", "Acme Replaced")]
+    )
+    result2 = repository.import_reference_data(
+        batch2, conflict="replace", dry_run=False
+    )
+    assert result2.replaced == 1
+    assert result2.created == 0
+
+    vendor = repository.get_vendor_by_id("vnd_001")
+    assert vendor is not None
+    assert vendor.legal_name == "Acme Replaced"

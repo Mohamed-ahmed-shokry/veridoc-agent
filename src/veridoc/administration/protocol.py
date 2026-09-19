@@ -16,6 +16,10 @@ from veridoc.administration.models import (
     PurchaseOrderRecordPage,
     PurchaseOrderRecordUpdate,
     ReferenceDataImport,
+    VendorRecord,
+    VendorRecordInput,
+    VendorRecordPage,
+    VendorRecordUpdate,
 )
 
 
@@ -72,6 +76,25 @@ class ReferenceDataAdminRepository(Protocol):
 
     def delete_admin_purchase_order(self, record_id: str) -> bool:
         """Delete one managed purchase order and its line items."""
+
+    def create_vendor(self, record: VendorRecordInput) -> VendorRecord:
+        """Create one managed vendor master record."""
+
+    def list_admin_vendors(
+        self, *, status: str | None, offset: int, limit: int
+    ) -> VendorRecordPage:
+        """Return one bounded vendor page."""
+
+    def get_admin_vendor(self, record_id: str) -> VendorRecord | None:
+        """Return one managed vendor by server identifier."""
+
+    def update_admin_vendor(
+        self, record_id: str, update: VendorRecordUpdate
+    ) -> VendorRecord | None:
+        """Replace mutable vendor facts while preserving provenance."""
+
+    def delete_admin_vendor(self, record_id: str) -> bool:
+        """Delete one managed vendor and its aliases, banks, and tax IDs."""
 
     def import_reference_data(
         self,

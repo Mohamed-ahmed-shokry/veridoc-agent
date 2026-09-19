@@ -49,9 +49,11 @@ tests/
 ├── test_administration_auth.py     token configuration and authentication
 ├── test_administration_sqlite_invoices.py  invoice administration persistence
 ├── test_administration_sqlite_purchase_orders.py  PO administration persistence
+├── test_administration_sqlite_vendors.py  vendor master administration persistence
 ├── test_administration_sqlite_import.py  atomic conflict-policy imports
 ├── test_administration_invoice_api.py  authenticated invoice API behavior
 ├── test_administration_purchase_order_api.py  authenticated PO API behavior
+├── test_administration_vendor_api.py  authenticated vendor master API behavior
 ├── test_administration_import_api.py  bounded JSON import API behavior
 ├── test_reference_data_maintenance.py  safe SQLite backup and restore
 ├── test_administration_cli.py      maintenance CLI contracts
@@ -194,9 +196,11 @@ uv run pytest tests/test_administration_auth.py
 uv run pytest tests/test_sqlite_migrations.py
 uv run pytest tests/test_administration_sqlite_invoices.py
 uv run pytest tests/test_administration_sqlite_purchase_orders.py
+uv run pytest tests/test_administration_sqlite_vendors.py
 uv run pytest tests/test_administration_sqlite_import.py
 uv run pytest tests/test_administration_invoice_api.py
 uv run pytest tests/test_administration_purchase_order_api.py
+uv run pytest tests/test_administration_vendor_api.py
 uv run pytest tests/test_administration_import_api.py
 uv run pytest tests/test_reference_data_maintenance.py
 uv run pytest tests/test_administration_cli.py
@@ -365,6 +369,9 @@ composition while replacing the repository protocol and prove list filters use
 the same vendor-key normalization as records. Import API tests also verify that
 bounded model parsing and storage work leave the event-loop thread; they require
 neither a network listener nor a developer database.
+`test_administration_sqlite_vendors.py` and `test_administration_vendor_api.py`
+cover authoritative vendor master persistence, status filtering, cascade deletion,
+and authenticated loopback API endpoints.
 
 `test_sqlite_migrations.py` also races concurrent initialization against one
 fresh temporary database and verifies unique child positions plus index-backed

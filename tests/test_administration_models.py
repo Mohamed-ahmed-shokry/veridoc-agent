@@ -15,6 +15,10 @@ from veridoc.administration.models import (
     ReferenceDataImport,
     ReferenceLineItemInput,
     ReferenceMetadataInput,
+    VendorBankAccountInput,
+    VendorInput,
+    VendorRecordInput,
+    VendorTaxIdInput,
 )
 
 
@@ -38,6 +42,26 @@ def _purchase_order_record(
             vendor_key="fictional-supplies",
             purchase_order_number="PO-001",
             total="42.00",
+        ),
+    )
+
+
+def _vendor_record(external_id: str = "vendor-1") -> VendorRecordInput:
+    return VendorRecordInput(
+        metadata=ReferenceMetadataInput(source="fixture", external_id=external_id),
+        vendor=VendorInput(
+            vendor_id="vnd_001",
+            legal_name="Acme Corp",
+            canonical_key="acme-corp",
+            status="active",
+            aliases=["Acme"],
+            bank_accounts=[
+                VendorBankAccountInput(
+                    account_number="12345678",
+                    iban="GB29NWBK60161331926819",
+                )
+            ],
+            tax_ids=[VendorTaxIdInput(tax_id="GB123456789")],
         ),
     )
 
@@ -103,3 +127,53 @@ def test_metadata_rejects_control_characters_and_unsafe_identifiers() -> None:
 
     with pytest.raises(ValidationError):
         ReferenceMetadataInput(source="fixture", external_id="invoice id")
+
+
+def test_vendor_input_converts_to_domain_and_normalizes_key() -> None:
+    vendor = VendorInput(
+        vendor_id="vnd_001",
+        legal_name="  Acme Corporation Ltd.  ",
+        canonical_key=" ACME CORP ",
+        status="active",
+        aliases=["Acme"],
+        bank_accounts=[
+            VendorBankAccountInput(
+                account_number="12345678",
+                iban="GB29NWBK60161331926819",
+            )
+        ],
+        tax_ids=[VendorTaxIdInput(tax_id="GB123456789")],
+    )
+
+    assert vendor.legal_name == "Acme Corporation Ltd."
+    assert vendor.canonical_key == "acme-corp"
+    domain = vendor.to_domain()
+    assert domain.vendor_id == "vnd_001"
+    assert domain.canonical_key == "acme-corp"
+    assert len(domain.bank_accounts) == 1
+    assert domain.bank_accounts[0].iban == "GB29NWBK60161331926819"
+    assert len(domain.tax_ids) == 1
+    assert domain.tax_ids[0].tax_id == "GB123456789"
+
+
+def test_vendor_input_rejects_invalid_vendor_id() -> None:
+    with pytest.raises(ValidationError):
+        VendorInput(
+            vendor_id="-invalid!",
+            legal_name="Acme",
+            canonical_key="acme",
+        )
+
+
+def test_import_accepts_vendor_records_and_bounds_batch() -> None:
+    vendors = [_vendor_record(f"vendor-{index}") for index in range(250)]
+    invoices = [_invoice_record(f"invoice-{index}") for index in range(250)]
+    batch = ReferenceDataImport(invoices=invoices, vendors=vendors)
+    assert len(batch.invoices) == 250
+    assert len(batch.vendors) == 250
+
+    with pytest.raises(ValidationError):
+        ReferenceDataImport(
+            invoices=invoices,
+            vendors=vendors + [_vendor_record("vendor-overflow")],
+        )
