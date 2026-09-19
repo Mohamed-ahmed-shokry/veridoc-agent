@@ -591,6 +591,46 @@ artifact and provider drift detection, deterministic runner with Wilson score
 confidence intervals, threshold-driven decision evaluation, `veridoc-evaluate`
 CLI, and baseline benchmark evaluation report) are fully verified and documented.
 
+## Phase 12 completion snapshot
+
+The local Phase 12 completion gate was recorded on 2026-09-19 against commit
+`7aab1b9` before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | No known third-party vulnerabilities |
+| `uv run ruff check .` | Passed |
+| `uv run ruff format --check .` | 261 files already formatted |
+| `uv run mypy` | No issues in 106 production source files |
+| `uv run pytest --cov=veridoc` | 1046 passed; 94.12% branch coverage against a 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Distribution smoke | Passed `scripts/smoke_distribution.py` including vendor schema routes |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help` (including `vendors` command), `veridoc-review --help`, `veridoc-quarantine --help`, `veridoc-backup --help`, and `veridoc-evaluate --help` |
+| Working-tree whitespace and merge-conflict scans | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+`pip-audit` skipped only the unpublished local `veridoc` package. The Phase 12
+deliverables (authoritative vendor master entity schemas, SQLite Migration 5,
+`VendorRepository` protocol and SQLite implementation, deterministic multi-attribute
+cascading entity resolution engine, deterministic remit-to bank account mismatch
+and tax ID verification rules, `vendor_resolution` in `ProcessingResult`, loopback-isolated
+Bearer-authenticated vendor administration routes, `veridoc-reference vendors` CLI
+commands, and review console vendor resolution badges and bank account mismatch warning
+indicators) are fully verified and documented.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
