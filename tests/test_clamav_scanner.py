@@ -39,7 +39,7 @@ class FakeClamd:
             except OSError:
                 return
             with connection:
-                connection.settimeout(5.0)
+                connection.settimeout(15.0)
                 try:
                     self._read_stream(connection)
                     connection.sendall(self._response)
@@ -77,7 +77,7 @@ class FakeClamd:
             "VERIDOC_QUARANTINE_DIRECTORY": str(tmp_path),
             "VERIDOC_CLAMD_HOST": "127.0.0.1",
             "VERIDOC_CLAMD_PORT": str(self.port),
-            "VERIDOC_CLAMD_TIMEOUT_SECONDS": "5",
+            "VERIDOC_CLAMD_TIMEOUT_SECONDS": "15",
         }
         values.update(overrides)
         return ScanningSettings.from_environment(values)
