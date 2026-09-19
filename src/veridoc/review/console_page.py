@@ -22,6 +22,8 @@ def render_review_console_page() -> str:
     .finding, .event-row { background: #f9fafb; border-radius: .4rem; padding: .6rem; margin: .5rem 0; }
     .review_required { border-left: .4rem solid #b45309; }
     .clear { border-left: .4rem solid #15803d; }
+    .vendor-resolution { border-left: .4rem solid #2563eb; background: #f8fafc; }
+    .bank-warning { background: #fef2f2; border: 1px solid #f87171; color: #991b1b; padding: .6rem; border-radius: .4rem; margin: .5rem 0; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -202,6 +204,32 @@ def render_review_console_page() -> str:
         textRow("Highest severity", result.verdict.highest_severity ?? "None"),
       );
       container.append(verdict);
+
+      if (result.findings && result.findings.some(f => f.finding_type === "vendor_bank_account_mismatch")) {
+        const warning = document.createElement("div");
+        warning.className = "bank-warning";
+        warning.textContent = "CRITICAL: Remit-to bank account does not match authoritative vendor registry records.";
+        container.append(warning);
+      }
+
+      if (result.vendor_resolution) {
+        const vendorSection = document.createElement("section");
+        vendorSection.className = "vendor-resolution";
+        const vendorHeading = document.createElement("h3");
+        vendorHeading.textContent = "Vendor entity resolution";
+        vendorSection.append(
+          vendorHeading,
+          textRow("Resolved vendor", result.vendor_resolution.legal_name ?? "Unresolved"),
+          textRow("Vendor ID", result.vendor_resolution.resolved_vendor_id ?? "—"),
+          textRow("Match confidence", result.vendor_resolution.confidence),
+          textRow("Resolution score", String(result.vendor_resolution.score)),
+          textRow("Registry status", result.vendor_resolution.status ?? "—"),
+        );
+        if (result.vendor_resolution.matched_attribute) {
+          vendorSection.append(textRow("Matched on", result.vendor_resolution.matched_attribute));
+        }
+        container.append(vendorSection);
+      }
 
       const extraction = document.createElement("section");
       const extractionHeading = document.createElement("h3");

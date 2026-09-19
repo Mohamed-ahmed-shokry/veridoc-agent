@@ -39,5 +39,8 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'id="decide-form"' in body
     assert "/decisions" in body
     assert 'value="needs_correction"' in body
+    assert "Vendor entity resolution" in body
+    assert "vendor_resolution" in body
+    assert "vendor_bank_account_mismatch" in body
     assert "innerHTML" not in body
     assert "textContent" in body
