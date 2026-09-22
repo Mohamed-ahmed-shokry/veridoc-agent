@@ -115,6 +115,7 @@ tests/
 ├── test_review_authorization_integration.py  Phase 9 rejected actors never resolve processing or storage
 ├── test_review_retry_recovery_integration.py  Phase 9 retry, concurrency, backup/restore, snapshot independence
 ├── test_review_evidence.py          Phase 15 evidence bundle build/verify and tamper cases
+├── test_review_evidence_cli.py      Phase 15 evidence bundle export and verify commands
 ├── test_scanning.py                 Phase 10 scanner protocol and settings contracts
 ├── test_clamav_scanner.py           Phase 10 clamd adapter against a fake daemon
 ├── test_quarantine.py               Phase 10 quarantine storage and operator decisions
