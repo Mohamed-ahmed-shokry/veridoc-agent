@@ -240,7 +240,10 @@ evaluation benchmark corpus to the preregistered slice minimums with
 deterministic committed construction and corpus validity tests, remediating
 the Phase 11 conditional-go decision's sample-size condition; the
 Tesseract-measured re-run that updates the decision remains an operator
-procedure for the equipped environment.
+procedure for the equipped environment. Phase 15 adds digest-bound,
+offline-verifiable auditor evidence bundles for review cases through an
+authenticated route, the review maintenance CLI, and a console download
+control.
 
 The current and planned workflow is:
 
@@ -693,10 +696,14 @@ following documentation commit.
 - Phase 12: authoritative vendor registry, entity resolution, and bank
   reconciliation. **Complete.**
 - Phase 13: evaluation remediation through corpus expansion to preregistered
-  slice minimums. **In progress.** See `docs/roadmap.md` for its boundaries.
+  slice minimums. **Complete.** See `docs/roadmap.md` for its boundaries.
+- Phase 14: measured re-verification and readiness decision update.
+  **Planned; blocked on a Tesseract-equipped operator environment.**
+- Phase 15: auditor evidence export for review cases. **In progress.**
 
-Phase 13 is the approved next phase. Before any phase beyond it, inspect the
+Phase 15 is the approved next completable phase (Phase 14 awaits its
+environment). Before any phase beyond it, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. Phase
-13's approval does not extend to later phases; the same rule applies to any
+15's approval does not extend to later phases; the same rule applies to any
 future phase's approval.
