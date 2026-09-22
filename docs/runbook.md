@@ -227,3 +227,52 @@ Per [ADR 0017](decisions/0017-operational-only-telemetry.md):
 - Readiness probe: `GET /ready` (200 OK if reference store, review store, identity, OCR engine, and extraction provider are ready; 503 if any dependency is degraded).
 - Operational Metrics: `GET /metrics` exports request counts, rate-limit throttles, scan results, and quarantine events.
 - Document text, customer names, provider prompts, and secrets are strictly redacted and never recorded in metrics or logs.
+
+## 9. Measured Evaluation Re-run
+
+The Phase 11 decision is `conditional_go` pending slice remediation, and the
+Phase 13 corpus (`veridoc-synthetic-benchmark-v2`) satisfies every
+preregistered slice minimum. The measured re-run below converts the
+remediation corpus into an updated go/no-go decision. It must execute in the
+Tesseract-equipped operator environment — never present a fake-harness run
+(where OCR and extraction are canned test doubles) as a readiness decision.
+
+Prerequisites:
+
+- Tesseract executable with `eng` and `ara` trained data (`GET /ready`
+  reports the OCR engine ready);
+- `OPENAI_API_KEY` and `VERIDOC_LLM_MODEL` set to the exact provider
+  identity under evaluation;
+- a reference database (temporary or a copy — the benchmark never mutates
+  operator reference data, but point `--reference-db` at a scratch path to
+  be explicit); and
+- a clean worktree at the evaluated commit (record the commit hash).
+
+Procedure:
+
+```bash
+uv run veridoc-evaluate --manifest tests/fixtures/corpus/manifest.json \
+  --reference-db /tmp/eval-reference.sqlite3 \
+  --output-json /tmp/eval-report.json \
+  --output-markdown /tmp/eval-report.md \
+  --evaluation-id eval-remediation-001 \
+  --expiry-date 2027-03-16
+```
+
+Compare the new report's artifact and provider identity block against the
+baseline report's block: any model, serving, region, dependency, language
+data, or platform change is drift and forces a fresh re-evaluation instead
+of a decision carry-over (ADR 0019). Drift comparison is an operator review
+of the two rendered identity blocks; there is no drift subcommand.
+
+Acceptance before recording the decision in
+[evaluation-report.md](evaluation-report.md):
+
+- manifest integrity verified (the runner aborts otherwise);
+- every slice reports sufficient sample size;
+- no threshold was changed for the run (thresholds are preregistered in
+  [evaluation-protocol.md](evaluation-protocol.md));
+- provider identity matches the evaluated scope, or drift triggers a fresh
+  re-evaluation instead (ADR 0019); and
+- the report states artifact identity, corpus version, expiry, and residual
+  limitations exactly as rendered.
