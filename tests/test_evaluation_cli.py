@@ -9,6 +9,7 @@ from unittest.mock import patch
 from PIL import Image
 
 from veridoc.evaluation.cli import main, parse_args
+from veridoc.evaluation.manifest import load_corpus_manifest
 from veridoc.evaluation.models import (
     ArtifactIdentityRecord,
     EvaluationReport,
@@ -143,7 +144,8 @@ def test_cli_main_success(tmp_path: Path) -> None:
     # Verify JSON deserializes cleanly
     report = EvaluationReport.model_validate_json(out_json.read_text(encoding="utf-8"))
     assert report.evaluation_id == "test-eval-run-001"
-    assert report.total_documents == 3
+    manifest, _ = load_corpus_manifest(manifest_path, verify_integrity=False)
+    assert report.total_documents == len(manifest.documents)
 
 
 def test_cli_main_invalid_manifest(tmp_path: Path) -> None:
