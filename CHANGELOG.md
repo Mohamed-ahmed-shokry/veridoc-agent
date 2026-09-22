@@ -8,6 +8,20 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 15 auditor evidence export for review cases:
+  - Architecture Decision Record 0025 documenting the digest-bound bundle
+    format, offline verification semantics, and auditor handling bounds.
+  - `veridoc.review.evidence` domain module building canonical bundles from
+    case detail and verifying them offline (snapshot digest, event-chain
+    continuity, transition legality, bundle digest) with typed safe errors.
+  - Authenticated `GET /review/cases/{case_id}/evidence` route mirroring the
+    case-detail authorization and not-found contract.
+  - `veridoc-review export` and `veridoc-review verify-bundle` maintenance
+    subcommands with safe exit codes.
+  - Console evidence-bundle download control rendered with DOM text nodes
+    only.
+  - Tamper-evident, route, CLI, console-markup, distribution, and smoke
+    coverage for the new module and route.
 - Phase 13 evaluation remediation through corpus expansion:
   - Architecture Decision Record 0024 documenting the deterministic corpus
     construction method and exact slice-balance rationale.
