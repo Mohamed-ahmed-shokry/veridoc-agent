@@ -250,6 +250,7 @@ uv run pytest tests/test_evaluation_identity.py
 uv run pytest tests/test_evaluation_runner.py
 uv run pytest tests/test_evaluation_decision.py
 uv run pytest tests/test_evaluation_cli.py
+uv run pytest tests/test_evaluation_corpus.py
 uv run pytest tests/test_vendor_models.py
 uv run pytest tests/test_sqlite_vendor_repository.py
 uv run pytest tests/test_vendor_resolution.py
