@@ -321,6 +321,24 @@ See [ADR 0008](decisions/0008-use-local-actor-file-and-http-only-sessions-for-re
 [ADR 0009](decisions/0009-use-immutable-versioned-review-records.md), and
 [ADR 0010](decisions/0010-defer-automated-review-retention-and-purge.md).
 
+### Auditor evidence export
+
+`veridoc.review.evidence` binds one canonical case rendering — identifiers,
+status, version, attribution, timestamps, the complete digest-verified
+snapshot, and the full ordered event history — under a canonical SHA-256
+bundle digest (`EvidenceBundle`). `GET /review/cases/{case_id}/evidence`
+requires the same actor authentication as case detail and records the
+exporting actor on the bundle; `veridoc-review export` writes the same
+bundle from the dedicated store, and `veridoc-review verify-bundle` checks
+it with no store access. Verification re-parses the schema, recomputes the
+snapshot digest against its embedded result, replays event-chain continuity
+(contiguous versions from `case_created`, matching case identifiers,
+timestamps, and status) and transition legality through the same pure
+transition table the repository enforces, then recomputes the bundle
+digest. Export and verification are read-only: no route, CLI command, or
+console control edits a case or an event. See
+[ADR 0025](decisions/0025-auditor-evidence-export-for-review-cases.md).
+
 ## Dependency direction
 
 ```text
@@ -348,6 +366,7 @@ review session/CSRF boundary --> review case router --> processing service (same
 review case router --> ReviewCaseReader/Writer protocol <-- review SQLite adapter
 review console page --> review case router (fetch only, no server-rendered document content)
 review maintenance CLI --> review SQLite online backup / migrated atomic restore
+review evidence router/CLI --> canonical case detail --> offline bundle verification (read-only)
 ```
 
 API code does not implement extraction or verification rules. The extraction,
