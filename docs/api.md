@@ -756,6 +756,20 @@ returns the generic `422 invalid_request`.
 does — the full snapshot and ordered event list — or `404
 review_case_not_found` for an unknown ID.
 
+### Exporting auditor evidence
+
+`GET /review/cases/{case_id}/evidence` requires the same actor
+authentication as case detail and returns a digest-bound evidence bundle:
+bundle format version, export timestamp, exporting actor, the full
+`CaseDetail`, and a canonical bundle digest. Unknown IDs return `404
+review_case_not_found`. The bundle verifies offline with
+`veridoc-review verify-bundle` — no store, session, or provider access —
+recomputing the snapshot digest, replaying event-chain continuity and
+transition legality, and recomputing the bundle digest. Any post-export edit
+fails verification. Bundles carry the case as-is (including extracted
+document content) and are `confidential` handling per the runbook handoff
+procedure.
+
 ### Mutating a case
 
 Every mutation takes an `expected_version` in its JSON body, matched against
