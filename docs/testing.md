@@ -225,6 +225,7 @@ uv run pytest tests/test_review_session_api.py
 uv run pytest tests/test_review_case_creation_api.py
 uv run pytest tests/test_review_case_listing_api.py
 uv run pytest tests/test_review_case_detail_api.py
+uv run pytest tests/test_review_case_evidence_api.py
 uv run pytest tests/test_review_case_assignment_api.py
 uv run pytest tests/test_review_case_escalation_api.py
 uv run pytest tests/test_review_case_decision_api.py
@@ -233,6 +234,8 @@ uv run pytest tests/test_review_console_page.py
 uv run pytest tests/test_review_case_creation_integration.py
 uv run pytest tests/test_review_authorization_integration.py
 uv run pytest tests/test_review_retry_recovery_integration.py
+uv run pytest tests/test_review_evidence.py
+uv run pytest tests/test_review_evidence_cli.py
 uv run pytest tests/test_deployment_limits.py
 uv run pytest tests/test_scanning.py
 uv run pytest tests/test_clamav_scanner.py
