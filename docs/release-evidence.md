@@ -674,6 +674,46 @@ re-run that updates the readiness decision remains an explicit operator
 step for the equipped environment and is recorded as the recommended
 Phase 14.
 
+## Phase 15 completion snapshot
+
+The local Phase 15 completion gate was recorded on 2026-09-23 against the
+evidence-export implementation before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | No known third-party vulnerabilities (local `veridoc` skipped as unpublished) |
+| `uv run ruff check .` | Passed |
+| `uv run ruff format --check .` | All files already formatted |
+| `uv run mypy` | No issues in 107 production source files |
+| `uv run pytest --cov=veridoc` | 1081 passed; 93.96% branch coverage against a 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Distribution smoke | Passed `scripts/smoke_distribution.py` for the isolated wheel and source distribution, including the evidence route |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help`, `veridoc-review --help` (including `export` and `verify-bundle`), `veridoc-quarantine --help`, `veridoc-backup --help`, and `veridoc-evaluate --help` |
+| Working-tree whitespace and merge-conflict scans | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+The Phase 15 deliverables (ADR 0025, the `veridoc.review.evidence`
+build/verify domain module, the authenticated evidence export route, the
+`export` and `verify-bundle` review commands, the console download control,
+tamper-evident and route/CLI/markup coverage, and synchronized API,
+architecture, runbook, testing, changelog, README, and operating guidance)
+are fully verified and documented. Phase 14 remains planned but blocked on
+a Tesseract-equipped operator environment; nothing in Phase 15 changes its
+entry criteria or runbook procedure.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
