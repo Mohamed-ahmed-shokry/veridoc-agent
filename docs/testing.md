@@ -130,6 +130,7 @@ tests/
 ├── test_evaluation_runner.py       Phase 11 deterministic runner and uncertainty intervals
 ├── test_evaluation_decision.py     Phase 11 threshold evaluation and go/no-go report generator
 ├── test_evaluation_cli.py          Phase 11 veridoc-evaluate CLI contract and benchmark run
+├── test_evaluation_corpus.py       Phase 13 benchmark slice minimums and ground truth
 ├── test_vendor_models.py           Phase 12 vendor master schemas and resolution models
 ├── test_sqlite_vendor_repository.py Phase 12 SQLite vendor repository persistence and lookups
 ├── test_vendor_resolution.py       Phase 12 multi-attribute vendor entity resolution engine
