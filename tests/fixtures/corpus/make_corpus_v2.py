@@ -557,9 +557,8 @@ def main() -> None:
             transcript=transcript,
         )
         gt_path = GROUND_TRUTH_DIR / f"{number}.json"
-        gt_path.write_text(
-            json.dumps(ground_truth, indent=2, ensure_ascii=True),
-            encoding="utf-8",
+        gt_path.write_bytes(
+            json.dumps(ground_truth, indent=2, ensure_ascii=True).encode("utf-8")
         )
         entries.append(
             {
