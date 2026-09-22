@@ -32,7 +32,11 @@ reports, and the `veridoc-evaluate` maintenance and benchmark CLI. Phase 12 adds
 an authoritative vendor entity master registry, multi-attribute cascading entity
 resolution, deterministic remit-to bank account and tax reconciliation rules to prevent
 payment redirection fraud, authenticated loopback vendor administration APIs,
-and review console integration.
+and review console integration. Phase 13 expands the synthetic evaluation
+benchmark corpus to the preregistered slice minimums (10 samples per language,
+quality, layout, and page-count value) with deterministic committed
+construction and corpus validity tests, remediating the Phase 11
+conditional-go decision's sample-size condition.
 
 ## Implemented capabilities
 
@@ -540,6 +544,12 @@ telemetry metrics export. Phase 11 completed preregistered evaluation protocol
 definition, synthetic corpus governance, slice-level metrics across all pipeline
 stages, runtime artifact and provider drift detection, a deterministic evaluation
 runner, threshold-driven decision evaluation, and the `veridoc-evaluate` CLI.
+Phase 12 completed the authoritative vendor master registry, cascading
+entity resolution, bank/tax reconciliation rules, vendor administration, and
+console integration, with its own verified release gate. Phase 13 is in
+progress: expanding the benchmark corpus to every preregistered slice
+minimum with validity tests and a runbook procedure for the measured
+re-run that updates the readiness decision.
 See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
 ## Documentation
@@ -552,7 +562,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 11 scope and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 12 scope, Phase 13 in progress, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
