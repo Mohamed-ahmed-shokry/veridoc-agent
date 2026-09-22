@@ -276,3 +276,44 @@ Acceptance before recording the decision in
   re-evaluation instead (ADR 0019); and
 - the report states artifact identity, corpus version, expiry, and residual
   limitations exactly as rendered.
+
+## 10. Auditor Evidence Handoff
+
+Per [ADR 0025](decisions/0025-auditor-evidence-export-for-review-cases.md),
+evidence bundles are `confidential`: they carry the full case, including
+extracted document content, and prove what the case contained at export
+time. Activity after export requires a fresh bundle.
+
+### 10.1 Export a case bundle
+
+Authenticated actors download the bundle from the console case detail
+("Export evidence bundle") or call the route directly:
+
+```powershell
+curl.exe "$env:VERIDOC_REVIEW_ORIGIN/review/cases/<case_id>/evidence" `
+  -H "Origin: $env:VERIDOC_REVIEW_ORIGIN" `
+  --cookie "veridoc_review_session=<session-cookie>" `
+  -o evidence-<case_id>.json
+```
+
+Operators with store access use the maintenance CLI instead (the exporting
+identity is recorded on the bundle):
+
+```bash
+uv run veridoc-review --database /data/veridoc-review.sqlite3 \
+  export --case-id <case_id> --output evidence-<case_id>.json \
+  --exported-by operator
+```
+
+### 10.2 Verify a bundle on receipt
+
+Verification needs only the bundle file — no store, session, or provider:
+
+```bash
+uv run veridoc-review verify-bundle --input evidence-<case_id>.json
+```
+
+A non-zero exit means the bundle is not verifiable: reject it and request a
+fresh export; never edit a bundle by hand. Store received bundles with
+least-privilege access, never on unencrypted backup media, and dispose of
+them per operator retention policy once the audit closes.
