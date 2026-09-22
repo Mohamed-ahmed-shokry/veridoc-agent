@@ -235,7 +235,12 @@ a threshold-driven decision evaluator yielding reproducible go/conditional_go/no
 reports, and the `veridoc-evaluate` maintenance and benchmark CLI. Phase 12 adds
 an authoritative vendor master registry, multi-attribute cascading entity
 resolution, and deterministic remit-to bank account and tax reconciliation rules
-to protect against invoice redirection fraud.
+to protect against invoice redirection fraud. Phase 13 expands the synthetic
+evaluation benchmark corpus to the preregistered slice minimums with
+deterministic committed construction and corpus validity tests, remediating
+the Phase 11 conditional-go decision's sample-size condition; the
+Tesseract-measured re-run that updates the decision remains an operator
+procedure for the equipped environment.
 
 The current and planned workflow is:
 
@@ -684,10 +689,14 @@ following documentation commit.
   and a browser console, in a store independent of reference data.
   **Complete.**
 - Phase 10: deployment and operational security. **Complete.**
-- Phase 11: candidate evaluation and production-readiness decision.
-  **Planned; not approved.** See `docs/roadmap.md` for its boundaries.
+- Phase 11: evaluation and production-readiness decision. **Complete.**
+- Phase 12: authoritative vendor registry, entity resolution, and bank
+  reconciliation. **Complete.**
+- Phase 13: evaluation remediation through corpus expansion to preregistered
+  slice minimums. **In progress.** See `docs/roadmap.md` for its boundaries.
 
-Do not begin Phase 11. Before Phase 11, inspect the repository, run the
-existing suite, present the implementation and commit plan, identify
-documentation changes, and wait for explicit approval. Phase 10's approval
-did not extend to Phase 11; the same rule applies to any future phase's approval.
+Phase 13 is the approved next phase. Before any phase beyond it, inspect the
+repository, run the existing suite, present the implementation and commit
+plan, identify documentation changes, and wait for explicit approval. Phase
+13's approval does not extend to later phases; the same rule applies to any
+future phase's approval.
