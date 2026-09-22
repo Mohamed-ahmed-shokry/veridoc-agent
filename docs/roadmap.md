@@ -20,7 +20,7 @@ boundaries only and require separate approval before implementation.
 | 12 | Authoritative vendor registry, entity resolution, and bank reconciliation | Complete |
 | 13 | Evaluation remediation through corpus expansion | Complete |
 | 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
-| 15 | Auditor evidence export for review cases | In progress |
+| 15 | Auditor evidence export for review cases | Complete |
 
 ## Phase 7: release engineering
 
@@ -524,7 +524,7 @@ operations, and quality owners from the Phase 11 entry criteria.
 
 ## Phase 15: auditor evidence export for review cases
 
-Status: in progress (approved as the next completable phase; design in
+Status: complete (design in
 [ADR 0025](decisions/0025-auditor-evidence-export-for-review-cases.md)).
 
 Goal: complete the audit half of the Phase 9 review/audit workflow. Cases
@@ -576,9 +576,8 @@ available; nothing in Phase 15 changes its entry criteria or procedure.
 
 ## Approval rule
 
-Phases 0 through 13 are complete. Phase 14 is planned but environment-blocked.
-Phase 15 is the approved next completable phase with the scope above. Any
-phase beyond it, major architectural change, or production deployment target
-beyond the evaluated scope requires explicit user approval, a detailed
-implementation plan, and compliance with the repository's atomic commit and
-testing protocol.
+Phases 0 through 13 and Phase 15 are complete. Phase 14 is planned but
+environment-blocked. Before any phase beyond Phase 15, inspect the
+repository, run the existing suite, present the implementation and commit
+plan, identify documentation changes, and wait for explicit approval. The
+same rule applies to any future phase's approval.
