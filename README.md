@@ -578,7 +578,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
 ## Current limitations
 
-Veridoc does not yet provide authoritative vendor identity resolution, SSO/OAuth2
+Veridoc does not yet provide SSO/OAuth2
 identity provider integration, multi-region clustering, or distributed databases.
 Phase 8 authenticates local reference-data administration with one shared token
 restricted to loopback clients (ADR 0013); Phase 9 authenticates the review workflow
@@ -591,12 +591,18 @@ automated backup retention, and operational telemetry. `/ocr`, `/extract`, and
 an automated approval, and neither is a review case's `decided` status. Phase 11
 evaluation decisions (`go` / `conditional_go` / `no_go`) apply strictly to the
 frozen artifact and provider identity evaluated; any provider drift or model change
-invalidates the decision and triggers mandatory re-evaluation (ADR 0019).
+invalidates the decision and triggers mandatory re-evaluation (ADR 0019). The
+Phase 11 baseline report used a 3-document corpus and remains `conditional_go`
+on sample size; the Phase 13 benchmark corpus satisfies every slice minimum,
+but the Tesseract-measured re-run that updates the decision still requires
+the equipped operator environment (see the runbook).
 
 ## Future work
 
-Phase 11 completed evaluation, performance benchmarking, and production-readiness
-decision reporting against the preregistered protocol. Post-Version-1 enhancements
+Phase 13 is expanding the evaluation benchmark corpus to the preregistered
+slice minimums; the recommended Phase 14 runs the Tesseract-measured
+re-verification and records the updated readiness decision. Post-Version-1
+enhancements
 (e.g., enterprise single sign-on, external message queues, multi-region clustering,
 or custom fine-tuned OCR/extraction models) remain subject to separate stakeholder
 review and approval.
