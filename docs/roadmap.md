@@ -453,10 +453,64 @@ Explicit non-goals: remote enterprise ERP synchronization, automated ACH/wire
 execution, external bank API integration, dynamic fuzzy threshold tuning, or
 speculative machine learning classifiers.
 
+## Phase 13: evaluation remediation through corpus expansion
+
+Status: in progress (approved as the next phase; design in
+[ADR 0024](decisions/0024-expand-synthetic-corpus-to-slice-minimums.md)).
+
+Goal: remediate the Phase 11 `conditional_go` decision
+([evaluation report](evaluation-report.md)), whose only blocking condition is
+insufficient sample size across every slice (`eng` 2/10, `ara` 1/10,
+`clean` 2/10, `noisy` 1/10, `standard` 2/10, `dense` 1/10). Phase 13 expands
+the deterministic synthetic benchmark corpus from 3 to 20 documents so every
+preregistered slice value — language, quality, layout, and the protocol's
+fourth dimension, page count, which the runner must start bucketing — meets
+the preregistered minimum of 10 samples.
+
+Planned deliverables:
+
+- one focused ADR recording the corpus-expansion construction method and
+  slice-balance rationale;
+- page-count (`single`/`multi`) slice bucketing in the deterministic runner,
+  matching the four dimensions the protocol already preregisters;
+- eight new `eng`/`clean`/`standard` documents (four single-page, four
+  multi-page) and nine new `ara`/`noisy`/`dense` documents (four single-page,
+  five multi-page), each with complete ground truth (fields, line items,
+  expected findings, expected verdict, OCR transcript);
+- only committed deterministic construction: Latin lines rendered with the
+  Pillow default font, Arabic content composed from the pixel-verified
+  `doc_003` rendering, noisy variants via deterministic Pillow transforms,
+  dense variants via compact multi-column layouts, and multi-page PDFs via
+  embedded page images or text; no new runtime or fixture dependencies;
+- a `veridoc-synthetic-benchmark-v2` manifest with SHA-256 digests, slice
+  tags, and synthetic license/provenance records, validated by the existing
+  manifest checker;
+- corpus validity tests proving slice minimums, ground-truth arithmetic
+  self-consistency, transcript coverage, and manifest integrity; and
+- a fake-harness benchmark run over the expanded corpus proving the runner,
+  slice aggregation, and report rendering stay green end to end.
+
+Acceptance criteria:
+
+- every slice value holds at least 10 documents and the manifest validates;
+- the full quality gate passes (tests, coverage floor, lint, format, types,
+  lockfile, distribution, smoke);
+- the fake-harness benchmark exits 0 with every slice marked sufficient; and
+- roadmap, changelog, testing guide, fixture guide, runbook, and release
+  evidence match the delivered corpus.
+
+Explicit non-goals: changing preregistered thresholds, tuning against the
+corpus, any product behavior or endpoint change, retention/purge work, and
+the Tesseract-measured re-run with live providers — that measured
+re-verification and the resulting go/no-go update execute in the
+Tesseract-equipped operator environment as the recommended Phase 14, using
+the runbook procedure Phase 13 documents.
+
 ## Approval rule
 
-Phases 0 through 12 are complete. Any future phase, major architectural change,
-or production deployment target beyond the evaluated scope requires explicit user
+Phases 0 through 12 are complete. Phase 13 is the approved next phase with
+the scope above. Any phase beyond it, major architectural change, or
+production deployment target beyond the evaluated scope requires explicit user
 approval, a detailed implementation plan, and compliance with the repository's
 atomic commit and testing protocol.
 
