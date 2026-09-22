@@ -98,4 +98,3 @@ jobs:
         shell: bash
         run: |
           docker build -t veridoc:ci-test .
-
