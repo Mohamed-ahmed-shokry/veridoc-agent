@@ -35,6 +35,7 @@ _REQUIRED_SCHEMA_PATHS = {
     "/review/session",
     "/review/cases",
     "/review/cases/{case_id}",
+    "/review/cases/{case_id}/evidence",
     "/review/cases/{case_id}/assignment",
     "/review/cases/{case_id}/escalations",
     "/review/cases/{case_id}/decisions",

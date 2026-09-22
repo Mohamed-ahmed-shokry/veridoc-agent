@@ -133,6 +133,12 @@ def test_distribution_check_requires_phase_10_runtime_boundaries() -> None:
     assert "veridoc/scanning/quarantine.py" in required
 
 
+def test_distribution_check_requires_phase_15_runtime_boundaries() -> None:
+    required = _required_package_members("veridoc")
+
+    assert "veridoc/review/evidence.py" in required
+
+
 def test_distribution_check_requires_all_console_scripts() -> None:
     valid = (
         b"[console_scripts]\n"
@@ -199,6 +205,7 @@ def test_distribution_smoke_requires_all_review_route_families() -> None:
         "/review/session",
         "/review/cases",
         "/review/cases/{case_id}",
+        "/review/cases/{case_id}/evidence",
         "/review/cases/{case_id}/assignment",
         "/review/cases/{case_id}/escalations",
         "/review/cases/{case_id}/decisions",
