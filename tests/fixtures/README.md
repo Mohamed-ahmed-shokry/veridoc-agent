@@ -36,3 +36,35 @@ page counts below one.
 
 Never add real invoices, customer information, credentials, or a large generic
 fixture library. A fixture belongs with the single behavior it proves.
+
+## Evaluation benchmark corpus
+
+`corpus/` is the deliberate exception to the do-not-check-in rule: the
+evaluation benchmark needs stable, SHA-256-bound documents, so its invoice
+bytes and ground-truth files are committed and pinned by `manifest.json`.
+Regenerate them only through the committed construction script:
+
+```bash
+uv run python tests/fixtures/corpus/make_corpus_v2.py
+```
+
+The script builds every v2 document from auditable spec constants: Latin
+lines render with the Pillow default bitmap font, Arabic pages splice the
+pixel-verified `doc_003` rendering (genuinely shaped script), noisy variants
+apply fixed Pillow transforms, dense variants use compact multi-column
+layouts, and multi-page PDFs embed composed page images or deterministic
+PyMuPDF text pages with fixed metadata. Re-running the script must produce
+byte-identical files; verify with `git status --short` showing no
+modifications afterward. Rebuilding the manifest means recomputing every
+SHA-256 digest from disk and rewriting `manifest.json` as LF bytes.
+
+Corpus rules (ADR 0020, ADR 0024):
+
+- 100% synthetic fictional content; never real invoices or customer data.
+- unique invoice numbers, file bytes, and ground-truth digests per document.
+- ground-truth arithmetic must agree with the expected verdict (consistent
+  subtotal plus tax equals total for `clear`, an intentional mismatch for
+  `invoice_total_mismatch` with `review_required`).
+- transcripts must contain the rendered invoice number and total amount.
+- keep every slice value (language, quality, layout, page count) at or above
+  the preregistered minimum sample count.
