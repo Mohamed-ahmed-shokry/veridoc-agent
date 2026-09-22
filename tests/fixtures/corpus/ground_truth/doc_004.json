@@ -1,0 +1,22 @@
+{
+  "invoice_number": "INV-2026-0004",
+  "invoice_date": "2026-03-02",
+  "due_date": "2026-04-01",
+  "vendor_name": "Northwind Traders",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "330.00",
+  "subtotal_amount": "300.00",
+  "tax_amount": "30.00",
+  "line_items": [
+    {
+      "description": "Office Chairs",
+      "quantity": "2",
+      "unit_price": "150.00",
+      "total_amount": "300.00"
+    }
+  ],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Northwind Traders\nInvoice INV-2026-0004\nPurchase Order PO-2026-04\nDate 2026-03-02\n2 x Office Chairs @ 150.00 = 300.00\nSubtotal 300.00 USD   Tax 30.00 USD   Total 330.00 USD"
+}

@@ -1,0 +1,22 @@
+{
+  "invoice_number": "INV-2026-0009",
+  "invoice_date": "2026-03-07",
+  "due_date": "2026-04-06",
+  "vendor_name": "Crescent Foods Ltd",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "462.00",
+  "subtotal_amount": "420.00",
+  "tax_amount": "42.00",
+  "line_items": [
+    {
+      "description": "Olive Oil Cases",
+      "quantity": "12",
+      "unit_price": "35.00",
+      "total_amount": "420.00"
+    }
+  ],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Crescent Foods Ltd\nInvoice INV-2026-0009\nPurchase Order PO-2026-09\nDate 2026-03-07\n12 x Olive Oil Cases @ 35.00 = 420.00\nSubtotal 420.00 USD   Tax 42.00 USD   Total 462.00 USD\nContinued INV-2026-0009\nBalance due 462.00 USD"
+}

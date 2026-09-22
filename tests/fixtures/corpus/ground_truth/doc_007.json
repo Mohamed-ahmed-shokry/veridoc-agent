@@ -1,0 +1,15 @@
+{
+  "invoice_number": "INV-2026-0007",
+  "invoice_date": "2026-03-05",
+  "due_date": null,
+  "vendor_name": "Adventure Works Supply",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "99.99",
+  "subtotal_amount": null,
+  "tax_amount": null,
+  "line_items": [],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Adventure Works Supply\nInvoice INV-2026-0007\nPurchase Order PO-2026-07\nDate 2026-03-05\nTotal 99.99 USD"
+}

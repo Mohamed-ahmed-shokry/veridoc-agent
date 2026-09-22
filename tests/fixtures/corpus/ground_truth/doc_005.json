@@ -1,0 +1,28 @@
+{
+  "invoice_number": "INV-2026-0005",
+  "invoice_date": "2026-03-03",
+  "due_date": "2026-04-02",
+  "vendor_name": "Contoso Manufacturing",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "550.00",
+  "subtotal_amount": "500.00",
+  "tax_amount": "50.00",
+  "line_items": [
+    {
+      "description": "Steel Beams",
+      "quantity": "10",
+      "unit_price": "40.00",
+      "total_amount": "400.00"
+    },
+    {
+      "description": "Bolts Pack",
+      "quantity": "4",
+      "unit_price": "25.00",
+      "total_amount": "100.00"
+    }
+  ],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Contoso Manufacturing\nInvoice INV-2026-0005\nPurchase Order PO-2026-05\nDate 2026-03-03\n10 x Steel Beams @ 40.00 = 400.00\n4 x Bolts Pack @ 25.00 = 100.00\nSubtotal 500.00 USD   Tax 50.00 USD   Total 550.00 USD"
+}

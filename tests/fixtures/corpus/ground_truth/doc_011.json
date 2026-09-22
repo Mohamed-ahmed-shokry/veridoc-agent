@@ -1,0 +1,15 @@
+{
+  "invoice_number": "INV-2026-0011",
+  "invoice_date": "2026-03-09",
+  "due_date": null,
+  "vendor_name": "Hooli Systems",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "75.50",
+  "subtotal_amount": null,
+  "tax_amount": null,
+  "line_items": [],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Hooli Systems\nInvoice INV-2026-0011\nPurchase Order PO-2026-11\nDate 2026-03-09\nTotal 75.50 USD\nContinued INV-2026-0011\nBalance due 75.50 USD"
+}

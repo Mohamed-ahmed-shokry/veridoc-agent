@@ -1,0 +1,24 @@
+{
+  "invoice_number": "INV-2026-0010",
+  "invoice_date": "2026-03-08",
+  "due_date": "2026-04-07",
+  "vendor_name": "Globex Corporation",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "1150.00",
+  "subtotal_amount": "1000.00",
+  "tax_amount": "100.00",
+  "line_items": [
+    {
+      "description": "Server Racks",
+      "quantity": "5",
+      "unit_price": "200.00",
+      "total_amount": "1000.00"
+    }
+  ],
+  "expected_finding_types": [
+    "invoice_total_mismatch"
+  ],
+  "expected_verdict": "review_required",
+  "ocr_transcript": "Globex Corporation\nInvoice INV-2026-0010\nPurchase Order PO-2026-10\nDate 2026-03-08\n5 x Server Racks @ 200.00 = 1000.00\nSubtotal 1000.00 USD   Tax 100.00 USD   Total 1150.00 USD\nContinued INV-2026-0010\nBalance due 1150.00 USD"
+}

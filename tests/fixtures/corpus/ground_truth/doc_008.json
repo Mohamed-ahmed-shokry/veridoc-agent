@@ -1,0 +1,22 @@
+{
+  "invoice_number": "INV-2026-0008",
+  "invoice_date": "2026-03-06",
+  "due_date": "2026-04-05",
+  "vendor_name": "Blue Yonder Freight",
+  "vendor_tax_id": null,
+  "currency": "USD",
+  "total_amount": "726.00",
+  "subtotal_amount": "660.00",
+  "tax_amount": "66.00",
+  "line_items": [
+    {
+      "description": "Freight Lanes",
+      "quantity": "3",
+      "unit_price": "220.00",
+      "total_amount": "660.00"
+    }
+  ],
+  "expected_finding_types": [],
+  "expected_verdict": "clear",
+  "ocr_transcript": "Blue Yonder Freight\nInvoice INV-2026-0008\nPurchase Order PO-2026-08\nDate 2026-03-06\n3 x Freight Lanes @ 220.00 = 660.00\nSubtotal 660.00 USD   Tax 66.00 USD   Total 726.00 USD\nContinued INV-2026-0008\nBalance due 726.00 USD"
+}
