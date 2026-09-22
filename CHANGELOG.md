@@ -8,6 +8,28 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 13 evaluation remediation through corpus expansion:
+  - Architecture Decision Record 0024 documenting the deterministic corpus
+    construction method and exact slice-balance rationale.
+  - Page-count (`single`/`multi`) slice bucketing in the deterministic
+    evaluation runner, matching the fourth dimension the preregistered
+    protocol already requires.
+  - Seventeen new synthetic benchmark documents with complete ground truth:
+    eight `eng`/`clean`/`standard` invoices and nine `ara`/`noisy`/`dense`
+    invoices, each with varied fictional vendors, numbers, dates, amounts,
+    and line items, including intentional total mismatches expecting
+    `invoice_total_mismatch` with `review_required` verdicts.
+  - `veridoc-synthetic-benchmark-v2` manifest with SHA-256 digests,
+    synthetic license and provenance records, and exactly 10 samples per
+    language, quality, layout, and page-count slice value.
+  - Corpus validity tests proving slice minimums, ground-truth arithmetic
+    self-consistency, transcript coverage, manifest integrity, and ingestion
+    processability of every document.
+  - Committed deterministic construction script
+    (`tests/fixtures/corpus/make_corpus_v2.py`) and fixture-guide corpus
+    rules; re-running it yields byte-identical files.
+  - Runbook procedure for the Tesseract-measured re-run that converts the
+    remediation corpus into an updated readiness decision.
 - Phase 12 authoritative vendor registry, entity resolution, and bank reconciliation:
   - Architecture Decision Records 0021-0023 documenting vendor master schema, cascading multi-attribute entity resolution, and deterministic remit-to bank account/tax ID reconciliation rules.
   - Strict vendor master domain schemas (`veridoc.vendors.models`) for `VendorEntity`, `VendorBankAccount`, `VendorTaxId`, `VendorResolutionResult`, and `VendorMatchConfidence`.
