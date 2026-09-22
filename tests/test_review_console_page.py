@@ -31,6 +31,10 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'fetch("/review/cases' in body
     assert 'id="case-detail"' in body
     assert "loadCaseDetail" in body
+    assert "export-evidence-button" in body
+    assert "exportEvidenceBundle" in body
+    assert "/evidence" in body
+    assert "Export evidence bundle" in body
     assert 'id="assign-form"' in body
     assert "/assignment" in body
     assert "Idempotency-Key" in body

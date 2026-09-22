@@ -333,8 +333,44 @@ def render_review_console_page() -> str:
           textRow("Version", String(data.version)),
         );
         caseDetail.append(summary);
+        const exportButton = document.createElement("button");
+        exportButton.type = "button";
+        exportButton.id = "export-evidence-button";
+        exportButton.textContent = "Export evidence bundle";
+        exportButton.addEventListener("click", () => exportEvidenceBundle(data.case_id));
+        caseDetail.append(exportButton);
         renderSnapshot(caseDetail, data.snapshot.result);
         renderEvents(caseDetail, data.events);
+      } catch (error) {
+        detailStatus.textContent = error.message;
+        detailStatus.className = "error";
+      }
+    }
+
+    async function exportEvidenceBundle(caseId) {
+      detailStatus.textContent = "";
+      detailStatus.className = "";
+      try {
+        const response = await fetch(
+          "/review/cases/" + encodeURIComponent(caseId) + "/evidence",
+        );
+        if (response.status === 401) {
+          showSignedOut();
+          return;
+        }
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail?.message || "Evidence bundle could not be exported.");
+        }
+        const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "evidence-" + caseId + ".json";
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        URL.revokeObjectURL(url);
       } catch (error) {
         detailStatus.textContent = error.message;
         detailStatus.className = "error";
