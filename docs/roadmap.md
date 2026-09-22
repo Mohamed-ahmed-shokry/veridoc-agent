@@ -388,7 +388,8 @@ Implemented deliverables:
   Wilson score confidence intervals (95% confidence) for sample uncertainty;
 - threshold-driven decision evaluator in `veridoc.evaluation.decision` mapping observed metrics
   against preregistered gates to yield transparent `go`, `conditional_go`, or `no_go` reports;
-- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands; and
+- `veridoc-evaluate` CLI entry point producing machine-readable and Markdown
+  decision reports from a corpus manifest; and
 - synthetic evaluation corpus benchmark in `tests/fixtures/corpus/` enabling offline deterministic
   readiness verification.
 
