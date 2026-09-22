@@ -553,7 +553,7 @@ console integration, with its own verified release gate. Phase 13 completed
 the benchmark corpus expansion to every preregistered slice minimum with
 validity tests and a runbook procedure for the measured re-run. Phase 14
 (measured re-verification and decision update) is planned but blocked on a
-Tesseract-equipped operator environment. Phase 15 is in progress: digest-bound
+Tesseract-equipped operator environment. Phase 15 completed digest-bound
 auditor evidence bundles for review cases with offline verification.
 See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
@@ -567,7 +567,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 scope, Phase 14 blocked, Phase 15 in progress, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 scope, Phase 14 blocked, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
@@ -606,7 +606,7 @@ the equipped operator environment (see the runbook).
 
 Phase 14 runs the Tesseract-measured re-verification and records the updated
 readiness decision once the equipped operator environment is available.
-Phase 15 is adding auditor evidence export for review cases. Post-Version-1
+Phase 15 completed auditor evidence export for review cases. Post-Version-1
 enhancements
 (e.g., enterprise single sign-on, external message queues, multi-region clustering,
 or custom fine-tuned OCR/extraction models) remain subject to separate stakeholder

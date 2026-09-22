@@ -699,11 +699,10 @@ following documentation commit.
   slice minimums. **Complete.** See `docs/roadmap.md` for its boundaries.
 - Phase 14: measured re-verification and readiness decision update.
   **Planned; blocked on a Tesseract-equipped operator environment.**
-- Phase 15: auditor evidence export for review cases. **In progress.**
+- Phase 15: auditor evidence export for review cases. **Complete.**
 
-Phase 15 is the approved next completable phase (Phase 14 awaits its
-environment). Before any phase beyond it, inspect the
+Phase 15 is complete. Phase 14 awaits its environment. Before any phase
+beyond Phase 15, inspect the
 repository, run the existing suite, present the implementation and commit
-plan, identify documentation changes, and wait for explicit approval. Phase
-15's approval does not extend to later phases; the same rule applies to any
-future phase's approval.
+plan, identify documentation changes, and wait for explicit approval. The
+same rule applies to any future phase's approval.
