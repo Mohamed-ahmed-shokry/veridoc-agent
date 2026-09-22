@@ -480,11 +480,10 @@ def _amount_lines(spec: dict) -> list[str]:
     currency = spec["currency"]
     if spec["subtotal"] is None:
         return [f"Total {spec['total']} {currency}"]
-    return [
-        f"Subtotal {spec['subtotal']} {currency}   "
-        f"Tax {spec['tax']} {currency}   "
-        f"Total {spec['total']} {currency}"
-    ]
+    subtotal = f"Subtotal {spec['subtotal']} {currency}"
+    tax = f"Tax {spec['tax']} {currency}"
+    total = f"Total {spec['total']} {currency}"
+    return [f"{subtotal}   {tax}   {total}"]
 
 
 def _pages(spec: dict) -> list[list[str]]:
