@@ -191,4 +191,11 @@ async def test_evaluation_runner_run(tmp_path: Path) -> None:
     assert overall_explanation.total_explanations == 4
     assert overall_explanation.fallback_invocations == 4
     assert overall_performance.request_count == 1
-    assert len(slice_summaries) == 3  # language, quality, layout
+    assert len(slice_summaries) == 4  # language, quality, layout, page_count
+    page_count_summary = next(
+        summary
+        for summary in slice_summaries
+        if summary.slice_dimension == "page_count"
+    )
+    assert page_count_summary.slice_value == "single"
+    assert page_count_summary.sample_count == 1

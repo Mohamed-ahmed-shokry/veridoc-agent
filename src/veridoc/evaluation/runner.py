@@ -118,7 +118,7 @@ class EvaluationRunner:
 
         # Slice buckets: (dimension, value) -> list of document indices
         slice_indices: dict[
-            tuple[Literal["language", "quality", "layout"], str],
+            tuple[Literal["language", "quality", "layout", "page_count"], str],
             list[int],
         ] = defaultdict(list)
 
@@ -168,6 +168,9 @@ class EvaluationRunner:
             slice_indices[("language", str(doc.language))].append(idx)
             slice_indices[("quality", str(doc.quality))].append(idx)
             slice_indices[("layout", str(doc.layout))].append(idx)
+            slice_indices[
+                ("page_count", "multi" if doc.page_count >= 2 else "single")
+            ].append(idx)
 
         # Aggregate overall metrics
         overall_ocr = aggregate_ocr_metrics(ocr_pairs)

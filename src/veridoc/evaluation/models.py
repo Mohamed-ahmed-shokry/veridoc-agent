@@ -166,7 +166,7 @@ class ConfidenceInterval(StrictEvaluationModel):
 class SliceMetricsSummary(StrictEvaluationModel):
     """Aggregated metrics and sample count for a specific slice."""
 
-    slice_dimension: Literal["language", "quality", "layout", "overall"]
+    slice_dimension: Literal["language", "quality", "layout", "page_count", "overall"]
     slice_value: str
     sample_count: int = Field(ge=0)
     sufficient_sample_size: bool
