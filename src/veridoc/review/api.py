@@ -33,6 +33,7 @@ from veridoc.review.config import (
     ReviewStoreSettings,
 )
 from veridoc.review.console_page import render_review_console_page
+from veridoc.review.evidence import EvidenceBundle, build_evidence_bundle
 from veridoc.review.models import (
     ActorId,
     ActorRole,
@@ -349,6 +350,19 @@ def read_review_case(
     if detail is None:
         raise _case_not_found()
     return detail
+
+
+@router.get("/cases/{case_id}/evidence", response_model=EvidenceBundle)
+def read_review_case_evidence(
+    case_id: str,
+    actor: Annotated[AuthenticatedActor, Depends(require_review_actor)],
+    repository: Annotated[SQLiteReviewRepository, Depends(get_review_repository)],
+) -> EvidenceBundle:
+    """Return one case's digest-bound, offline-verifiable evidence bundle."""
+    detail = repository.get_case(case_id)
+    if detail is None:
+        raise _case_not_found()
+    return build_evidence_bundle(detail, exported_by=actor.actor_id)
 
 
 @router.put("/cases/{case_id}/assignment", response_model=CaseDetail)
