@@ -18,6 +18,9 @@ boundaries only and require separate approval before implementation.
 | 10 | Deployment and operational security | Complete |
 | 11 | Evaluation, performance, and production-readiness decision | Complete |
 | 12 | Authoritative vendor registry, entity resolution, and bank reconciliation | Complete |
+| 13 | Evaluation remediation through corpus expansion | Complete |
+| 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
+| 15 | Auditor evidence export for review cases | In progress |
 
 ## Phase 7: release engineering
 
@@ -456,7 +459,7 @@ speculative machine learning classifiers.
 
 ## Phase 13: evaluation remediation through corpus expansion
 
-Status: in progress (approved as the next phase; design in
+Status: complete (design in
 [ADR 0024](decisions/0024-expand-synthetic-corpus-to-slice-minimums.md)).
 
 Goal: remediate the Phase 11 `conditional_go` decision
@@ -504,13 +507,78 @@ Explicit non-goals: changing preregistered thresholds, tuning against the
 corpus, any product behavior or endpoint change, retention/purge work, and
 the Tesseract-measured re-run with live providers — that measured
 re-verification and the resulting go/no-go update execute in the
-Tesseract-equipped operator environment as the recommended Phase 14, using
+Tesseract-equipped operator environment as Phase 14, using
 the runbook procedure Phase 13 documents.
+
+## Phase 14: measured re-verification and readiness decision update
+
+Status: planned; blocked on a Tesseract-equipped operator environment.
+
+Goal: convert the Phase 13 remediation corpus into an updated readiness
+decision by running the frozen protocol with real Tesseract OCR
+(`eng` + `ara` trained data) and the evaluated provider identity, then
+recording the resulting go/no-go report. The runbook documents the exact
+operator procedure. No implementation work is expected; entry requires the
+equipped environment plus the named business, security, privacy,
+operations, and quality owners from the Phase 11 entry criteria.
+
+## Phase 15: auditor evidence export for review cases
+
+Status: in progress (approved as the next completable phase; design in
+[ADR 0025](decisions/0025-auditor-evidence-export-for-review-cases.md)).
+
+Goal: complete the audit half of the Phase 9 review/audit workflow. Cases
+are immutable and digest-verified but only visible through the API and
+console; no artifact exists that an auditor can take away and verify
+independently. Phase 15 adds a digest-bound evidence bundle per case —
+snapshot, ordered events, schema versions, and export metadata — verifiable
+offline without store access, served through an authenticated case route,
+the `veridoc-review` CLI, and a console download control.
+
+Planned deliverables:
+
+- one focused ADR recording the bundle format, offline verification
+  semantics, and trust bounds;
+- a review-domain evidence module that builds bundles from canonical case
+  detail and verifies them offline (canonical digest, snapshot digest,
+  event-chain continuity, version monotonicity), with typed safe errors;
+- an authenticated `GET /review/cases/{case_id}/evidence` route mirroring
+  the case-detail authorization and not-found contract;
+- `veridoc-review export` and `veridoc-review verify-bundle` CLI
+  subcommands with safe exit codes;
+- a console download control rendered with DOM text nodes only;
+- tamper-evident tests (snapshot edits, dropped/reordered events, digest
+  changes all fail verification), route auth/404 tests, CLI tests, and
+  console markup tests; and
+- distribution and smoke registration for the new module and route.
+
+Acceptance criteria:
+
+- an untampered bundle verifies offline with no store access, and every
+  tamper class fails verification;
+- export requires the same authentication as case detail; unknown cases
+  return the existing not-found contract;
+- the CLI export and the route return identical bundles for one case;
+- the full quality gate passes; and
+- API, architecture, runbook, testing guide, changelog, and release
+  evidence match the delivered behavior.
+
+Explicit non-goals: PDF rendering of bundles, redacting case content for
+auditors (bundles carry the case as-is; handling rules are documented),
+retention/purge behavior, batch export, and any change to case
+immutability or the append-only event log.
+
+Phase numbering note: Phase 15 implements while Phase 14 awaits its
+environment because the measured re-run needs Tesseract plus live
+providers, neither of which this development environment provides. Phase
+14 remains planned and unblocked the moment the equipped environment is
+available; nothing in Phase 15 changes its entry criteria or procedure.
 
 ## Approval rule
 
-Phases 0 through 12 are complete. Phase 13 is the approved next phase with
-the scope above. Any phase beyond it, major architectural change, or
-production deployment target beyond the evaluated scope requires explicit user
-approval, a detailed implementation plan, and compliance with the repository's
-atomic commit and testing protocol.
+Phases 0 through 13 are complete. Phase 14 is planned but environment-blocked.
+Phase 15 is the approved next completable phase with the scope above. Any
+phase beyond it, major architectural change, or production deployment target
+beyond the evaluated scope requires explicit user approval, a detailed
+implementation plan, and compliance with the repository's atomic commit and
+testing protocol.
