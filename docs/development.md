@@ -558,32 +558,23 @@ and disaster recovery drills.
 
 ## Evaluation and readiness benchmark
 
-Run the evaluation CLI against the synthetic corpus benchmark to verify
-performance metrics across OCR, extraction, verification, and explanation
-slices:
+Run the evaluation CLI against the synthetic corpus benchmark manifest to
+verify performance metrics across OCR, extraction, verification, and
+explanation slices:
 
 ```powershell
-uv run veridoc-evaluate benchmark `
-  --corpus-dir tests/fixtures/corpus `
-  --output evaluation-report.json
-```
-
-Run a full evaluation on a specified corpus manifest and ground-truth directory:
-
-```powershell
-uv run veridoc-evaluate run `
+uv run veridoc-evaluate `
   --manifest tests/fixtures/corpus/manifest.json `
-  --invoices-dir tests/fixtures/corpus/invoices `
-  --ground-truth tests/fixtures/corpus/ground_truth `
-  --output evaluation-report.json
+  --output-json evaluation-report.json `
+  --output-markdown evaluation-report.md
 ```
 
-Check runtime artifact and provider drift against a baseline run record:
-
-```powershell
-uv run veridoc-evaluate check-drift `
-  --baseline baseline-evaluation-run.json
-```
+Use `--reference-db` to point at a scratch reference database,
+`--no-verify-integrity` only to skip SHA-256 manifest checks,
+`--evaluation-id` and `--expiry-date` to label the report, and
+`--fail-on-no-go` to exit nonzero when the decision is `no_go`. The CLI has
+no subcommands: drift review means comparing the rendered artifact and
+provider identity block against the baseline report (ADR 0019).
 
 The evaluation runner calculates Wilson score confidence intervals for binomial
 proportions at the 95% confidence level and evaluates slice metrics against
