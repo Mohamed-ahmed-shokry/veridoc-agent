@@ -13,9 +13,12 @@ from typing import Literal, cast
 from uuid import uuid4
 
 from veridoc.administration.models import (
+    AdminAuditContext,
     AdminAuditEntry,
     AdminAuditEntryInput,
     AdminAuditPage,
+    AuditOperation,
+    AuditRecordType,
     ConflictPolicy,
     ImportResult,
     InvoiceRecord,
@@ -128,7 +131,9 @@ class SQLiteInvoiceRepository:
                 retention_until=None,
             )
 
-    def create_invoice(self, record: InvoiceRecordInput) -> InvoiceRecord:
+    def create_invoice(
+        self, record: InvoiceRecordInput, *, audit: AdminAuditContext | None = None
+    ) -> InvoiceRecord:
         """Create one managed invoice with server identity and timestamps."""
         record_id = uuid4().hex
         timestamp = _timestamp()
@@ -149,7 +154,18 @@ class SQLiteInvoiceRepository:
             row = connection.execute(
                 "SELECT * FROM vendor_invoices WHERE id = ?", (invoice_id,)
             ).fetchone()
-            return _admin_invoice_from_row(connection, row)
+            created = _admin_invoice_from_row(connection, row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="create",
+                    record_type="invoice",
+                    record_id=record_id,
+                    before_json=None,
+                    after_json=created.model_dump_json(),
+                )
+            return created
 
     def list_invoices(
         self, *, vendor_key: str | None, offset: int, limit: int
@@ -188,16 +204,21 @@ class SQLiteInvoiceRepository:
             return _admin_invoice_from_row(connection, row) if row is not None else None
 
     def update_admin_invoice(
-        self, record_id: str, update: InvoiceRecordUpdate
+        self,
+        record_id: str,
+        update: InvoiceRecordUpdate,
+        *,
+        audit: AdminAuditContext | None = None,
     ) -> InvoiceRecord | None:
         """Replace invoice facts while preserving identity and provenance."""
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT id FROM vendor_invoices WHERE record_id = ?", (record_id,)
+                "SELECT * FROM vendor_invoices WHERE record_id = ?", (record_id,)
             ).fetchone()
             if row is None:
                 return None
+            before = _admin_invoice_from_row(connection, row)
             invoice_id = int(row["id"])
             _update_invoice(
                 connection,
@@ -209,15 +230,44 @@ class SQLiteInvoiceRepository:
             updated_row = connection.execute(
                 "SELECT * FROM vendor_invoices WHERE id = ?", (invoice_id,)
             ).fetchone()
-            return _admin_invoice_from_row(connection, updated_row)
+            updated = _admin_invoice_from_row(connection, updated_row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="update",
+                    record_type="invoice",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=updated.model_dump_json(),
+                )
+            return updated
 
-    def delete_admin_invoice(self, record_id: str) -> bool:
+    def delete_admin_invoice(
+        self, record_id: str, *, audit: AdminAuditContext | None = None
+    ) -> bool:
         """Delete one managed invoice and its child line items."""
         with self._connection() as connection:
-            cursor = connection.execute(
+            row = connection.execute(
+                "SELECT * FROM vendor_invoices WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            before = _admin_invoice_from_row(connection, row)
+            connection.execute(
                 "DELETE FROM vendor_invoices WHERE record_id = ?", (record_id,)
             )
-            return cursor.rowcount > 0
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="delete",
+                    record_type="invoice",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=None,
+                )
+            return True
 
     def add_purchase_order(self, purchase_order: PurchaseOrder) -> None:
         """Persist one purchase order and its line items."""
@@ -239,7 +289,10 @@ class SQLiteInvoiceRepository:
             )
 
     def create_purchase_order(
-        self, record: PurchaseOrderRecordInput
+        self,
+        record: PurchaseOrderRecordInput,
+        *,
+        audit: AdminAuditContext | None = None,
     ) -> PurchaseOrderRecord:
         """Create one managed purchase order with server metadata."""
         record_id = uuid4().hex
@@ -261,7 +314,18 @@ class SQLiteInvoiceRepository:
             row = connection.execute(
                 "SELECT * FROM purchase_orders WHERE id = ?", (purchase_order_id,)
             ).fetchone()
-            return _admin_purchase_order_from_row(connection, row)
+            created = _admin_purchase_order_from_row(connection, row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="create",
+                    record_type="purchase_order",
+                    record_id=record_id,
+                    before_json=None,
+                    after_json=created.model_dump_json(),
+                )
+            return created
 
     def list_purchase_orders(
         self, *, vendor_key: str | None, offset: int, limit: int
@@ -306,16 +370,21 @@ class SQLiteInvoiceRepository:
             )
 
     def update_admin_purchase_order(
-        self, record_id: str, update: PurchaseOrderRecordUpdate
+        self,
+        record_id: str,
+        update: PurchaseOrderRecordUpdate,
+        *,
+        audit: AdminAuditContext | None = None,
     ) -> PurchaseOrderRecord | None:
         """Replace purchase-order facts while preserving provenance."""
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT id FROM purchase_orders WHERE record_id = ?", (record_id,)
+                "SELECT * FROM purchase_orders WHERE record_id = ?", (record_id,)
             ).fetchone()
             if row is None:
                 return None
+            before = _admin_purchase_order_from_row(connection, row)
             purchase_order_id = int(row["id"])
             try:
                 _update_purchase_order(
@@ -330,17 +399,48 @@ class SQLiteInvoiceRepository:
             updated_row = connection.execute(
                 "SELECT * FROM purchase_orders WHERE id = ?", (purchase_order_id,)
             ).fetchone()
-            return _admin_purchase_order_from_row(connection, updated_row)
+            updated = _admin_purchase_order_from_row(connection, updated_row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="update",
+                    record_type="purchase_order",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=updated.model_dump_json(),
+                )
+            return updated
 
-    def delete_admin_purchase_order(self, record_id: str) -> bool:
+    def delete_admin_purchase_order(
+        self, record_id: str, *, audit: AdminAuditContext | None = None
+    ) -> bool:
         """Delete one managed purchase order and its child line items."""
         with self._connection() as connection:
-            cursor = connection.execute(
+            row = connection.execute(
+                "SELECT * FROM purchase_orders WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            before = _admin_purchase_order_from_row(connection, row)
+            connection.execute(
                 "DELETE FROM purchase_orders WHERE record_id = ?", (record_id,)
             )
-            return cursor.rowcount > 0
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="delete",
+                    record_type="purchase_order",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=None,
+                )
+            return True
 
-    def create_vendor(self, record: VendorRecordInput) -> VendorRecord:
+    def create_vendor(
+        self, record: VendorRecordInput, *, audit: AdminAuditContext | None = None
+    ) -> VendorRecord:
         """Create one managed vendor master record."""
         record_id = uuid4().hex
         timestamp = _timestamp()
@@ -361,7 +461,18 @@ class SQLiteInvoiceRepository:
             row = connection.execute(
                 "SELECT * FROM vendors WHERE id = ?", (vendor_id,)
             ).fetchone()
-            return _admin_vendor_from_row(connection, row)
+            created = _admin_vendor_from_row(connection, row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="create",
+                    record_type="vendor",
+                    record_id=record_id,
+                    before_json=None,
+                    after_json=created.model_dump_json(),
+                )
+            return created
 
     def list_admin_vendors(
         self, *, status: str | None, offset: int, limit: int
@@ -400,16 +511,21 @@ class SQLiteInvoiceRepository:
             return _admin_vendor_from_row(connection, row) if row is not None else None
 
     def update_admin_vendor(
-        self, record_id: str, update: VendorRecordUpdate
+        self,
+        record_id: str,
+        update: VendorRecordUpdate,
+        *,
+        audit: AdminAuditContext | None = None,
     ) -> VendorRecord | None:
         """Replace vendor master facts while preserving identity and provenance."""
         with self._connection() as connection:
             connection.execute("BEGIN IMMEDIATE")
             row = connection.execute(
-                "SELECT id FROM vendors WHERE record_id = ?", (record_id,)
+                "SELECT * FROM vendors WHERE record_id = ?", (record_id,)
             ).fetchone()
             if row is None:
                 return None
+            before = _admin_vendor_from_row(connection, row)
             vendor_row_id = int(row["id"])
             try:
                 _update_vendor(
@@ -424,15 +540,42 @@ class SQLiteInvoiceRepository:
             updated_row = connection.execute(
                 "SELECT * FROM vendors WHERE id = ?", (vendor_row_id,)
             ).fetchone()
-            return _admin_vendor_from_row(connection, updated_row)
+            updated = _admin_vendor_from_row(connection, updated_row)
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="update",
+                    record_type="vendor",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=updated.model_dump_json(),
+                )
+            return updated
 
-    def delete_admin_vendor(self, record_id: str) -> bool:
+    def delete_admin_vendor(
+        self, record_id: str, *, audit: AdminAuditContext | None = None
+    ) -> bool:
         """Delete one managed vendor and its child records."""
         with self._connection() as connection:
-            cursor = connection.execute(
-                "DELETE FROM vendors WHERE record_id = ?", (record_id,)
-            )
-            return cursor.rowcount > 0
+            row = connection.execute(
+                "SELECT * FROM vendors WHERE record_id = ?", (record_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            before = _admin_vendor_from_row(connection, row)
+            connection.execute("DELETE FROM vendors WHERE record_id = ?", (record_id,))
+            if audit is not None:
+                _insert_audit_entry(
+                    connection,
+                    audit,
+                    operation="delete",
+                    record_type="vendor",
+                    record_id=record_id,
+                    before_json=before.model_dump_json(),
+                    after_json=None,
+                )
+            return True
 
     def record_admin_action(self, entry: AdminAuditEntryInput) -> AdminAuditEntry:
         """Append one audit entry for a completed administration mutation."""
@@ -506,6 +649,7 @@ class SQLiteInvoiceRepository:
         *,
         conflict: ConflictPolicy,
         dry_run: bool,
+        audit: AdminAuditContext | None = None,
     ) -> ImportResult:
         """Apply or simulate one fully validated atomic import."""
         actions: list[ImportAction] = []
@@ -513,15 +657,17 @@ class SQLiteInvoiceRepository:
             connection.execute("BEGIN IMMEDIATE")
             try:
                 actions.extend(
-                    _import_invoice(connection, record, conflict=conflict)
+                    _import_invoice(connection, record, conflict=conflict, audit=audit)
                     for record in batch.invoices
                 )
                 actions.extend(
-                    _import_purchase_order(connection, record, conflict=conflict)
+                    _import_purchase_order(
+                        connection, record, conflict=conflict, audit=audit
+                    )
                     for record in batch.purchase_orders
                 )
                 actions.extend(
-                    _import_vendor(connection, record, conflict=conflict)
+                    _import_vendor(connection, record, conflict=conflict, audit=audit)
                     for record in batch.vendors
                 )
             except Exception:
@@ -774,10 +920,11 @@ def _import_invoice(
     record: InvoiceRecordInput,
     *,
     conflict: ConflictPolicy,
+    audit: AdminAuditContext | None = None,
 ) -> ImportAction:
     existing = connection.execute(
         """
-        SELECT id FROM vendor_invoices
+        SELECT * FROM vendor_invoices
         WHERE source = ? AND external_id = ?
         """,
         (record.metadata.source, record.metadata.external_id),
@@ -787,6 +934,7 @@ def _import_invoice(
             raise ReferenceDataConflictError
         if conflict == "skip":
             return "skipped"
+        before = _admin_invoice_from_row(connection, existing)
         _update_invoice(
             connection,
             int(existing["id"]),
@@ -794,12 +942,26 @@ def _import_invoice(
             retention_until=record.metadata.retention_until,
             updated_at=_timestamp(),
         )
+        after_row = connection.execute(
+            "SELECT * FROM vendor_invoices WHERE id = ?", (int(existing["id"]),)
+        ).fetchone()
+        after = _admin_invoice_from_row(connection, after_row)
+        if audit is not None:
+            _insert_audit_entry(
+                connection,
+                audit,
+                operation="import",
+                record_type="invoice",
+                record_id=before.metadata.record_id,
+                before_json=before.model_dump_json(),
+                after_json=after.model_dump_json(),
+            )
         return "replaced"
 
     record_id = uuid4().hex
     timestamp = _timestamp()
     try:
-        _insert_invoice(
+        invoice_id = _insert_invoice(
             connection,
             record.invoice.to_domain(),
             record_id=record_id,
@@ -811,6 +973,20 @@ def _import_invoice(
         )
     except sqlite3.IntegrityError as exc:
         raise ReferenceDataConflictError from exc
+    if audit is not None:
+        created_row = connection.execute(
+            "SELECT * FROM vendor_invoices WHERE id = ?", (invoice_id,)
+        ).fetchone()
+        created = _admin_invoice_from_row(connection, created_row)
+        _insert_audit_entry(
+            connection,
+            audit,
+            operation="import",
+            record_type="invoice",
+            record_id=record_id,
+            before_json=None,
+            after_json=created.model_dump_json(),
+        )
     return "created"
 
 
@@ -819,10 +995,11 @@ def _import_purchase_order(
     record: PurchaseOrderRecordInput,
     *,
     conflict: ConflictPolicy,
+    audit: AdminAuditContext | None = None,
 ) -> ImportAction:
     existing = connection.execute(
         """
-        SELECT id FROM purchase_orders
+        SELECT * FROM purchase_orders
         WHERE source = ? AND external_id = ?
         """,
         (record.metadata.source, record.metadata.external_id),
@@ -844,6 +1021,7 @@ def _import_purchase_order(
         existing_id = int(existing["id"])
         if natural_conflict is not None and int(natural_conflict["id"]) != existing_id:
             raise ReferenceDataConflictError
+        before = _admin_purchase_order_from_row(connection, existing)
         try:
             _update_purchase_order(
                 connection,
@@ -854,6 +1032,20 @@ def _import_purchase_order(
             )
         except sqlite3.IntegrityError as exc:
             raise ReferenceDataConflictError from exc
+        after_row = connection.execute(
+            "SELECT * FROM purchase_orders WHERE id = ?", (existing_id,)
+        ).fetchone()
+        after = _admin_purchase_order_from_row(connection, after_row)
+        if audit is not None:
+            _insert_audit_entry(
+                connection,
+                audit,
+                operation="import",
+                record_type="purchase_order",
+                record_id=before.metadata.record_id,
+                before_json=before.model_dump_json(),
+                after_json=after.model_dump_json(),
+            )
         return "replaced"
 
     if natural_conflict is not None:
@@ -864,7 +1056,7 @@ def _import_purchase_order(
     record_id = uuid4().hex
     timestamp = _timestamp()
     try:
-        _insert_purchase_order(
+        purchase_order_id = _insert_purchase_order(
             connection,
             purchase_order,
             record_id=record_id,
@@ -876,6 +1068,20 @@ def _import_purchase_order(
         )
     except sqlite3.IntegrityError as exc:
         raise ReferenceDataConflictError from exc
+    if audit is not None:
+        created_row = connection.execute(
+            "SELECT * FROM purchase_orders WHERE id = ?", (purchase_order_id,)
+        ).fetchone()
+        created = _admin_purchase_order_from_row(connection, created_row)
+        _insert_audit_entry(
+            connection,
+            audit,
+            operation="import",
+            record_type="purchase_order",
+            record_id=record_id,
+            before_json=None,
+            after_json=created.model_dump_json(),
+        )
     return "created"
 
 
@@ -884,10 +1090,11 @@ def _import_vendor(
     record: VendorRecordInput,
     *,
     conflict: ConflictPolicy,
+    audit: AdminAuditContext | None = None,
 ) -> ImportAction:
     existing = connection.execute(
         """
-        SELECT id FROM vendors
+        SELECT * FROM vendors
         WHERE source = ? AND external_id = ?
         """,
         (record.metadata.source, record.metadata.external_id),
@@ -909,6 +1116,7 @@ def _import_vendor(
         existing_id = int(existing["id"])
         if natural_conflict is not None and int(natural_conflict["id"]) != existing_id:
             raise ReferenceDataConflictError
+        before = _admin_vendor_from_row(connection, existing)
         try:
             _update_vendor(
                 connection,
@@ -919,6 +1127,20 @@ def _import_vendor(
             )
         except sqlite3.IntegrityError as exc:
             raise ReferenceDataConflictError from exc
+        after_row = connection.execute(
+            "SELECT * FROM vendors WHERE id = ?", (existing_id,)
+        ).fetchone()
+        after = _admin_vendor_from_row(connection, after_row)
+        if audit is not None:
+            _insert_audit_entry(
+                connection,
+                audit,
+                operation="import",
+                record_type="vendor",
+                record_id=before.metadata.record_id,
+                before_json=before.model_dump_json(),
+                after_json=after.model_dump_json(),
+            )
         return "replaced"
 
     if natural_conflict is not None:
@@ -929,7 +1151,7 @@ def _import_vendor(
     record_id = uuid4().hex
     timestamp = _timestamp()
     try:
-        _insert_vendor(
+        vendor_id = _insert_vendor(
             connection,
             vendor,
             record_id=record_id,
@@ -941,6 +1163,20 @@ def _import_vendor(
         )
     except sqlite3.IntegrityError as exc:
         raise ReferenceDataConflictError from exc
+    if audit is not None:
+        created_row = connection.execute(
+            "SELECT * FROM vendors WHERE id = ?", (vendor_id,)
+        ).fetchone()
+        created = _admin_vendor_from_row(connection, created_row)
+        _insert_audit_entry(
+            connection,
+            audit,
+            operation="import",
+            record_type="vendor",
+            record_id=record_id,
+            before_json=None,
+            after_json=created.model_dump_json(),
+        )
     return "created"
 
 
@@ -1358,6 +1594,36 @@ def _admin_audit_entry_from_row(row: sqlite3.Row) -> AdminAuditEntry:
         )
     except (TypeError, ValueError) as exc:
         raise InvalidPersistedReferenceDataError from exc
+
+
+def _insert_audit_entry(
+    connection: sqlite3.Connection,
+    audit: AdminAuditContext,
+    *,
+    operation: AuditOperation,
+    record_type: AuditRecordType,
+    record_id: str,
+    before_json: str | None,
+    after_json: str | None,
+) -> None:
+    connection.execute(
+        """
+        INSERT INTO admin_audit_log (
+            occurred_at, request_id, actor, operation,
+            record_type, record_id, before_json, after_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            audit.occurred_at.isoformat(),
+            audit.request_id,
+            audit.actor,
+            operation,
+            record_type,
+            record_id,
+            before_json,
+            after_json,
+        ),
+    )
 
 
 def _line_items_from_rows(
