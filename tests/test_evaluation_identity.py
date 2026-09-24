@@ -16,7 +16,7 @@ from veridoc.evaluation.models import ArtifactIdentityRecord, ProviderIdentityRe
 def test_capture_artifact_identity(tmp_path: Path) -> None:
     identity = capture_artifact_identity()
     assert identity.app_version == "0.1.0"
-    assert identity.reference_schema_version == 5
+    assert identity.reference_schema_version == 6
     assert identity.review_schema_version == 4
     assert len(identity.lockfile_sha256) == 64
     assert identity.python_version
