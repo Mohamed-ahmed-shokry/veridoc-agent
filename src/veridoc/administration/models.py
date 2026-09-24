@@ -329,3 +329,47 @@ class VendorRecordPage(AdministrationModel):
     offset: int = Field(ge=0)
     limit: int = Field(ge=1, le=200)
     total: int = Field(ge=0)
+
+
+AuditOperation = Literal["create", "update", "delete", "import"]
+AuditRecordType = Literal["invoice", "purchase_order", "vendor"]
+AuditActor = Literal["admin"]
+
+_REQUEST_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+_RECORD_ID_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]*$"
+
+
+class AdminAuditEntryInput(AdministrationModel):
+    """One bounded administration mutation record for the audit log."""
+
+    occurred_at: AwareDatetime
+    request_id: str = Field(min_length=1, max_length=128, pattern=_REQUEST_ID_PATTERN)
+    actor: AuditActor
+    operation: AuditOperation
+    record_type: AuditRecordType
+    record_id: str = Field(min_length=1, max_length=128, pattern=_RECORD_ID_PATTERN)
+    before_json: str | None = Field(default=None, max_length=MAX_ADMIN_IMPORT_BYTES)
+    after_json: str | None = Field(default=None, max_length=MAX_ADMIN_IMPORT_BYTES)
+
+
+class AdminAuditEntry(AdminAuditEntryInput):
+    """One persisted audit entry with its server sequence identifier."""
+
+    entry_id: int = Field(ge=1)
+
+
+class AdminAuditPage(AdministrationModel):
+    """One bounded page of audit entries, newest last."""
+
+    records: list[AdminAuditEntry]
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=200)
+    total: int = Field(ge=0)
+
+
+class AdminAuditContext(AdministrationModel):
+    """Request-scoped identity stamped on audit entries for one mutation call."""
+
+    request_id: str = Field(min_length=1, max_length=128, pattern=_REQUEST_ID_PATTERN)
+    actor: AuditActor
+    occurred_at: AwareDatetime
