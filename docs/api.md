@@ -593,6 +593,14 @@ counts. It does not return the imported records.
 The complete multipart import request is also bounded before parsing to the
 1 MiB file limit plus a 64 KiB framing allowance.
 
+Every applied create, update, delete, and import writes one audit entry per
+record — server timestamp, request correlation ID, operation, record
+identity, and canonical before/after images — atomically with the mutation.
+Dry runs write nothing. Operators read the log with
+`veridoc-reference audit-log` (bounded `--record-type`, `--record-id`,
+`--offset`, `--limit`); attribution is the `admin` token-holder role plus
+the correlation ID, since the shared token carries no per-actor identity.
+
 ## `GET /review`
 
 Serves a small local HTML page for submitting one document to `/process` and
