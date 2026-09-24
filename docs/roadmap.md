@@ -22,7 +22,7 @@ boundaries only and require separate approval before implementation.
 | 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
 | 15 | Auditor evidence export for review cases | Complete |
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
-| 17 | Reference-data audit trail for administration mutations | In progress |
+| 17 | Reference-data audit trail for administration mutations | Complete |
 
 ## Phase 7: release engineering
 
@@ -624,7 +624,7 @@ types, and any change to arithmetic, vendor-registry, or history rules.
 
 ## Phase 17: reference-data audit trail
 
-Status: in progress (approved as the next phase; design in
+Status: complete (design in
 [ADR 0027](decisions/0027-append-only-admin-audit-log.md)).
 
 Goal: close the accountability gap around the fraud trust anchor. Phase 12
@@ -672,9 +672,8 @@ write nothing), and any change to mutation semantics or conflict behavior.
 
 ## Approval rule
 
-Phases 0 through 13, Phase 15, and Phase 16 are complete. Phase 14 is
-planned but environment-blocked. Phase 17 is the approved next phase with
-the scope above. Before any phase beyond Phase 17, inspect the
+Phases 0 through 13 and Phases 15 through 17 are complete. Phase 14 is
+planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
