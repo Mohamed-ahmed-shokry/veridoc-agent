@@ -8,6 +8,20 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 17 reference-data audit trail for administration mutations:
+  - Architecture Decision Record 0027 documenting the append-only entry
+    schema, shared-token attribution limits, and in-transaction atomicity.
+  - Forward-only migration 6 creating the `admin_audit_log` table with
+    record and timestamp lookup indexes, plus schema and maintenance
+    validation for its rows.
+  - Bounded audit entry/page models and repository record/list operations
+    on the administration protocol, implemented by the SQLite adapter.
+  - Request-scoped audit contexts on every invoice, purchase-order, and
+    vendor create, update, delete, and applied import, writing one entry
+    per record with the calling request's correlation ID and canonical
+    before/after images inside the mutation transaction.
+  - `veridoc-reference audit-log` read command with bounded filters and
+    pagination.
 - Phase 16 reconciliation precision (one-sided PO ceilings and normalized
   duplicates):
   - Architecture Decision Record 0026 documenting the fraud-model reasoning
