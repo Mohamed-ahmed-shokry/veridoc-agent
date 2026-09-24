@@ -113,6 +113,19 @@ _REQUIRED_SCHEMA_COLUMNS = {
             "country",
         }
     ),
+    "admin_audit_log": frozenset(
+        {
+            "id",
+            "occurred_at",
+            "request_id",
+            "actor",
+            "operation",
+            "record_type",
+            "record_id",
+            "before_json",
+            "after_json",
+        }
+    ),
 }
 _REQUIRED_PRIMARY_KEYS = {
     "schema_migrations": ("version",),
@@ -124,6 +137,7 @@ _REQUIRED_PRIMARY_KEYS = {
     "vendor_aliases": ("id",),
     "vendor_bank_accounts": ("id",),
     "vendor_tax_ids": ("id",),
+    "admin_audit_log": ("id",),
 }
 _REQUIRED_INTEGER_COLUMNS = {
     "schema_migrations": frozenset({"version"}),
@@ -135,6 +149,7 @@ _REQUIRED_INTEGER_COLUMNS = {
     "vendor_aliases": frozenset({"id", "vendor_id"}),
     "vendor_bank_accounts": frozenset({"id", "vendor_id", "is_primary"}),
     "vendor_tax_ids": frozenset({"id", "vendor_id"}),
+    "admin_audit_log": frozenset({"id"}),
 }
 _REQUIRED_NOT_NULL_COLUMNS = {
     "schema_migrations": frozenset({"applied_at"}),
@@ -146,6 +161,16 @@ _REQUIRED_NOT_NULL_COLUMNS = {
     "vendor_aliases": frozenset({"vendor_id", "alias", "canonical_key"}),
     "vendor_bank_accounts": frozenset({"vendor_id", "account_number", "is_primary"}),
     "vendor_tax_ids": frozenset({"vendor_id", "tax_id", "tax_type"}),
+    "admin_audit_log": frozenset(
+        {
+            "occurred_at",
+            "request_id",
+            "actor",
+            "operation",
+            "record_type",
+            "record_id",
+        }
+    ),
 }
 _REQUIRED_FOREIGN_KEYS = {
     "invoice_line_items": frozenset(
@@ -237,6 +262,10 @@ _REQUIRED_NAMED_INDEXES: dict[str, dict[str, tuple[str, ...]]] = {
     },
     "vendors": {
         "vendors_canonical_key_index": ("canonical_key",),
+    },
+    "admin_audit_log": {
+        "admin_audit_log_record_index": ("record_type", "record_id"),
+        "admin_audit_log_occurred_at_index": ("occurred_at",),
     },
     "vendor_aliases": {
         "vendor_aliases_canonical_key_index": ("canonical_key",),
