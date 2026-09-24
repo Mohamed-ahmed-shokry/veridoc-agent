@@ -25,11 +25,12 @@ store via forward-only migration 6, with one entry per mutated record:
   (`invoice`, `purchase_order`, `vendor`), server record identifier, and
   canonical before/after JSON images (`null` for create-after/delete-before
   symmetry);
-- entries are written post-commit by the administration routes, which are
-  the sole record writers; a crash between mutation and entry loses the
-  entry while the durable mutation survives, which operators can
-  reconstruct by re-exporting record state — accepted as residual risk
-  rather than hidden behavior;
+- entries are written atomically inside the repository transaction that
+  performs the mutation: routes build one request-scoped audit context
+  (`request_id`, `admin` actor label, server timestamp) and the SQLite
+  adapter inserts the entry on the same connection, so a committed
+  mutation always carries its entry and a rolled-back dry run or conflict
+  leaves none;
 - no update or delete path exists for entries through any interface, and
   backup/restore carry the log with the database that owns it;
 - rows validate like all persisted rows (required fields, bounded values,
@@ -45,7 +46,8 @@ to a separately approved identity phase.
 
 ## Alternatives considered
 
-- Pass an audit context into every repository write method for same-transaction entries.
+- Route-level post-commit audit writes separate from the mutation
+  transaction (rejected: leaves a crash-consistency window).
 - Store the log outside the reference database in a separate file.
 - Add digest chains or signatures over log entries.
 - Add an HTTP audit-log read route next to the CRUD routes.
@@ -58,5 +60,5 @@ from before/after images, giving operators a detective control against
 admin-credential abuse. The price is one extra write per mutation and an
 unbounded log table whose growth operators monitor as ordinary database
 size; retention/purge policy for the log is deferred like all retention
-work. Same-transaction atomicity between mutation and entry is
-deliberately not claimed.
+work. Atomicity between mutation and entry holds by construction: both
+commit or roll back in one transaction.
