@@ -8,6 +8,19 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 16 reconciliation precision (one-sided PO ceilings and normalized
+  duplicates):
+  - Architecture Decision Record 0026 documenting the fraud-model reasoning
+    for authorization ceilings and invoice-number normalization bounds.
+  - Canonical invoice-number normalization (NFKC, dash-folding, whitespace
+    removal, casefold) with duplicate detection over the normalized vendor
+    history, keeping the `duplicate_invoice_number` finding type.
+  - One-sided purchase-order total and line-quantity rules flagging only
+    invoiced amounts above the authorized values; unit prices stay exact.
+  - Cumulative purchase-order ceiling over the loaded vendor history
+    catching split over-billing, without new repository methods.
+  - Single history load shared by duplicate, history, and ceiling checks in
+    the verification service.
 - Phase 15 auditor evidence export for review cases:
   - Architecture Decision Record 0025 documenting the digest-bound bundle
     format, offline verification semantics, and auditor handling bounds.
