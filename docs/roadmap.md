@@ -21,6 +21,7 @@ boundaries only and require separate approval before implementation.
 | 13 | Evaluation remediation through corpus expansion | Complete |
 | 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
 | 15 | Auditor evidence export for review cases | Complete |
+| 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | In progress |
 
 ## Phase 7: release engineering
 
@@ -574,10 +575,57 @@ providers, neither of which this development environment provides. Phase
 14 remains planned and unblocked the moment the equipped environment is
 available; nothing in Phase 15 changes its entry criteria or procedure.
 
+## Phase 16: reconciliation precision
+
+Status: in progress (approved as the next phase; design in
+[ADR 0026](decisions/0026-one-sided-po-ceilings-and-normalized-duplicates.md)).
+
+Goal: remove systematic false-positive findings without losing fraud
+recall. Two verified precision gaps: invoice numbers compare verbatim, so
+OCR/provider variants (`INV-001` vs `inv 001`) of one invoice evade the
+duplicate check while stored verbatim; and purchase-order totals and line
+quantities compare exactly, so every routine partial invoice against a PO
+flags high-severity. Phase 16 canonicalizes invoice-number identity and
+turns PO matching into authorization ceilings: billing at or under the
+authorized amount is routine, billing above it is review-worthy.
+
+Planned deliverables:
+
+- one focused ADR recording the fraud-model reasoning (why one-sided
+  ceilings lose no over-billing recall) and normalization bounds;
+- a canonical invoice-number normalizer (NFKC, dash-folding, whitespace
+  removal, casefold) with unit tests;
+- duplicate detection over the normalized form for the vendor history,
+  keeping the `duplicate_invoice_number` finding type and recording both
+  the observed and stored forms;
+- one-sided PO total and line-quantity rules (flag only invoiced amounts
+  above the authorized values; unit prices stay exact; the redundant PO
+  line-total comparison goes away);
+- a cumulative PO ceiling rule over the already-loaded vendor history
+  (prior same-currency invoices against the same PO plus the current
+  total must not exceed the PO total), wired through the verification
+  service without new repository methods; and
+- updated PO/duplicate tests for the new semantics plus new variant,
+  one-sided, and cumulative-ceiling tests.
+
+Acceptance criteria:
+
+- verbatim-identical invoices still flag exactly as before;
+- normalized variants, partial invoices, and split over-billing behave per
+  the ADR with dedicated tests;
+- unit-price changes still always flag;
+- the full quality gate passes; and
+- architecture, changelog, and release evidence match the new semantics.
+
+Explicit non-goals: unit-price tolerance, currency conversion, goods
+receipts, retention/purge, batch intake, threshold changes, new finding
+types, and any change to arithmetic, vendor-registry, or history rules.
+
 ## Approval rule
 
 Phases 0 through 13 and Phase 15 are complete. Phase 14 is planned but
-environment-blocked. Before any phase beyond Phase 15, inspect the
+environment-blocked. Phase 16 is the approved next phase with the scope
+above. Before any phase beyond Phase 16, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
