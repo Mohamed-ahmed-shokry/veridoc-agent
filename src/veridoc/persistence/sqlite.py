@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterator
 from contextlib import closing, contextmanager
@@ -12,6 +13,9 @@ from typing import Literal, cast
 from uuid import uuid4
 
 from veridoc.administration.models import (
+    AdminAuditEntry,
+    AdminAuditEntryInput,
+    AdminAuditPage,
     ConflictPolicy,
     ImportResult,
     InvoiceRecord,
@@ -81,6 +85,11 @@ def validate_persisted_reference_data(connection: sqlite3.Connection) -> None:
             _vendor_entity_from_row(connection, row)
             if row["record_id"] is not None:
                 _admin_vendor_from_row(connection, row)
+        audit_rows = connection.execute(
+            "SELECT * FROM admin_audit_log ORDER BY id"
+        ).fetchall()
+        for row in audit_rows:
+            _admin_audit_entry_from_row(row)
     finally:
         connection.row_factory = original_row_factory
 
@@ -424,6 +433,72 @@ class SQLiteInvoiceRepository:
                 "DELETE FROM vendors WHERE record_id = ?", (record_id,)
             )
             return cursor.rowcount > 0
+
+    def record_admin_action(self, entry: AdminAuditEntryInput) -> AdminAuditEntry:
+        """Append one audit entry for a completed administration mutation."""
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO admin_audit_log (
+                    occurred_at, request_id, actor, operation,
+                    record_type, record_id, before_json, after_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    entry.occurred_at.isoformat(),
+                    entry.request_id,
+                    entry.actor,
+                    entry.operation,
+                    entry.record_type,
+                    entry.record_id,
+                    entry.before_json,
+                    entry.after_json,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM admin_audit_log WHERE id = ?", (cursor.lastrowid,)
+            ).fetchone()
+            return _admin_audit_entry_from_row(row)
+
+    def list_admin_audit_log(
+        self,
+        *,
+        record_type: str | None,
+        record_id: str | None,
+        offset: int,
+        limit: int,
+    ) -> AdminAuditPage:
+        """Return audit entries in stable insertion order."""
+        conditions: list[str] = []
+        parameters: list[object] = []
+        if record_type is not None:
+            conditions.append("record_type = ?")
+            parameters.append(record_type)
+        if record_id is not None:
+            conditions.append("record_id = ?")
+            parameters.append(record_id)
+        where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+        with self._read_connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM admin_audit_log{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM admin_audit_log{where_clause}
+                ORDER BY id
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return AdminAuditPage(
+                records=[_admin_audit_entry_from_row(row) for row in rows],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
 
     def import_reference_data(
         self,
@@ -1258,6 +1333,28 @@ def _admin_vendor_from_row(
                     for t in vendor.tax_ids
                 ],
             ),
+        )
+    except (TypeError, ValueError) as exc:
+        raise InvalidPersistedReferenceDataError from exc
+
+
+def _admin_audit_entry_from_row(row: sqlite3.Row) -> AdminAuditEntry:
+    try:
+        before_json = row["before_json"]
+        after_json = row["after_json"]
+        for document in (before_json, after_json):
+            if document is not None and not isinstance(json.loads(document), dict):
+                raise ValueError("Audit images must be JSON objects.")
+        return AdminAuditEntry(
+            entry_id=int(row["id"]),
+            occurred_at=row["occurred_at"],
+            request_id=row["request_id"],
+            actor=row["actor"],
+            operation=row["operation"],
+            record_type=row["record_type"],
+            record_id=row["record_id"],
+            before_json=before_json,
+            after_json=after_json,
         )
     except (TypeError, ValueError) as exc:
         raise InvalidPersistedReferenceDataError from exc
