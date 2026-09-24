@@ -39,7 +39,11 @@ construction and corpus validity tests, remediating the Phase 11
 conditional-go decision's sample-size condition. Phase 15 adds auditor
 evidence export for review cases: digest-bound, offline-verifiable bundles
 served through an authenticated case route, the `veridoc-review` CLI, and a
-console download control.
+console download control. Phase 16 turns purchase-order matching into
+authorization ceilings and detects duplicates over canonicalized invoice
+numbers. Phase 17 records every reference-data mutation in an append-only
+audit log with request linkage and before/after images, readable through
+`veridoc-reference audit-log`.
 
 ## Implemented capabilities
 
@@ -554,7 +558,10 @@ the benchmark corpus expansion to every preregistered slice minimum with
 validity tests and a runbook procedure for the measured re-run. Phase 14
 (measured re-verification and decision update) is planned but blocked on a
 Tesseract-equipped operator environment. Phase 15 completed digest-bound
-auditor evidence bundles for review cases with offline verification.
+auditor evidence bundles for review cases with offline verification. Phase 16
+completed one-sided purchase-order ceilings and normalized duplicate
+detection. Phase 17 is in progress: an append-only audit trail for every
+reference-data mutation.
 See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
 ## Documentation
@@ -567,7 +574,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 scope, Phase 14 blocked, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13, Phase 15, and Phase 16 scope, Phase 14 blocked, Phase 17 in progress, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
@@ -606,7 +613,9 @@ the equipped operator environment (see the runbook).
 
 Phase 14 runs the Tesseract-measured re-verification and records the updated
 readiness decision once the equipped operator environment is available.
-Phase 15 completed auditor evidence export for review cases. Post-Version-1
+Phase 15 completed auditor evidence export for review cases. Phase 16
+completed reconciliation precision work. Phase 17 is adding a
+reference-data audit trail. Post-Version-1
 enhancements
 (e.g., enterprise single sign-on, external message queues, multi-region clustering,
 or custom fine-tuned OCR/extraction models) remain subject to separate stakeholder
