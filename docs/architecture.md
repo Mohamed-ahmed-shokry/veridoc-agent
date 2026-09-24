@@ -208,11 +208,18 @@ expected values or ranges, comparison source, rule, severity, and historical
 statistics when applicable. The typed `VerificationState` graph is
 `START -> verify -> END` and is separate from Phase 2 extraction orchestration.
 
-The service checks arithmetic, invoice-date ordering, duplicate invoice numbers,
-purchase-order headers and line items, vendor total/line-item history, line-item
-occurrence, and consistently observed payment terms. It uses a minimum of three
-same-currency observations for statistical comparisons and reports
-`insufficient_history` instead of treating smaller samples as reliable.
+The service checks arithmetic, invoice-date ordering, duplicate invoice numbers
+(canonicalized, so OCR and provider variants of one number share one
+identity), purchase-order headers and line items, vendor total/line-item
+history, line-item occurrence, and consistently observed payment terms. It
+uses a minimum of three same-currency observations for statistical
+comparisons and reports `insufficient_history` instead of treating smaller
+samples as reliable. Purchase orders act as authorization ceilings: invoice
+totals and line quantities at or below the authorized values pass, amounts
+above flag, unit prices still require exact equality, and prior invoices
+against the same PO plus the current total must not exceed the PO total
+(cumulative split-billing ceiling). See
+[ADR 0026](decisions/0026-one-sided-po-ceilings-and-normalized-duplicates.md).
 
 ## Typed explanation flow
 
@@ -389,8 +396,10 @@ current boundaries rather than bypass them:
 - evaluation must report OCR/extraction quality separately from deterministic
   verification-rule coverage and end-to-end operational performance.
 
-Phase 9 is implemented as described above. Phases 10 and 11 remain
-unapproved and unimplemented.
+Phase 9 is implemented as described above. Phases 10 through 13 and Phase 15
+are complete; Phase 14 is planned but blocked on a Tesseract-equipped
+operator environment, and Phase 16 is in progress. See the
+[project roadmap](roadmap.md) for the current phase status.
 
 ## External boundaries
 
