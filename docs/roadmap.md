@@ -21,7 +21,7 @@ boundaries only and require separate approval before implementation.
 | 13 | Evaluation remediation through corpus expansion | Complete |
 | 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
 | 15 | Auditor evidence export for review cases | Complete |
-| 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | In progress |
+| 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
 
 ## Phase 7: release engineering
 
@@ -577,7 +577,7 @@ available; nothing in Phase 15 changes its entry criteria or procedure.
 
 ## Phase 16: reconciliation precision
 
-Status: in progress (approved as the next phase; design in
+Status: complete (design in
 [ADR 0026](decisions/0026-one-sided-po-ceilings-and-normalized-duplicates.md)).
 
 Goal: remove systematic false-positive findings without losing fraud
@@ -623,9 +623,8 @@ types, and any change to arithmetic, vendor-registry, or history rules.
 
 ## Approval rule
 
-Phases 0 through 13 and Phase 15 are complete. Phase 14 is planned but
-environment-blocked. Phase 16 is the approved next phase with the scope
-above. Before any phase beyond Phase 16, inspect the
+Phases 0 through 13, Phase 15, and Phase 16 are complete. Phase 14 is
+planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
