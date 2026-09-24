@@ -42,3 +42,4 @@ Accepted decisions:
 - [0023: Deterministic vendor and bank reconciliation rules](0023-deterministic-vendor-and-bank-reconciliation-rules.md)
 - [0024: Expand the synthetic corpus to slice minimums with committed construction](0024-expand-synthetic-corpus-to-slice-minimums.md)
 - [0025: Export digest-bound auditor evidence bundles for review cases](0025-auditor-evidence-export-for-review-cases.md)
+- [0026: Use one-sided PO ceilings and normalized invoice-number identity](0026-one-sided-po-ceilings-and-normalized-duplicates.md)
