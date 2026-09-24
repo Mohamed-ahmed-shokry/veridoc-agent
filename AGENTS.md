@@ -700,9 +700,11 @@ following documentation commit.
 - Phase 14: measured re-verification and readiness decision update.
   **Planned; blocked on a Tesseract-equipped operator environment.**
 - Phase 15: auditor evidence export for review cases. **Complete.**
+- Phase 16: reconciliation precision (one-sided PO ceilings, normalized
+  duplicate identity). **In progress.**
 
-Phase 15 is complete. Phase 14 awaits its environment. Before any phase
-beyond Phase 15, inspect the
+Phase 15 is complete. Phase 14 awaits its environment. Phase 16 is the
+approved next phase. Before any phase beyond Phase 16, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
