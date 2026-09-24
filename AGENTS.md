@@ -702,9 +702,11 @@ following documentation commit.
 - Phase 15: auditor evidence export for review cases. **Complete.**
 - Phase 16: reconciliation precision (one-sided PO ceilings, normalized
   duplicate identity). **Complete.**
+- Phase 17: reference-data audit trail for administration mutations.
+  **In progress.**
 
-Phases 15 and 16 are complete. Phase 14 awaits its environment. Before any
-later phase, inspect the
+Phases 15 and 16 are complete. Phase 14 awaits its environment. Phase 17 is
+the approved next phase. Before any phase beyond Phase 17, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
