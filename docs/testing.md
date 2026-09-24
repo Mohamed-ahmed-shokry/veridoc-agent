@@ -55,6 +55,7 @@ tests/
 ├── test_administration_purchase_order_api.py  authenticated PO API behavior
 ├── test_administration_vendor_api.py  authenticated vendor master API behavior
 ├── test_administration_import_api.py  bounded JSON import API behavior
+├── test_administration_audit.py  Phase 17 audit migration, entries, and linkage
 ├── test_reference_data_maintenance.py  safe SQLite backup and restore
 ├── test_administration_cli.py      maintenance CLI contracts
 ├── test_verification_models.py     typed finding evidence contract
@@ -206,6 +207,7 @@ uv run pytest tests/test_administration_invoice_api.py
 uv run pytest tests/test_administration_purchase_order_api.py
 uv run pytest tests/test_administration_vendor_api.py
 uv run pytest tests/test_administration_import_api.py
+uv run pytest tests/test_administration_audit.py
 uv run pytest tests/test_reference_data_maintenance.py
 uv run pytest tests/test_administration_cli.py
 uv run pytest tests/test_review_models.py

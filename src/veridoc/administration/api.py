@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import (
@@ -30,6 +31,7 @@ from veridoc.administration.auth import (
 )
 from veridoc.administration.models import (
     MAX_ADMIN_IMPORT_BYTES,
+    AdminAuditContext,
     ConflictPolicy,
     ImportResult,
     InvoiceRecord,
@@ -132,6 +134,15 @@ def get_authorized_admin_repository(
     return repository
 
 
+def _audit_context(request: Request) -> AdminAuditContext:
+    """Build the request-scoped audit identity for one mutation call."""
+    return AdminAuditContext(
+        request_id=request.state.request_id,
+        actor="admin",
+        occurred_at=datetime.now(UTC),
+    )
+
+
 @router.post(
     "/invoices",
     response_model=InvoiceRecord,
@@ -139,6 +150,7 @@ def get_authorized_admin_repository(
 )
 def create_invoice(
     record: InvoiceRecordInput,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -146,7 +158,7 @@ def create_invoice(
 ) -> InvoiceRecord:
     """Create one provenance-tracked historical invoice."""
     try:
-        return repository.create_invoice(record)
+        return repository.create_invoice(record, audit=_audit_context(request))
     except ReferenceDataConflictError as exc:
         raise _conflict(exc) from exc
 
@@ -188,13 +200,16 @@ def get_invoice(
 def update_invoice(
     record_id: Annotated[str, _RECORD_ID],
     update: InvoiceRecordUpdate,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
 ) -> InvoiceRecord:
     """Replace mutable invoice facts while preserving provenance."""
-    record = repository.update_admin_invoice(record_id, update)
+    record = repository.update_admin_invoice(
+        record_id, update, audit=_audit_context(request)
+    )
     if record is None:
         raise _not_found()
     return record
@@ -207,13 +222,14 @@ def update_invoice(
 )
 def delete_invoice(
     record_id: Annotated[str, _RECORD_ID],
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
 ) -> Response:
     """Delete one managed invoice and its line items."""
-    if not repository.delete_admin_invoice(record_id):
+    if not repository.delete_admin_invoice(record_id, audit=_audit_context(request)):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -225,6 +241,7 @@ def delete_invoice(
 )
 def create_purchase_order(
     record: PurchaseOrderRecordInput,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -232,7 +249,7 @@ def create_purchase_order(
 ) -> PurchaseOrderRecord:
     """Create one provenance-tracked purchase order."""
     try:
-        return repository.create_purchase_order(record)
+        return repository.create_purchase_order(record, audit=_audit_context(request))
     except ReferenceDataConflictError as exc:
         raise _conflict(exc) from exc
 
@@ -274,6 +291,7 @@ def get_purchase_order(
 def update_purchase_order(
     record_id: Annotated[str, _RECORD_ID],
     update: PurchaseOrderRecordUpdate,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -281,7 +299,9 @@ def update_purchase_order(
 ) -> PurchaseOrderRecord:
     """Replace mutable purchase-order facts while preserving provenance."""
     try:
-        record = repository.update_admin_purchase_order(record_id, update)
+        record = repository.update_admin_purchase_order(
+            record_id, update, audit=_audit_context(request)
+        )
     except ReferenceDataConflictError as exc:
         raise _conflict(exc) from exc
     if record is None:
@@ -296,13 +316,16 @@ def update_purchase_order(
 )
 def delete_purchase_order(
     record_id: Annotated[str, _RECORD_ID],
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
 ) -> Response:
     """Delete one managed purchase order and its line items."""
-    if not repository.delete_admin_purchase_order(record_id):
+    if not repository.delete_admin_purchase_order(
+        record_id, audit=_audit_context(request)
+    ):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -314,6 +337,7 @@ def delete_purchase_order(
 )
 def create_vendor(
     record: VendorRecordInput,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -321,7 +345,7 @@ def create_vendor(
 ) -> VendorRecord:
     """Create one provenance-tracked vendor master record."""
     try:
-        return repository.create_vendor(record)
+        return repository.create_vendor(record, audit=_audit_context(request))
     except ReferenceDataConflictError as exc:
         raise _conflict(exc) from exc
 
@@ -363,6 +387,7 @@ def get_vendor(
 def update_vendor(
     record_id: Annotated[str, _RECORD_ID],
     update: VendorRecordUpdate,
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -370,7 +395,9 @@ def update_vendor(
 ) -> VendorRecord:
     """Replace mutable vendor master facts while preserving provenance."""
     try:
-        record = repository.update_admin_vendor(record_id, update)
+        record = repository.update_admin_vendor(
+            record_id, update, audit=_audit_context(request)
+        )
     except ReferenceDataConflictError as exc:
         raise _conflict(exc) from exc
     if record is None:
@@ -385,13 +412,14 @@ def update_vendor(
 )
 def delete_vendor(
     record_id: Annotated[str, _RECORD_ID],
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
     ],
 ) -> Response:
     """Delete one managed vendor and its child records."""
-    if not repository.delete_admin_vendor(record_id):
+    if not repository.delete_admin_vendor(record_id, audit=_audit_context(request)):
         raise _not_found()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -402,6 +430,7 @@ async def import_reference_data(
         UploadFile,
         File(description="A bounded UTF-8 JSON reference-data batch."),
     ],
+    request: Request,
     repository: Annotated[
         ReferenceDataAdminRepository,
         Depends(get_authorized_admin_repository),
@@ -447,6 +476,7 @@ async def import_reference_data(
                 batch,
                 conflict=conflict,
                 dry_run=dry_run,
+                audit=None if dry_run else _audit_context(request),
             )
         except ReferenceDataConflictError as exc:
             raise _conflict(exc) from exc
