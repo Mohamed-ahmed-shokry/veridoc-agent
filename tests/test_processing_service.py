@@ -47,15 +47,14 @@ class _EmptyRepository:
 
 
 class _DuplicateRepository(_EmptyRepository):
-    def find_invoice(
-        self, vendor_key: str, invoice_number: str
-    ) -> HistoricalInvoice | None:
+    def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
         assert vendor_key == "fictional-supplies-ltd"
-        assert invoice_number == "INV-002"
-        return HistoricalInvoice(
-            vendor_key=vendor_key,
-            invoice_number=invoice_number,
-        )
+        return [
+            HistoricalInvoice(
+                vendor_key=vendor_key,
+                invoice_number="INV-002",
+            )
+        ]
 
 
 def _png_bytes() -> bytes:

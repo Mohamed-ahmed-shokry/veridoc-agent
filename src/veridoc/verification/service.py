@@ -15,7 +15,10 @@ from veridoc.verification.line_items import (
     check_line_item_statistics,
 )
 from veridoc.verification.models import VerificationFinding, VerificationResult
-from veridoc.verification.purchase_orders import check_purchase_order
+from veridoc.verification.purchase_orders import (
+    check_purchase_order,
+    check_purchase_order_ceiling,
+)
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 from veridoc.verification.vendor_rules import check_vendor_registry
 from veridoc.verification.vendors import vendor_key_for
@@ -65,6 +68,9 @@ class VerificationService:
         findings.extend(check_line_item_occurrence(invoice, history))
         findings.extend(check_line_item_statistics(invoice, history))
         findings.extend(check_payment_terms(invoice, history))
+        findings.extend(
+            check_purchase_order_ceiling(invoice, self._repository, history)
+        )
         return VerificationResult(findings=findings, vendor_resolution=resolution)
 
 

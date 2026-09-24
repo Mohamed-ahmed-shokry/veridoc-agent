@@ -2,11 +2,17 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.verification.line_items import line_item_key
 from veridoc.verification.models import VerificationFinding
-from veridoc.verification.references import ReferenceLineItem
+from veridoc.verification.references import (
+    HistoricalInvoice,
+    PurchaseOrder,
+    ReferenceLineItem,
+)
 from veridoc.verification.vendors import vendor_key_for
 
 
@@ -43,16 +49,82 @@ def check_purchase_order(
                 expected_value=purchase_order.currency,
             )
         )
-    if invoice.total is not None and purchase_order.total is not None:
-        findings.extend(
-            _mismatch_finding(
-                field="total",
+    if (
+        invoice.total is not None
+        and purchase_order.total is not None
+        and _comparable_amounts(invoice, purchase_order)
+        and invoice.total > purchase_order.total
+    ):
+        findings.append(
+            VerificationFinding(
+                finding_type="purchase_order_mismatch",
+                severity="high",
+                explanation="The invoice total exceeds the referenced purchase order total.",
+                comparison_source="purchase_order",
+                deterministic_rule="invoice.total must not exceed purchase_order.total",
                 observed_value=str(invoice.total),
                 expected_value=str(purchase_order.total),
+                details={"field": "total"},
             )
         )
     findings.extend(_check_line_items(invoice, purchase_order.line_items))
     return findings
+
+
+def check_purchase_order_ceiling(
+    invoice: InvoiceExtraction,
+    repository: InvoiceRepository,
+    history: Sequence[HistoricalInvoice],
+) -> list[VerificationFinding]:
+    """Flag split over-billing when prior invoices plus this one exceed the PO."""
+    vendor_key = vendor_key_for(invoice)
+    if vendor_key is None or invoice.purchase_order_number is None:
+        return []
+    purchase_order = repository.get_purchase_order(
+        vendor_key, invoice.purchase_order_number
+    )
+    if (
+        purchase_order is None
+        or purchase_order.total is None
+        or invoice.total is None
+        or not _comparable_amounts(invoice, purchase_order)
+    ):
+        return []
+    billed_to_date = invoice.total
+    prior_count = 0
+    for prior in history:
+        if prior.purchase_order_number != invoice.purchase_order_number:
+            continue
+        if prior.currency != invoice.currency or prior.total is None:
+            continue
+        billed_to_date += prior.total
+        prior_count += 1
+    if prior_count == 0 or billed_to_date <= purchase_order.total:
+        return []
+    return [
+        VerificationFinding(
+            finding_type="purchase_order_mismatch",
+            severity="high",
+            explanation="Prior invoices against this purchase order plus this invoice exceed its total.",
+            comparison_source="purchase_order",
+            deterministic_rule="invoiced amounts against a purchase order must not exceed the authorized total",
+            observed_value=str(billed_to_date),
+            expected_value=str(purchase_order.total),
+            details={
+                "field": "purchase_order_billed_total",
+                "prior_invoice_count": prior_count,
+            },
+        )
+    ]
+
+
+def _comparable_amounts(
+    invoice: InvoiceExtraction, purchase_order: PurchaseOrder
+) -> bool:
+    """Return whether two amounts share a known equal currency."""
+    if invoice.currency is None or purchase_order.currency is None:
+        return True
+    return invoice.currency == purchase_order.currency
 
 
 def _mismatch_finding(
@@ -116,23 +188,45 @@ def _check_line_items(
         matching_purchase_order_line_item = remaining_purchase_order_line_items.pop(
             matching_index
         )
-        for field in ("quantity", "unit_price", "total_price"):
-            observed_value = getattr(invoice_line_item, field)
-            expected_value = getattr(matching_purchase_order_line_item, field)
-            if observed_value is None or expected_value is None:
-                continue
-            if observed_value == expected_value:
-                continue
+        observed_quantity = invoice_line_item.quantity
+        expected_quantity = matching_purchase_order_line_item.quantity
+        if (
+            observed_quantity is not None
+            and expected_quantity is not None
+            and observed_quantity > expected_quantity
+        ):
             findings.append(
                 VerificationFinding(
                     finding_type="purchase_order_mismatch",
                     severity="high",
-                    explanation=f"The invoice line-item {field} does not match the purchase order.",
+                    explanation="The invoice line-item quantity exceeds the purchase order.",
                     comparison_source="purchase_order",
-                    deterministic_rule=f"invoice.line_item.{field} == purchase_order.line_item.{field}",
-                    observed_value=str(observed_value),
-                    expected_value=str(expected_value),
-                    details={"field": f"line_item_{field}", "line_item_index": index},
+                    deterministic_rule="invoice.line_item.quantity must not exceed purchase_order.line_item.quantity",
+                    observed_value=str(observed_quantity),
+                    expected_value=str(expected_quantity),
+                    details={"field": "line_item_quantity", "line_item_index": index},
+                )
+            )
+        observed_price = invoice_line_item.unit_price
+        expected_price = matching_purchase_order_line_item.unit_price
+        if (
+            observed_price is not None
+            and expected_price is not None
+            and observed_price != expected_price
+        ):
+            findings.append(
+                VerificationFinding(
+                    finding_type="purchase_order_mismatch",
+                    severity="high",
+                    explanation="The invoice line-item unit price does not match the purchase order.",
+                    comparison_source="purchase_order",
+                    deterministic_rule="invoice.line_item.unit_price == purchase_order.line_item.unit_price",
+                    observed_value=str(observed_price),
+                    expected_value=str(expected_price),
+                    details={
+                        "field": "line_item_unit_price",
+                        "line_item_index": index,
+                    },
                 )
             )
     return findings
