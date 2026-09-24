@@ -287,12 +287,40 @@ _VENDOR_MASTER_DATA = Migration(
     ),
 )
 
+_ADMIN_AUDIT_LOG = Migration(
+    version=6,
+    statements=(
+        """
+        CREATE TABLE IF NOT EXISTS admin_audit_log (
+            id INTEGER PRIMARY KEY,
+            occurred_at TEXT NOT NULL,
+            request_id TEXT NOT NULL,
+            actor TEXT NOT NULL,
+            operation TEXT NOT NULL,
+            record_type TEXT NOT NULL,
+            record_id TEXT NOT NULL,
+            before_json TEXT,
+            after_json TEXT
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS admin_audit_log_record_index
+        ON admin_audit_log(record_type, record_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS admin_audit_log_occurred_at_index
+        ON admin_audit_log(occurred_at)
+        """,
+    ),
+)
+
 MIGRATIONS = (
     _INITIAL_SCHEMA,
     _ADMINISTRATION_METADATA,
     _BACKFILL_MISSING_METADATA,
     _UNIQUE_LINE_ITEM_POSITIONS,
     _VENDOR_MASTER_DATA,
+    _ADMIN_AUDIT_LOG,
 )
 LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
 
