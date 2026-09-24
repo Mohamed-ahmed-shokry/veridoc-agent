@@ -457,6 +457,17 @@ provenance-preserving CRUD, and one-transaction imports. Provenance identity is
 creation/update timestamps are application managed. Optional retention dates
 are metadata only; no background deletion service exists.
 
+Migration 6 adds an append-only `admin_audit_log` table with record and
+timestamp lookup indexes. Every administration create, update, delete, and
+applied import writes one entry per record — server timestamp, request
+correlation ID, `admin` token-holder role, operation, record identity, and
+canonical before/after images — inside the same transaction as the
+mutation, from a request-scoped audit context the routes build. Dry runs
+roll their entries back with the simulated import. Malformed audit rows
+fail maintenance validation like any persisted row, and operators read the
+log through `veridoc-reference audit-log` with bounded filters. See
+[ADR 0027](decisions/0027-append-only-admin-audit-log.md).
+
 `veridoc-reference` performs online backup and stopped-service restore without
 an HTTP database export. Both destination replacements refuse live WAL, SHM,
 or rollback-journal sidecars; restore applies the same guard to its source
