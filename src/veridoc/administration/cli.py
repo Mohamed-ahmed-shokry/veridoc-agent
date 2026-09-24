@@ -1,4 +1,4 @@
-"""Command-line backup and restore for local reference data."""
+"""Command-line backup, restore, vendors, and audit log for reference data."""
 
 from __future__ import annotations
 
@@ -31,6 +31,29 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 return 2
             destination = restore_database(options.input, options.database)
             print(f"Reference-data restore completed: {destination}")
+            return 0
+        if options.command == "audit-log":
+            if options.offset < 0 or not 1 <= options.limit <= 200:
+                print(
+                    "audit-log requires --offset >= 0 and 1 <= --limit <= 200.",
+                    file=sys.stderr,
+                )
+                return 2
+            repository = SQLiteInvoiceRepository(options.database)
+            repository.initialize()
+            audit_page = repository.list_admin_audit_log(
+                record_type=options.record_type,
+                record_id=options.record_id,
+                offset=options.offset,
+                limit=options.limit,
+            )
+            print(f"Total audit entries: {audit_page.total}")
+            for audit_entry in audit_page.records:
+                print(
+                    f"[{audit_entry.entry_id}] {audit_entry.occurred_at} "
+                    f"{audit_entry.operation} {audit_entry.record_type}:{audit_entry.record_id} "
+                    f"request={audit_entry.request_id}"
+                )
             return 0
         if options.command == "vendors":
             repository = SQLiteInvoiceRepository(options.database)
@@ -141,6 +164,34 @@ def _parser() -> argparse.ArgumentParser:
         "--record-id",
         required=True,
         help="Administrative record ID to delete.",
+    )
+
+    audit_log = commands.add_parser(
+        "audit-log",
+        help="List administration audit entries in insertion order.",
+    )
+    audit_log.add_argument(
+        "--record-type",
+        choices=["invoice", "purchase_order", "vendor"],
+        default=None,
+        help="Filter entries by record type.",
+    )
+    audit_log.add_argument(
+        "--record-id",
+        default=None,
+        help="Filter entries by server record identifier.",
+    )
+    audit_log.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Entries to skip (default 0).",
+    )
+    audit_log.add_argument(
+        "--limit",
+        type=int,
+        default=100,
+        help="Entries to return from 1 to 200 (default 100).",
     )
 
     return parser

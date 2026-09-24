@@ -1,6 +1,9 @@
 """Tests for local reference-data maintenance commands."""
 
+from datetime import UTC, datetime
+
 from veridoc.administration.cli import main
+from veridoc.administration.models import AdminAuditEntryInput
 from veridoc.persistence.sqlite import SQLiteInvoiceRepository
 from veridoc.vendors.models import VendorBankAccount, VendorEntity, VendorTaxId
 from veridoc.verification.references import HistoricalInvoice
@@ -198,3 +201,69 @@ def test_cli_vendors_delete(tmp_path, capsys) -> None:
     )
     assert status_del_missing == 1
     assert f"Vendor record not found: {record_id}" in capsys.readouterr().err
+
+
+def _record_entry(
+    repository: SQLiteInvoiceRepository,
+    *,
+    operation="create",
+    record_type="invoice",
+    record_id="record-1",
+    request_id="request-1",
+) -> None:
+    repository.record_admin_action(
+        AdminAuditEntryInput(
+            occurred_at=datetime(2026, 9, 24, 12, 0, 0, tzinfo=UTC),
+            request_id=request_id,
+            actor="admin",
+            operation=operation,
+            record_type=record_type,
+            record_id=record_id,
+            before_json=None,
+            after_json='{"invoice_number": "INV-001"}',
+        )
+    )
+
+
+def test_cli_audit_log_lists_entries_with_filters(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    repository = _repository(database_path)
+    _record_entry(repository, record_type="invoice", record_id="a")
+    _record_entry(repository, record_type="vendor", record_id="b")
+
+    status_all = main(["--database", str(database_path), "audit-log"])
+    assert status_all == 0
+    all_out = capsys.readouterr().out
+    assert "Total audit entries: 2" in all_out
+    assert "create invoice:a request=request-1" in all_out
+
+    status_filtered = main(
+        [
+            "--database",
+            str(database_path),
+            "audit-log",
+            "--record-type",
+            "vendor",
+        ]
+    )
+    assert status_filtered == 0
+    assert "create vendor:b" in capsys.readouterr().out
+
+
+def test_cli_audit_log_rejects_out_of_range_pagination(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+
+    assert (
+        main(
+            ["--database", str(database_path), "audit-log", "--limit", "0"],
+        )
+        == 2
+    )
+    assert "1 <= --limit <= 200" in capsys.readouterr().err
+    assert (
+        main(
+            ["--database", str(database_path), "audit-log", "--offset", "-1"],
+        )
+        == 2
+    )
