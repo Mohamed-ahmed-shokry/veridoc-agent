@@ -213,6 +213,13 @@ unique normalized aliases, unique normalized bank accounts, and unique tax IDs
 scoped to country code. Schema validation asserts exact table schemas, declared
 types, and index definitions before write operations.
 
+Migration 6 adds the append-only `admin_audit_log` table recording one entry
+per mutated record with server timestamp, request correlation ID, operation,
+record identity, and canonical before/after images. The log has no update,
+delete, or purge path; operators monitor its size as ordinary database growth
+and it travels with online backups and stopped-service restores. Malformed
+audit rows fail maintenance validation like any persisted row.
+
 Reference-store initialization and maintenance require the exact managed column
 sets and both invoice lookup indexes. Both store validators reject unexpected
 unique indexes on managed tables, since an extra uniqueness constraint can make
