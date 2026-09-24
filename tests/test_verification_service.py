@@ -35,15 +35,6 @@ class VerificationRepository:
             )
         ]
 
-    def find_invoice(
-        self, vendor_key: str, invoice_number: str
-    ) -> HistoricalInvoice | None:
-        if (vendor_key, invoice_number) == ("fictional-supplies", "INV-001"):
-            return HistoricalInvoice(
-                vendor_key=vendor_key, invoice_number=invoice_number
-            )
-        return None
-
     def get_purchase_order(self, vendor_key: str, purchase_order_number: str) -> None:
         return None
 
@@ -72,7 +63,7 @@ def test_verification_service_combines_repository_and_history_findings() -> None
     invoice = InvoiceExtraction(
         document_type="invoice",
         vendor_name="Fictional Supplies",
-        invoice_number="INV-001",
+        invoice_number="INV-1",
         currency="USD",
         total="18400.00",
         payment_terms="Due on receipt",

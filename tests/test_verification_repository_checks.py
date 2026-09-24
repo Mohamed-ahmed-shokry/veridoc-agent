@@ -5,19 +5,14 @@ from veridoc.verification.references import HistoricalInvoice
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 
 
-class DuplicateInvoiceRepository:
-    """Minimal synthetic lookup used for deterministic duplicate tests."""
-
-    def find_invoice(
-        self, vendor_key: str, invoice_number: str
-    ) -> HistoricalInvoice | None:
-        if (vendor_key, invoice_number) == ("fictional-supplies", "INV-001"):
-            return HistoricalInvoice(
-                vendor_key=vendor_key,
-                invoice_number=invoice_number,
-                invoice_date="2026-07-01",
-            )
-        return None
+def _history() -> list[HistoricalInvoice]:
+    return [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-001",
+            invoice_date="2026-07-01",
+        )
+    ]
 
 
 def test_duplicate_invoice_check_reports_a_matching_historical_invoice() -> None:
@@ -27,27 +22,51 @@ def test_duplicate_invoice_check_reports_a_matching_historical_invoice() -> None
         invoice_number="INV-001",
     )
 
-    findings = check_duplicate_invoice_number(invoice, DuplicateInvoiceRepository())
+    findings = check_duplicate_invoice_number(invoice, _history())
 
     assert len(findings) == 1
     assert findings[0].finding_type == "duplicate_invoice_number"
     assert findings[0].details == {
         "vendor_key": "fictional-supplies",
+        "existing_invoice_number": "INV-001",
         "existing_invoice_date": "2026-07-01",
     }
+
+
+def test_duplicate_invoice_check_matches_normalized_number_variants() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV – 001",
+    )
+
+    findings = check_duplicate_invoice_number(invoice, _history())
+
+    assert len(findings) == 1
+    assert findings[0].finding_type == "duplicate_invoice_number"
+    assert findings[0].observed_value == "INV – 001"
+    assert findings[0].details["existing_invoice_number"] == "INV-001"
+
+
+def test_duplicate_invoice_check_keeps_structural_differences_distinct() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV001",
+    )
+
+    assert check_duplicate_invoice_number(invoice, _history()) == []
 
 
 def test_duplicate_invoice_check_skips_absent_identifiers_and_unknown_invoices() -> (
     None
 ):
-    repository = DuplicateInvoiceRepository()
-
     assert (
         check_duplicate_invoice_number(
             InvoiceExtraction(
                 document_type="invoice", vendor_name="Fictional Supplies"
             ),
-            repository,
+            _history(),
         )
         == []
     )
@@ -58,7 +77,7 @@ def test_duplicate_invoice_check_skips_absent_identifiers_and_unknown_invoices()
                 vendor_name="Fictional Supplies",
                 invoice_number="INV-404",
             ),
-            repository,
+            _history(),
         )
         == []
     )

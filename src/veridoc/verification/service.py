@@ -43,7 +43,13 @@ class VerificationService:
     def verify(self, invoice: InvoiceExtraction) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_arithmetic(invoice)
-        findings.extend(check_duplicate_invoice_number(invoice, self._repository))
+        vendor_key = vendor_key_for(invoice)
+        history = (
+            self._repository.list_vendor_invoices(vendor_key)
+            if vendor_key is not None
+            else []
+        )
+        findings.extend(check_duplicate_invoice_number(invoice, history))
         findings.extend(check_purchase_order(invoice, self._repository))
 
         vendor_findings, resolution = check_vendor_registry(
@@ -51,12 +57,10 @@ class VerificationService:
         )
         findings.extend(vendor_findings)
 
-        vendor_key = vendor_key_for(invoice)
         if vendor_key is None:
             findings.extend(_missing_vendor_history_finding(invoice))
             return VerificationResult(findings=findings, vendor_resolution=resolution)
 
-        history = self._repository.list_vendor_invoices(vendor_key)
         findings.extend(check_historical_total(invoice, history))
         findings.extend(check_line_item_occurrence(invoice, history))
         findings.extend(check_line_item_statistics(invoice, history))
