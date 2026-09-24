@@ -22,6 +22,7 @@ boundaries only and require separate approval before implementation.
 | 14 | Measured re-verification and readiness decision update | Planned; blocked on a Tesseract-equipped operator environment |
 | 15 | Auditor evidence export for review cases | Complete |
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
+| 17 | Reference-data audit trail for administration mutations | In progress |
 
 ## Phase 7: release engineering
 
@@ -621,10 +622,59 @@ Explicit non-goals: unit-price tolerance, currency conversion, goods
 receipts, retention/purge, batch intake, threshold changes, new finding
 types, and any change to arithmetic, vendor-registry, or history rules.
 
+## Phase 17: reference-data audit trail
+
+Status: in progress (approved as the next phase; design in
+[ADR 0027](decisions/0027-append-only-admin-audit-log.md)).
+
+Goal: close the accountability gap around the fraud trust anchor. Phase 12
+made vendor bank accounts and tax IDs deterministic reconciliation inputs,
+but every reference-data mutation (invoice, purchase-order, and vendor
+CRUD plus bulk import) executes without recording what changed, when, or
+under which request. Under the Phase 10 threat model an administration
+credential guess that rewrites a vendor's remit-to account leaves no trace
+beyond an updated timestamp. Phase 17 records an append-only audit entry
+per mutated record with server timestamp, request correlation ID,
+operation, record identity, and canonical before/after images.
+
+Planned deliverables:
+
+- one focused ADR recording the entry schema, shared-token attribution
+  limits, post-commit ordering, and non-goals;
+- forward-only migration 6 creating the `admin_audit_log` table with
+  lookup indexes, plus schema and maintenance validation for its rows;
+- bounded audit entry/page models and repository record/list operations on
+  the administration protocol, implemented by the SQLite adapter;
+- route integration writing exactly one entry per created, updated,
+  deleted, or imported record, carrying the request's `X-Request-ID`;
+- a `veridoc-reference audit-log` read command with bounded filters and
+  pagination; and
+- migration, round-trip, pagination, malformed-row, backup/restore, and
+  per-route request-linkage tests.
+
+Acceptance criteria:
+
+- every invoice, purchase-order, and vendor create, update, delete, and
+  import writes exactly one entry per record with the calling request's
+  correlation ID and canonical before/after images;
+- malformed audit rows fail maintenance validation like any other
+  persisted row;
+- backup and restore preserve the log with the database that owns it;
+- the full quality gate passes; and
+- architecture, API, data-and-security, changelog, and release evidence
+  match the delivered behavior.
+
+Explicit non-goals: per-actor attribution (impossible under the shared
+administration token — entries record the token-holder role only),
+audit-log integrity digests beyond SQLite file controls, automated
+retention/purge of the log, an HTTP read route, dry-run logging (dry runs
+write nothing), and any change to mutation semantics or conflict behavior.
+
 ## Approval rule
 
 Phases 0 through 13, Phase 15, and Phase 16 are complete. Phase 14 is
-planned but environment-blocked. Before any later phase, inspect the
+planned but environment-blocked. Phase 17 is the approved next phase with
+the scope above. Before any phase beyond Phase 17, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
