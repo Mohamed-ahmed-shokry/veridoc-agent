@@ -8,6 +8,15 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 18 operator surface completion:
+  - `veridoc-reference vendors add --input` and `vendors update
+    --record-id --input` commands creating and replacing vendor master
+    records from bounded JSON files with safe errors, conflict
+    reporting, and audit-trail entries.
+  - Audit entries for the existing `vendors delete` command, which now
+    carries a generated request identifier like every other mutation.
+  - Previous/next pagination for the review console case list over the
+    existing bounded offset/limit listing.
 - Phase 17 reference-data audit trail for administration mutations:
   - Architecture Decision Record 0027 documenting the append-only entry
     schema, shared-token attribution limits, and in-transaction atomicity.
