@@ -24,6 +24,7 @@ boundaries only and require separate approval before implementation.
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
 | 17 | Reference-data audit trail for administration mutations | Complete |
 | 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
+| 19 | Reference CLI record completion: invoice and purchase-order writes | In progress |
 
 ## Phase 7: release engineering
 
@@ -712,10 +713,48 @@ Explicit non-goals: invoice/purchase-order CLI record commands, vendor
 delete behavior changes, case search or filtering beyond pagination,
 session management commands, and any API, schema, or threshold changes.
 
+## Phase 19: reference CLI record completion
+
+Status: in progress (approved as the next phase; routine completion of the
+Phase 18 pattern, no ADR required).
+
+Goal: complete file-based reference-data writes in the operator CLI.
+Phase 18 gave the `vendors` group add/update/delete; invoices and
+purchase orders — equally file-shaped reference facts — remain API-only,
+forcing scripted onboarding through raw HTTP calls. Phase 19 adds
+`invoices` and `purchase-orders` groups with `add`, `update`, and `delete`
+subcommands over the same bounded JSON schemas, the same audit-trail
+contexts, and the same safe CLI errors. Listing and inspection stay
+API-side operations.
+
+Planned deliverables:
+
+- `veridoc-reference invoices add --input` / `update --record-id --input` /
+  `delete --record-id` and the same three `purchase-orders` commands, with
+  bounded JSON reads, schema validation, conflict reporting, and
+  per-command audit contexts carrying generated request identifiers;
+- CLI contract tests per entity (add/update/delete/conflict/invalid-file/
+  missing-record) proving audit entries link each mutation; and
+- development-guide CLI documentation, changelog, and release evidence.
+
+Acceptance criteria:
+
+- scripted invoice and purchase-order onboarding, correction, and removal
+  work end to end through the CLI;
+- every CLI mutation writes exactly one audit entry;
+- the full quality gate passes; and
+- documentation matches the delivered commands.
+
+Explicit non-goals: CLI listing or inspection for invoices and purchase
+orders (API operations), bulk CLI import (the API import route covers
+batches), session management commands, and any API, schema, threshold, or
+finding changes.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 18 are complete. Phase 14 is
-planned but environment-blocked. Before any later phase, inspect the
+planned but environment-blocked. Phase 19 is the approved next phase with
+the scope above. Before any phase beyond Phase 19, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
