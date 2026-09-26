@@ -23,7 +23,7 @@ boundaries only and require separate approval before implementation.
 | 15 | Auditor evidence export for review cases | Complete |
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
 | 17 | Reference-data audit trail for administration mutations | Complete |
-| 18 | Operator surface completion: vendor CLI writes and console pagination | In progress |
+| 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
 
 ## Phase 7: release engineering
 
@@ -673,8 +673,7 @@ write nothing), and any change to mutation semantics or conflict behavior.
 
 ## Phase 18: operator surface completion
 
-Status: in progress (approved as the next phase; routine completion of
-existing surfaces, no ADR required).
+Status: complete (routine completion of existing surfaces, no ADR required).
 
 Goal: finish two operator surfaces left half-built. The `vendors` CLI
 group manages vendor master data but cannot create or update records,
@@ -715,9 +714,8 @@ session management commands, and any API, schema, or threshold changes.
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 17 are complete. Phase 14 is
-planned but environment-blocked. Phase 18 is the approved next phase with
-the scope above. Before any phase beyond Phase 18, inspect the
+Phases 0 through 13 and Phases 15 through 18 are complete. Phase 14 is
+planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
