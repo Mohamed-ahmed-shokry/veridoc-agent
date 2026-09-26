@@ -35,6 +35,11 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert "exportEvidenceBundle" in body
     assert "/evidence" in body
     assert "Export evidence bundle" in body
+    assert 'id="previous-page-button"' in body
+    assert 'id="next-page-button"' in body
+    assert 'id="case-page-summary"' in body
+    assert "caseListOffset" in body
+    assert "offset=${caseListOffset}" in body
     assert 'id="assign-form"' in body
     assert "/assignment" in body
     assert "Idempotency-Key" in body

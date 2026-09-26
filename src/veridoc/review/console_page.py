@@ -52,6 +52,11 @@ def render_review_console_page() -> str:
       <button id="refresh-cases-button" type="button">Refresh</button>
       <p id="case-list-status" aria-live="polite"></p>
       <div id="case-list"></div>
+      <div id="case-pager">
+        <button id="previous-page-button" type="button">Previous</button>
+        <span id="case-page-summary"></span>
+        <button id="next-page-button" type="button">Next</button>
+      </div>
     </section>
 
     <section id="detail-section" class="hidden">
@@ -105,6 +110,9 @@ def render_review_console_page() -> str:
     const caseList = document.getElementById("case-list");
     const caseListStatus = document.getElementById("case-list-status");
     const refreshCasesButton = document.getElementById("refresh-cases-button");
+    const previousPageButton = document.getElementById("previous-page-button");
+    const nextPageButton = document.getElementById("next-page-button");
+    const casePageSummary = document.getElementById("case-page-summary");
     const detailSection = document.getElementById("detail-section");
     const detailStatus = document.getElementById("detail-status");
     const caseDetail = document.getElementById("case-detail");
@@ -122,6 +130,8 @@ def render_review_console_page() -> str:
 
     let currentCaseId = null;
     let currentVersion = null;
+    let caseListOffset = 0;
+    const CASE_LIST_LIMIT = 50;
 
     function readCookie(name) {
       const prefix = name + "=";
@@ -171,25 +181,30 @@ def render_review_console_page() -> str:
         const empty = document.createElement("p");
         empty.textContent = "No review cases yet.";
         caseList.append(empty);
-        return;
+      } else {
+        page.records.forEach(record => {
+          const row = document.createElement("div");
+          row.className = "case-row";
+          row.append(
+            textRow("Case", record.case_id),
+            textRow("Status", record.status),
+            textRow("Assignee", record.assignee_id ?? "Unassigned"),
+            textRow("Version", String(record.version)),
+            textRow("Updated", record.updated_at),
+          );
+          const viewButton = document.createElement("button");
+          viewButton.type = "button";
+          viewButton.textContent = "View";
+          viewButton.addEventListener("click", () => loadCaseDetail(record.case_id));
+          row.append(viewButton);
+          caseList.append(row);
+        });
       }
-      page.records.forEach(record => {
-        const row = document.createElement("div");
-        row.className = "case-row";
-        row.append(
-          textRow("Case", record.case_id),
-          textRow("Status", record.status),
-          textRow("Assignee", record.assignee_id ?? "Unassigned"),
-          textRow("Version", String(record.version)),
-          textRow("Updated", record.updated_at),
-        );
-        const viewButton = document.createElement("button");
-        viewButton.type = "button";
-        viewButton.textContent = "View";
-        viewButton.addEventListener("click", () => loadCaseDetail(record.case_id));
-        row.append(viewButton);
-        caseList.append(row);
-      });
+      const first = page.total === 0 ? 0 : page.offset + 1;
+      const last = Math.min(page.offset + page.records.length, page.total);
+      casePageSummary.textContent = `Showing ${first}–${last} of ${page.total}`;
+      previousPageButton.disabled = page.offset === 0;
+      nextPageButton.disabled = page.offset + page.records.length >= page.total;
     }
 
     function renderSnapshot(container, result) {
@@ -381,7 +396,9 @@ def render_review_console_page() -> str:
       caseListStatus.textContent = "Loading review cases…";
       caseListStatus.className = "";
       try {
-        const response = await fetch("/review/cases?limit=50");
+        const response = await fetch(
+          `/review/cases?limit=${CASE_LIST_LIMIT}&offset=${caseListOffset}`,
+        );
         if (response.status === 401) {
           showSignedOut();
           return;
@@ -397,6 +414,16 @@ def render_review_console_page() -> str:
         caseListStatus.className = "error";
       }
     }
+
+    previousPageButton.addEventListener("click", () => {
+      caseListOffset = Math.max(0, caseListOffset - CASE_LIST_LIMIT);
+      loadCases();
+    });
+
+    nextPageButton.addEventListener("click", () => {
+      caseListOffset = caseListOffset + CASE_LIST_LIMIT;
+      loadCases();
+    });
 
     async function refreshSessionState() {
       try {
