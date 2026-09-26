@@ -797,6 +797,45 @@ and operating guidance) are fully verified and documented. No finding-type,
 threshold, endpoint, or console changes. Phase 14 remains planned but
 blocked on a Tesseract-equipped operator environment.
 
+## Phase 18 completion snapshot
+
+The local Phase 18 completion gate was recorded on 2026-09-24 against the
+operator-surface implementation before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13, required by `pyproject.toml`; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv sync --all-groups --locked` | Completed from the committed lockfile |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | No known third-party vulnerabilities (local `veridoc` skipped as unpublished) |
+| `uv run ruff check .` | Passed |
+| `uv run ruff format --check .` | All files already formatted |
+| `uv run mypy` | No issues in 107 production source files |
+| `uv run pytest --cov=veridoc` | 1111 passed; 94.05% branch coverage against a 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built one wheel and one source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Distribution smoke | Passed `scripts/smoke_distribution.py` for the isolated wheel and source distribution |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help` (including `vendors add/update` and `audit-log`), `veridoc-review --help`, `veridoc-quarantine --help`, `veridoc-backup --help`, and `veridoc-evaluate --help` |
+| Working-tree whitespace and merge-conflict scans | Passed |
+| `git status --short` | Passed with a clean worktree |
+
+The Phase 18 deliverables (vendor add/update commands with bounded JSON
+input, audit entries for the previously unaudited CLI delete path,
+console previous/next pagination, CLI contract tests, console markup
+tests, and corrected vendor CLI documentation) are fully verified and
+documented. No API, schema, migration, finding-type, or threshold
+changes. Phase 14 remains planned but blocked on a Tesseract-equipped
+operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
