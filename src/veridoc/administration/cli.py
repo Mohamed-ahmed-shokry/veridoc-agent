@@ -115,7 +115,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 print(f"Vendor record deleted: {options.record_id}")
                 return 0
             if options.vendor_command == "add":
-                vendor_input = _load_vendor_input(options.input, VendorRecordInput)
+                vendor_input = _load_record_input(options.input, VendorRecordInput)
                 if vendor_input is None:
                     return 1
                 try:
@@ -128,7 +128,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 print(f"Vendor record created: {created.metadata.record_id}")
                 return 0
             if options.vendor_command == "update":
-                vendor_update = _load_vendor_input(options.input, VendorRecordUpdate)
+                vendor_update = _load_record_input(options.input, VendorRecordUpdate)
                 if vendor_update is None:
                     return 1
                 try:
@@ -162,23 +162,23 @@ def _cli_audit_context() -> AdminAuditContext:
     )
 
 
-def _load_vendor_input[ModelT: BaseModel](
+def _load_record_input[ModelT: BaseModel](
     path: str, model: type[ModelT]
 ) -> ModelT | None:
-    """Load and validate one vendor JSON file, reporting safe CLI errors."""
+    """Load and validate one record JSON file, reporting safe CLI errors."""
     try:
         with open(path, "rb") as handle:
             payload = handle.read(MAX_ADMIN_IMPORT_BYTES + 1)
     except OSError:
-        print("The vendor input file could not be read.", file=sys.stderr)
+        print("The record input file could not be read.", file=sys.stderr)
         return None
     if len(payload) > MAX_ADMIN_IMPORT_BYTES:
-        print("The vendor input file exceeds the size limit.", file=sys.stderr)
+        print("The record input file exceeds the size limit.", file=sys.stderr)
         return None
     try:
         return model.model_validate_json(payload)
     except (ValidationError, ValueError) as exc:
-        print(f"The vendor input file is invalid: {exc}", file=sys.stderr)
+        print(f"The record input file is invalid: {exc}", file=sys.stderr)
         return None
 
 
