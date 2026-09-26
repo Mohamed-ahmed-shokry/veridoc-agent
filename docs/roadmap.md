@@ -24,7 +24,7 @@ boundaries only and require separate approval before implementation.
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
 | 17 | Reference-data audit trail for administration mutations | Complete |
 | 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
-| 19 | Reference CLI record completion: invoice and purchase-order writes | In progress |
+| 19 | Reference CLI record completion: invoice and purchase-order writes | Complete |
 
 ## Phase 7: release engineering
 
@@ -715,8 +715,7 @@ session management commands, and any API, schema, or threshold changes.
 
 ## Phase 19: reference CLI record completion
 
-Status: in progress (approved as the next phase; routine completion of the
-Phase 18 pattern, no ADR required).
+Status: complete (routine completion of the Phase 18 pattern, no ADR required).
 
 Goal: complete file-based reference-data writes in the operator CLI.
 Phase 18 gave the `vendors` group add/update/delete; invoices and
@@ -752,9 +751,8 @@ finding changes.
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 18 are complete. Phase 14 is
-planned but environment-blocked. Phase 19 is the approved next phase with
-the scope above. Before any phase beyond Phase 19, inspect the
+Phases 0 through 13 and Phases 15 through 19 are complete. Phase 14 is
+planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
