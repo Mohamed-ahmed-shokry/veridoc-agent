@@ -613,6 +613,34 @@ generated request identifier; inspect the trail with bounded filters:
 uv run veridoc-reference audit-log --record-type vendor --limit 50
 ```
 
+## Invoice and purchase-order record commands
+
+Create, replace, and delete invoice and purchase-order facts from bounded
+JSON files using the reference-data CLI. Reads stay API-side operations;
+the CLI performs file-based writes with the same schemas, conflict
+behavior, and audit-trail entries as the routes:
+
+```powershell
+# Create one invoice from an InvoiceRecordInput JSON file
+uv run veridoc-reference invoices add --input invoice.json
+
+# Replace one invoice from an InvoiceRecordUpdate JSON file
+uv run veridoc-reference invoices update --record-id <record_id> --input invoice-update.json
+
+# Delete one invoice and its line items
+uv run veridoc-reference invoices delete --record-id <record_id>
+
+# The same three commands exist for purchase orders
+uv run veridoc-reference purchase-orders add --input purchase-order.json
+uv run veridoc-reference purchase-orders update --record-id <record_id> --input purchase-order-update.json
+uv run veridoc-reference purchase-orders delete --record-id <record_id>
+```
+
+Input files are bounded to 1 MiB before parsing. Duplicate provenance or
+natural keys report `reference_data_conflict`; unknown record IDs report a
+not-found error. Every mutation writes one audit entry carrying a
+generated request identifier.
+
 ## Operational guidance
 
 `GET /health` is a liveness check only: it confirms that the API can serve a
