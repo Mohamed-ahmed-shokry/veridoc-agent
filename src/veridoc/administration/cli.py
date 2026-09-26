@@ -14,6 +14,8 @@ from pydantic import BaseModel, ValidationError
 from veridoc.administration.models import (
     MAX_ADMIN_IMPORT_BYTES,
     AdminAuditContext,
+    InvoiceRecordInput,
+    InvoiceRecordUpdate,
     VendorRecordInput,
     VendorRecordUpdate,
 )
@@ -146,6 +148,53 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     return 1
                 print(f"Vendor record updated: {options.record_id}")
                 return 0
+        if options.command == "invoices":
+            repository = SQLiteInvoiceRepository(options.database)
+            repository.initialize()
+            if options.invoice_command == "add":
+                invoice_input = _load_record_input(options.input, InvoiceRecordInput)
+                if invoice_input is None:
+                    return 1
+                try:
+                    created_invoice = repository.create_invoice(
+                        invoice_input, audit=_cli_audit_context()
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                print(f"Invoice record created: {created_invoice.metadata.record_id}")
+                return 0
+            if options.invoice_command == "update":
+                invoice_update = _load_record_input(options.input, InvoiceRecordUpdate)
+                if invoice_update is None:
+                    return 1
+                try:
+                    updated_invoice = repository.update_admin_invoice(
+                        options.record_id, invoice_update, audit=_cli_audit_context()
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                if updated_invoice is None:
+                    print(
+                        f"Invoice record not found: {options.record_id}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"Invoice record updated: {options.record_id}")
+                return 0
+            if options.invoice_command == "delete":
+                deleted = repository.delete_admin_invoice(
+                    options.record_id, audit=_cli_audit_context()
+                )
+                if not deleted:
+                    print(
+                        f"Invoice record not found: {options.record_id}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"Invoice record deleted: {options.record_id}")
+                return 0
         return 2
     except (ReferenceDataMaintenanceError, ReferenceDataUnavailableError) as exc:
         message = getattr(exc, "message", str(exc))
@@ -258,6 +307,46 @@ def _parser() -> argparse.ArgumentParser:
         "delete", help="Delete a vendor by administrative record identifier."
     )
     delete_vendor.add_argument(
+        "--record-id",
+        required=True,
+        help="Administrative record ID to delete.",
+    )
+
+    invoices_parser = commands.add_parser(
+        "invoices",
+        help="Create, replace, or delete invoice records from JSON files.",
+    )
+    invoice_commands = invoices_parser.add_subparsers(
+        dest="invoice_command", required=True
+    )
+
+    add_invoice = invoice_commands.add_parser(
+        "add", help="Create an invoice from a JSON file."
+    )
+    add_invoice.add_argument(
+        "--input",
+        required=True,
+        help="Path to an InvoiceRecordInput JSON file.",
+    )
+
+    update_invoice = invoice_commands.add_parser(
+        "update", help="Replace an invoice from a JSON file."
+    )
+    update_invoice.add_argument(
+        "--record-id",
+        required=True,
+        help="Administrative record ID to replace.",
+    )
+    update_invoice.add_argument(
+        "--input",
+        required=True,
+        help="Path to an InvoiceRecordUpdate JSON file.",
+    )
+
+    delete_invoice = invoice_commands.add_parser(
+        "delete", help="Delete an invoice by administrative record identifier."
+    )
+    delete_invoice.add_argument(
         "--record-id",
         required=True,
         help="Administrative record ID to delete.",

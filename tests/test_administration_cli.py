@@ -442,3 +442,143 @@ def test_cli_vendors_delete_writes_an_audit_entry(tmp_path, capsys) -> None:
     )
     assert [entry.operation for entry in entries.records] == ["create", "delete"]
     assert entries.records[1].after_json is None
+
+
+def _invoice_input_file(tmp_path) -> str:
+    path = tmp_path / "invoice.json"
+    path.write_text(
+        json.dumps(
+            {
+                "metadata": {"source": "fixture", "external_id": "invoice-1"},
+                "invoice": {
+                    "vendor_key": "fictional-supplies",
+                    "invoice_number": "INV-001",
+                    "currency": "USD",
+                    "total": "42.00",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_cli_invoices_add_update_and_delete(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _invoice_input_file(tmp_path)
+
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "invoices",
+                "add",
+                "--input",
+                input_path,
+            ]
+        )
+        == 0
+    )
+    add_out = capsys.readouterr().out
+    assert "Invoice record created: " in add_out
+    record_id = add_out.strip().rsplit(" ", 1)[-1]
+
+    update_path = tmp_path / "invoice-update.json"
+    update_path.write_text(
+        '{"invoice": {"vendor_key": "fictional-supplies", '
+        '"invoice_number": "INV-002"}}',
+        encoding="utf-8",
+    )
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "invoices",
+                "update",
+                "--record-id",
+                record_id,
+                "--input",
+                str(update_path),
+            ]
+        )
+        == 0
+    )
+    assert f"Invoice record updated: {record_id}" in capsys.readouterr().out
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "invoices",
+                "delete",
+                "--record-id",
+                record_id,
+            ]
+        )
+        == 0
+    )
+    assert f"Invoice record deleted: {record_id}" in capsys.readouterr().out
+
+    repository = SQLiteInvoiceRepository(database_path)
+    entries = repository.list_admin_audit_log(
+        record_type="invoice", record_id=record_id, offset=0, limit=200
+    )
+    assert [entry.operation for entry in entries.records] == [
+        "create",
+        "update",
+        "delete",
+    ]
+
+
+def test_cli_invoices_reports_conflicts_and_bad_inputs(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _invoice_input_file(tmp_path)
+    add = [
+        "--database",
+        str(database_path),
+        "invoices",
+        "add",
+        "--input",
+        input_path,
+    ]
+
+    assert main(add) == 0
+    capsys.readouterr()
+    assert main(add) == 1
+    assert "reference_data_conflict" in capsys.readouterr().err
+
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text('{"invoice": {}}', encoding="utf-8")
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "invoices",
+                "add",
+                "--input",
+                str(bad_path),
+            ]
+        )
+        == 1
+    )
+    assert "invalid" in capsys.readouterr().err
+
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "invoices",
+                "delete",
+                "--record-id",
+                "missing-record",
+            ]
+        )
+        == 1
+    )
+    assert "not found" in capsys.readouterr().err
