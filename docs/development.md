@@ -594,10 +594,23 @@ uv run veridoc-reference vendors list
 uv run veridoc-reference vendors list --status active
 
 # Fetch one vendor with aliases, bank accounts, and tax IDs
-uv run veridoc-reference vendors get <record_id>
+uv run veridoc-reference vendors get --vendor-id vnd_001
+
+# Create one vendor from a VendorRecordInput JSON file
+uv run veridoc-reference vendors add --input vendor.json
+
+# Replace one vendor from a VendorRecordUpdate JSON file
+uv run veridoc-reference vendors update --record-id <record_id> --input vendor-update.json
 
 # Delete one vendor entity and its child records
-uv run veridoc-reference vendors delete <record_id>
+uv run veridoc-reference vendors delete --record-id <record_id>
+```
+
+Every vendor create, update, and delete writes one audit entry with a
+generated request identifier; inspect the trail with bounded filters:
+
+```powershell
+uv run veridoc-reference audit-log --record-type vendor --limit 50
 ```
 
 ## Operational guidance
