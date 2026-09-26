@@ -563,7 +563,7 @@ auditor evidence bundles for review cases with offline verification. Phase 16
 completed one-sided purchase-order ceilings and normalized duplicate
 detection. Phase 17 completed an append-only audit trail for every
 reference-data mutation. Phase 18 completed vendor CLI add/update commands
-and console case-list pagination. Phase 19 is in progress: invoice and
+and console case-list pagination. Phase 19 completed invoice and
 purchase-order record commands for the reference CLI.
 See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
@@ -577,7 +577,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 18 scope, Phase 14 blocked, Phase 19 in progress, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 19 scope, Phase 14 blocked, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
@@ -619,7 +619,7 @@ readiness decision once the equipped operator environment is available.
 Phase 15 completed auditor evidence export for review cases. Phase 16
 completed reconciliation precision work. Phase 17 completed a
 reference-data audit trail. Phase 18 completed the vendor CLI and
-console pagination. Phase 19 is adding invoice and purchase-order record
+console pagination. Phase 19 completed invoice and purchase-order record
 commands. Post-Version-1
 enhancements
 (e.g., enterprise single sign-on, external message queues, multi-region clustering,

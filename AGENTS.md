@@ -707,10 +707,10 @@ following documentation commit.
 - Phase 18: operator surface completion (vendor CLI writes, console
   pagination). **Complete.**
 - Phase 19: reference CLI record completion (invoice/purchase-order
-  writes). **In progress.**
+  writes). **Complete.**
 
-Phases 15 through 18 are complete. Phase 14 awaits its environment. Phase 19
-is the approved next phase. Before any phase beyond Phase 19, inspect the
+Phases 15 through 19 are complete. Phase 14 awaits its environment. Before
+any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
