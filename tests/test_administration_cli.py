@@ -1,5 +1,6 @@
 """Tests for local reference-data maintenance commands."""
 
+import json
 from datetime import UTC, datetime
 
 from veridoc.administration.cli import main
@@ -267,3 +268,177 @@ def test_cli_audit_log_rejects_out_of_range_pagination(tmp_path, capsys) -> None
         )
         == 2
     )
+
+
+def _vendor_input_file(tmp_path, *, vendor_id: str = "vnd_001") -> str:
+    path = tmp_path / f"{vendor_id}.json"
+    path.write_text(
+        json.dumps(
+            {
+                "metadata": {"source": "fixture", "external_id": vendor_id},
+                "vendor": {
+                    "vendor_id": vendor_id,
+                    "legal_name": "Acme Supplies Corp",
+                    "canonical_key": "acme-supplies",
+                    "status": "active",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_cli_vendors_add_and_update(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _vendor_input_file(tmp_path)
+
+    status_add = main(
+        ["--database", str(database_path), "vendors", "add", "--input", input_path]
+    )
+    assert status_add == 0
+    add_out = capsys.readouterr().out
+    assert "Vendor record created: " in add_out
+    record_id = add_out.strip().rsplit(" ", 1)[-1]
+
+    update_path = tmp_path / "vnd_001_update.json"
+    update_path.write_text(
+        '{"vendor": {"vendor_id": "vnd_001", "legal_name": "Acme Supplies Inc", '
+        '"canonical_key": "acme-supplies", "status": "active"}}',
+        encoding="utf-8",
+    )
+    status_update = main(
+        [
+            "--database",
+            str(database_path),
+            "vendors",
+            "update",
+            "--record-id",
+            record_id,
+            "--input",
+            str(update_path),
+        ]
+    )
+    assert status_update == 0
+    assert f"Vendor record updated: {record_id}" in capsys.readouterr().out
+
+    repository = SQLiteInvoiceRepository(database_path)
+    assert repository.get_admin_vendor(record_id) is not None
+    entries = repository.list_admin_audit_log(
+        record_type="vendor", record_id=record_id, offset=0, limit=200
+    )
+    assert [entry.operation for entry in entries.records] == ["create", "update"]
+
+
+def test_cli_vendors_add_reports_conflicts_and_invalid_files(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _vendor_input_file(tmp_path)
+
+    assert (
+        main(
+            ["--database", str(database_path), "vendors", "add", "--input", input_path]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        main(
+            ["--database", str(database_path), "vendors", "add", "--input", input_path]
+        )
+        == 1
+    )
+    assert "reference_data_conflict" in capsys.readouterr().err
+
+    update_path = tmp_path / "vnd_001_update.json"
+    update_path.write_text(
+        '{"vendor": {"vendor_id": "vnd_001", "legal_name": "Acme Supplies Inc", '
+        '"canonical_key": "acme-supplies", "status": "active"}}',
+        encoding="utf-8",
+    )
+    missing_update = main(
+        [
+            "--database",
+            str(database_path),
+            "vendors",
+            "update",
+            "--record-id",
+            "missing-record",
+            "--input",
+            str(update_path),
+        ]
+    )
+    assert missing_update == 1
+    assert "not found" in capsys.readouterr().err
+
+    bad_path = tmp_path / "bad.json"
+    bad_path.write_text('{"vendor": {}}', encoding="utf-8")
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "vendors",
+                "add",
+                "--input",
+                str(bad_path),
+            ]
+        )
+        == 1
+    )
+    assert "invalid" in capsys.readouterr().err
+
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "vendors",
+                "add",
+                "--input",
+                str(tmp_path / "missing.json"),
+            ]
+        )
+        == 1
+    )
+    assert "could not be read" in capsys.readouterr().err
+
+
+def test_cli_vendors_delete_writes_an_audit_entry(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _vendor_input_file(tmp_path)
+    assert (
+        main(
+            ["--database", str(database_path), "vendors", "add", "--input", input_path]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    repository = SQLiteInvoiceRepository(database_path)
+    record_id = (
+        repository.list_admin_vendors(status=None, offset=0, limit=1)
+        .records[0]
+        .metadata.record_id
+    )
+
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "vendors",
+                "delete",
+                "--record-id",
+                record_id,
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+    entries = repository.list_admin_audit_log(
+        record_type="vendor", record_id=record_id, offset=0, limit=200
+    )
+    assert [entry.operation for entry in entries.records] == ["create", "delete"]
+    assert entries.records[1].after_json is None

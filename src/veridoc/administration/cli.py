@@ -6,7 +6,18 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from uuid import uuid4
 
+from pydantic import BaseModel, ValidationError
+
+from veridoc.administration.models import (
+    MAX_ADMIN_IMPORT_BYTES,
+    AdminAuditContext,
+    VendorRecordInput,
+    VendorRecordUpdate,
+)
+from veridoc.administration.protocol import ReferenceDataConflictError
 from veridoc.persistence.maintenance import (
     ReferenceDataMaintenanceError,
     backup_database,
@@ -92,7 +103,9 @@ def main(arguments: Sequence[str] | None = None) -> int:
                         print(f"  - {t.tax_type}: {t.tax_id}")
                 return 0
             if options.vendor_command == "delete":
-                deleted = repository.delete_admin_vendor(options.record_id)
+                deleted = repository.delete_admin_vendor(
+                    options.record_id, audit=_cli_audit_context()
+                )
                 if not deleted:
                     print(
                         f"Vendor record not found: {options.record_id}",
@@ -101,11 +114,72 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     return 1
                 print(f"Vendor record deleted: {options.record_id}")
                 return 0
+            if options.vendor_command == "add":
+                vendor_input = _load_vendor_input(options.input, VendorRecordInput)
+                if vendor_input is None:
+                    return 1
+                try:
+                    created = repository.create_vendor(
+                        vendor_input, audit=_cli_audit_context()
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                print(f"Vendor record created: {created.metadata.record_id}")
+                return 0
+            if options.vendor_command == "update":
+                vendor_update = _load_vendor_input(options.input, VendorRecordUpdate)
+                if vendor_update is None:
+                    return 1
+                try:
+                    updated = repository.update_admin_vendor(
+                        options.record_id, vendor_update, audit=_cli_audit_context()
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                if updated is None:
+                    print(
+                        f"Vendor record not found: {options.record_id}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"Vendor record updated: {options.record_id}")
+                return 0
         return 2
     except (ReferenceDataMaintenanceError, ReferenceDataUnavailableError) as exc:
         message = getattr(exc, "message", str(exc))
         print(message, file=sys.stderr)
         return 1
+
+
+def _cli_audit_context() -> AdminAuditContext:
+    """Build the audit identity for one operator CLI mutation."""
+    return AdminAuditContext(
+        request_id=uuid4().hex,
+        actor="admin",
+        occurred_at=datetime.now(UTC),
+    )
+
+
+def _load_vendor_input[ModelT: BaseModel](
+    path: str, model: type[ModelT]
+) -> ModelT | None:
+    """Load and validate one vendor JSON file, reporting safe CLI errors."""
+    try:
+        with open(path, "rb") as handle:
+            payload = handle.read(MAX_ADMIN_IMPORT_BYTES + 1)
+    except OSError:
+        print("The vendor input file could not be read.", file=sys.stderr)
+        return None
+    if len(payload) > MAX_ADMIN_IMPORT_BYTES:
+        print("The vendor input file exceeds the size limit.", file=sys.stderr)
+        return None
+    try:
+        return model.model_validate_json(payload)
+    except (ValidationError, ValueError) as exc:
+        print(f"The vendor input file is invalid: {exc}", file=sys.stderr)
+        return None
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -155,6 +229,29 @@ def _parser() -> argparse.ArgumentParser:
         "--vendor-id",
         required=True,
         help="Vendor identifier (e.g. vnd_001).",
+    )
+
+    add_vendor = vendor_commands.add_parser(
+        "add", help="Create a vendor from a JSON file."
+    )
+    add_vendor.add_argument(
+        "--input",
+        required=True,
+        help="Path to a VendorRecordInput JSON file.",
+    )
+
+    update_vendor = vendor_commands.add_parser(
+        "update", help="Replace a vendor from a JSON file."
+    )
+    update_vendor.add_argument(
+        "--record-id",
+        required=True,
+        help="Administrative record ID to replace.",
+    )
+    update_vendor.add_argument(
+        "--input",
+        required=True,
+        help="Path to a VendorRecordUpdate JSON file.",
     )
 
     delete_vendor = vendor_commands.add_parser(
