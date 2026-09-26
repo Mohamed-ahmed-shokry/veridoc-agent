@@ -107,11 +107,11 @@ in-transaction atomicity.
 - slice-level metrics for OCR (CER/WER), extraction (exact-match, token F1, evidence grounding), verification (confusion matrices, concordance), and explanation (guardrail, fidelity);
 - deterministic evaluation runner with Wilson score confidence intervals for sample uncertainty;
 - threshold-driven decision evaluation generating structured `go`, `conditional_go`, or `no_go` reports ([baseline report](docs/evaluation-report.md));
-- `veridoc-evaluate` CLI entry point with `run`, `benchmark`, and `check-drift` subcommands;
+- `veridoc-evaluate` CLI entry point producing machine-readable and Markdown decision reports from a corpus manifest;
 - authoritative vendor entity master registry with multi-attribute entity resolution ([ADR 0021](docs/decisions/0021-vendor-master-registry-and-schema.md), [ADR 0022](docs/decisions/0022-multi-attribute-vendor-entity-resolution.md));
 - deterministic remit-to bank account mismatch and tax ID verification rules to protect against invoice redirection fraud ([ADR 0023](docs/decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md));
 - loopback-isolated, Bearer-authenticated vendor master data administration API (`/admin/reference-data/vendors`) and bulk JSON import support;
-- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `delete`); and
+- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `add`, `update`, `delete`) and `audit-log` inspection; and
 - authenticated review console integration rendering vendor entity resolution badges and bank mismatch warnings safely without `innerHTML`.
 
 ## Quick start
@@ -562,7 +562,8 @@ Tesseract-equipped operator environment. Phase 15 completed digest-bound
 auditor evidence bundles for review cases with offline verification. Phase 16
 completed one-sided purchase-order ceilings and normalized duplicate
 detection. Phase 17 completed an append-only audit trail for every
-reference-data mutation.
+reference-data mutation. Phase 18 is in progress: vendor CLI add/update
+commands and console case-list pagination.
 See the [project roadmap](docs/roadmap.md) for deliverables and history.
 
 ## Documentation
@@ -575,7 +576,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 17 scope, Phase 14 blocked, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 17 scope, Phase 14 blocked, Phase 18 in progress, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
@@ -616,7 +617,8 @@ Phase 14 runs the Tesseract-measured re-verification and records the updated
 readiness decision once the equipped operator environment is available.
 Phase 15 completed auditor evidence export for review cases. Phase 16
 completed reconciliation precision work. Phase 17 completed a
-reference-data audit trail. Post-Version-1
+reference-data audit trail. Phase 18 is completing the vendor CLI and
+console pagination. Post-Version-1
 enhancements
 (e.g., enterprise single sign-on, external message queues, multi-region clustering,
 or custom fine-tuned OCR/extraction models) remain subject to separate stakeholder
