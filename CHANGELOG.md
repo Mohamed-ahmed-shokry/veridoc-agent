@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 19 reference CLI record completion:
+  - `veridoc-reference invoices add/update/delete` and `purchase-orders
+    add/update/delete` commands creating, replacing, and removing records
+    from bounded JSON files with safe errors and conflict reporting.
+  - Audit-trail entries for every CLI mutation carrying generated request
+    identifiers, including the previously unaudited vendor delete path.
 - Phase 18 operator surface completion:
   - `veridoc-reference vendors add --input` and `vendors update
     --record-id --input` commands creating and replacing vendor master
