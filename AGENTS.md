@@ -705,10 +705,10 @@ following documentation commit.
 - Phase 17: reference-data audit trail for administration mutations.
   **Complete.**
 - Phase 18: operator surface completion (vendor CLI writes, console
-  pagination). **In progress.**
+  pagination). **Complete.**
 
-Phases 15 through 17 are complete. Phase 14 awaits its environment. Phase 18
-is the approved next phase. Before any phase beyond Phase 18, inspect the
+Phases 15 through 18 are complete. Phase 14 awaits its environment. Before
+any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
