@@ -23,6 +23,7 @@ boundaries only and require separate approval before implementation.
 | 15 | Auditor evidence export for review cases | Complete |
 | 16 | Reconciliation precision: one-sided PO ceilings and normalized duplicates | Complete |
 | 17 | Reference-data audit trail for administration mutations | Complete |
+| 18 | Operator surface completion: vendor CLI writes and console pagination | In progress |
 
 ## Phase 7: release engineering
 
@@ -670,10 +671,53 @@ audit-log integrity digests beyond SQLite file controls, automated
 retention/purge of the log, an HTTP read route, dry-run logging (dry runs
 write nothing), and any change to mutation semantics or conflict behavior.
 
+## Phase 18: operator surface completion
+
+Status: in progress (approved as the next phase; routine completion of
+existing surfaces, no ADR required).
+
+Goal: finish two operator surfaces left half-built. The `vendors` CLI
+group manages vendor master data but cannot create or update records,
+forcing scripted onboarding through raw API calls; and the review console
+case list hardcodes `limit=50` with no paging, hiding every older case.
+Phase 18 adds JSON-file vendor add/update commands mirroring the import
+record schemas and previous/next pagination to the console case list.
+
+Planned deliverables:
+
+- `veridoc-reference vendors add --input vendor.json` and
+  `veridoc-reference vendors update --record-id <id> --input
+  vendor-update.json`, validated through the existing bounded
+  `VendorRecordInput`/`VendorRecordUpdate` schemas with safe CLI errors,
+  conflict reporting, and audit-trail entries carrying generated request
+  identifiers;
+- audit entries for the existing `vendors delete` command, which currently
+  bypasses the Phase 17 trail by calling the repository without a context;
+- console previous/next pagination over the existing bounded
+  offset/limit listing, rendered with DOM text nodes only; and
+- CLI contract tests (add/update/conflict/invalid-file), console markup
+  tests, and corrected vendor CLI documentation (the guide shows
+  positional arguments the parser never accepted).
+
+Acceptance criteria:
+
+- scripted vendor onboarding and correction work end to end through the
+  CLI, including conflict and invalid-input behavior;
+- console pages beyond the first fifty cases with working previous/next
+  controls and no `innerHTML`;
+- the full quality gate passes; and
+- development guide, changelog, and release evidence match the delivered
+  behavior.
+
+Explicit non-goals: invoice/purchase-order CLI record commands, vendor
+delete behavior changes, case search or filtering beyond pagination,
+session management commands, and any API, schema, or threshold changes.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 17 are complete. Phase 14 is
-planned but environment-blocked. Before any later phase, inspect the
+planned but environment-blocked. Phase 18 is the approved next phase with
+the scope above. Before any phase beyond Phase 18, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
 same rule applies to any future phase's approval.
