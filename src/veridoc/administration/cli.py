@@ -16,6 +16,8 @@ from veridoc.administration.models import (
     AdminAuditContext,
     InvoiceRecordInput,
     InvoiceRecordUpdate,
+    PurchaseOrderRecordInput,
+    PurchaseOrderRecordUpdate,
     VendorRecordInput,
     VendorRecordUpdate,
 )
@@ -195,6 +197,62 @@ def main(arguments: Sequence[str] | None = None) -> int:
                     return 1
                 print(f"Invoice record deleted: {options.record_id}")
                 return 0
+        if options.command == "purchase-orders":
+            repository = SQLiteInvoiceRepository(options.database)
+            repository.initialize()
+            if options.purchase_order_command == "add":
+                purchase_order_input = _load_record_input(
+                    options.input, PurchaseOrderRecordInput
+                )
+                if purchase_order_input is None:
+                    return 1
+                try:
+                    created_purchase_order = repository.create_purchase_order(
+                        purchase_order_input, audit=_cli_audit_context()
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                print(
+                    "Purchase-order record created: "
+                    f"{created_purchase_order.metadata.record_id}"
+                )
+                return 0
+            if options.purchase_order_command == "update":
+                purchase_order_update = _load_record_input(
+                    options.input, PurchaseOrderRecordUpdate
+                )
+                if purchase_order_update is None:
+                    return 1
+                try:
+                    updated_purchase_order = repository.update_admin_purchase_order(
+                        options.record_id,
+                        purchase_order_update,
+                        audit=_cli_audit_context(),
+                    )
+                except ReferenceDataConflictError as exc:
+                    print(exc.code, file=sys.stderr)
+                    return 1
+                if updated_purchase_order is None:
+                    print(
+                        f"Purchase-order record not found: {options.record_id}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"Purchase-order record updated: {options.record_id}")
+                return 0
+            if options.purchase_order_command == "delete":
+                deleted = repository.delete_admin_purchase_order(
+                    options.record_id, audit=_cli_audit_context()
+                )
+                if not deleted:
+                    print(
+                        f"Purchase-order record not found: {options.record_id}",
+                        file=sys.stderr,
+                    )
+                    return 1
+                print(f"Purchase-order record deleted: {options.record_id}")
+                return 0
         return 2
     except (ReferenceDataMaintenanceError, ReferenceDataUnavailableError) as exc:
         message = getattr(exc, "message", str(exc))
@@ -347,6 +405,47 @@ def _parser() -> argparse.ArgumentParser:
         "delete", help="Delete an invoice by administrative record identifier."
     )
     delete_invoice.add_argument(
+        "--record-id",
+        required=True,
+        help="Administrative record ID to delete.",
+    )
+
+    purchase_orders_parser = commands.add_parser(
+        "purchase-orders",
+        help="Create, replace, or delete purchase orders from JSON files.",
+    )
+    purchase_order_commands = purchase_orders_parser.add_subparsers(
+        dest="purchase_order_command", required=True
+    )
+
+    add_purchase_order = purchase_order_commands.add_parser(
+        "add", help="Create a purchase order from a JSON file."
+    )
+    add_purchase_order.add_argument(
+        "--input",
+        required=True,
+        help="Path to a PurchaseOrderRecordInput JSON file.",
+    )
+
+    update_purchase_order = purchase_order_commands.add_parser(
+        "update", help="Replace a purchase order from a JSON file."
+    )
+    update_purchase_order.add_argument(
+        "--record-id",
+        required=True,
+        help="Administrative record ID to replace.",
+    )
+    update_purchase_order.add_argument(
+        "--input",
+        required=True,
+        help="Path to a PurchaseOrderRecordUpdate JSON file.",
+    )
+
+    delete_purchase_order = purchase_order_commands.add_parser(
+        "delete",
+        help="Delete a purchase order by administrative record identifier.",
+    )
+    delete_purchase_order.add_argument(
         "--record-id",
         required=True,
         help="Administrative record ID to delete.",

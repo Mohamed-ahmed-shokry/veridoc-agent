@@ -582,3 +582,128 @@ def test_cli_invoices_reports_conflicts_and_bad_inputs(tmp_path, capsys) -> None
         == 1
     )
     assert "not found" in capsys.readouterr().err
+
+
+def _purchase_order_input_file(tmp_path) -> str:
+    path = tmp_path / "purchase-order.json"
+    path.write_text(
+        json.dumps(
+            {
+                "metadata": {"source": "fixture", "external_id": "purchase-order-1"},
+                "purchase_order": {
+                    "vendor_key": "fictional-supplies",
+                    "purchase_order_number": "PO-001",
+                    "currency": "USD",
+                    "total": "42.00",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_cli_purchase_orders_add_update_and_delete(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _purchase_order_input_file(tmp_path)
+
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "purchase-orders",
+                "add",
+                "--input",
+                input_path,
+            ]
+        )
+        == 0
+    )
+    add_out = capsys.readouterr().out
+    assert "Purchase-order record created: " in add_out
+    record_id = add_out.strip().rsplit(" ", 1)[-1]
+
+    update_path = tmp_path / "purchase-order-update.json"
+    update_path.write_text(
+        '{"purchase_order": {"vendor_key": "fictional-supplies", '
+        '"purchase_order_number": "PO-002"}}',
+        encoding="utf-8",
+    )
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "purchase-orders",
+                "update",
+                "--record-id",
+                record_id,
+                "--input",
+                str(update_path),
+            ]
+        )
+        == 0
+    )
+    assert f"Purchase-order record updated: {record_id}" in capsys.readouterr().out
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "purchase-orders",
+                "delete",
+                "--record-id",
+                record_id,
+            ]
+        )
+        == 0
+    )
+    assert f"Purchase-order record deleted: {record_id}" in capsys.readouterr().out
+
+    repository = SQLiteInvoiceRepository(database_path)
+    entries = repository.list_admin_audit_log(
+        record_type="purchase_order", record_id=record_id, offset=0, limit=200
+    )
+    assert [entry.operation for entry in entries.records] == [
+        "create",
+        "update",
+        "delete",
+    ]
+
+
+def test_cli_purchase_orders_reports_conflicts_and_bad_inputs(tmp_path, capsys) -> None:
+    database_path = tmp_path / "reference-data.sqlite"
+    _repository(database_path)
+    input_path = _purchase_order_input_file(tmp_path)
+    add = [
+        "--database",
+        str(database_path),
+        "purchase-orders",
+        "add",
+        "--input",
+        input_path,
+    ]
+
+    assert main(add) == 0
+    capsys.readouterr()
+    assert main(add) == 1
+    assert "reference_data_conflict" in capsys.readouterr().err
+
+    bad_path = tmp_path / "bad-po.json"
+    bad_path.write_text('{"purchase_order": {}}', encoding="utf-8")
+    assert (
+        main(
+            [
+                "--database",
+                str(database_path),
+                "purchase-orders",
+                "add",
+                "--input",
+                str(bad_path),
+            ]
+        )
+        == 1
+    )
+    assert "invalid" in capsys.readouterr().err
