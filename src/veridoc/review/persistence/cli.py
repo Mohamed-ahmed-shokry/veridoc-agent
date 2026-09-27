@@ -36,11 +36,18 @@ def main(arguments: Sequence[str] | None = None) -> int:
             return _export_case(options)
         if options.command == "verify-bundle":
             return _verify_bundle_file(options)
-        if not options.confirm_replace:
-            print("Restore requires --confirm-replace.", file=sys.stderr)
-            return 2
-        destination = restore_database(options.input, options.database)
-        print(f"Review-data restore completed: {destination}")
+        if options.command == "cases":
+            if options.case_command == "list":
+                return _list_cases(options)
+            if options.case_command == "get":
+                return _get_case(options)
+        if options.command == "restore":
+            if not options.confirm_replace:
+                print("Restore requires --confirm-replace.", file=sys.stderr)
+                return 2
+            destination = restore_database(options.input, options.database)
+            print(f"Review-data restore completed: {destination}")
+            return 0
         return 0
     except ReviewDataMaintenanceError as exc:
         print(exc.message, file=sys.stderr)
@@ -93,12 +100,101 @@ def _verify_bundle_file(options: argparse.Namespace) -> int:
     return 0
 
 
+def _list_cases(options: argparse.Namespace) -> int:
+    """Print one bounded, optionally filtered page of review cases."""
+    if options.offset < 0 or not 1 <= options.limit <= 200:
+        print(
+            "cases list requires --offset >= 0 and 1 <= --limit <= 200.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        repository = SQLiteReviewRepository(options.database)
+        repository.initialize()
+        page = repository.list_cases(
+            status=options.status,
+            assignee_id=options.assignee_id,
+            offset=options.offset,
+            limit=options.limit,
+        )
+    except ReviewDataUnavailableError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+
+    print(f"Total review cases: {page.total}")
+    for case in page.records:
+        assignee = case.assignee_id or "unassigned"
+        print(
+            f"[{case.status}] {case.case_id} (version={case.version}, "
+            f"creator={case.creator_actor_id}, assignee={assignee}, updated={case.updated_at})"
+        )
+    return 0
+
+
+def _get_case(options: argparse.Namespace) -> int:
+    """Print detailed inspection for one review case."""
+    try:
+        repository = SQLiteReviewRepository(options.database)
+        repository.initialize()
+        detail = repository.get_case(options.case_id)
+    except ReviewDataUnavailableError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+
+    if detail is None:
+        print(f"Review case not found: {options.case_id}", file=sys.stderr)
+        return 1
+
+    print(f"Case ID: {detail.case_id}")
+    print(f"Status: {detail.status}")
+    print(f"Version: {detail.version}")
+    print(f"Creator: {detail.creator_actor_id}")
+    print(f"Assignee: {detail.assignee_id or 'unassigned'}")
+    print(f"Created At: {detail.created_at}")
+    print(f"Updated At: {detail.updated_at}")
+
+    result = detail.snapshot.result
+    print(f"Verdict: {result.verdict.status}")
+    print(f"Verdict Summary: {result.verdict.summary}")
+    print(f"Finding Count: {result.verdict.finding_count}")
+    if result.vendor_resolution:
+        vr = result.vendor_resolution
+        resolved = vr.legal_name or "Unresolved"
+        vendor_id = vr.resolved_vendor_id or "—"
+        print(
+            f"Vendor Resolution: {resolved} (ID: {vendor_id}, Confidence: {vr.confidence})"
+        )
+
+    if result.findings:
+        print(f"Findings ({len(result.findings)}):")
+        for finding in result.findings:
+            print(
+                f"  - [{finding.severity}] {finding.finding_type}: {finding.explanation}"
+            )
+
+    print(f"Events ({len(detail.events)}):")
+    for event in detail.events:
+        prior = event.prior_status or "—"
+        assigned_part = (
+            f", assigned_to={event.assigned_actor_id}"
+            if event.assigned_actor_id
+            else ""
+        )
+        reason_part = f", reason={event.reason}" if event.reason else ""
+        decision_part = f", decision={event.decision}" if event.decision else ""
+        print(
+            f"  - [{event.occurred_at}] {event.event_type} by {event.actor_id}: "
+            f"{prior} -> {event.resulting_status}{assigned_part}{decision_part}{reason_part}"
+        )
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="veridoc-review",
         description=(
-            "Back up, restore, or export evidence for the stopped local "
-            "review database."
+            "Back up, restore, inspect cases, or manage sessions for the "
+            "local review database."
         ),
     )
     parser.add_argument(
@@ -107,6 +203,44 @@ def _parser() -> argparse.ArgumentParser:
         help="SQLite database path (defaults to VERIDOC_REVIEW_DATABASE).",
     )
     commands = parser.add_subparsers(dest="command", required=True)
+
+    cases_parser = commands.add_parser(
+        "cases",
+        help="Inspect review cases.",
+    )
+    case_commands = cases_parser.add_subparsers(dest="case_command", required=True)
+
+    list_cases = case_commands.add_parser("list", help="List review cases.")
+    list_cases.add_argument(
+        "--status",
+        choices=["unassigned", "assigned", "escalated", "decided"],
+        help="Filter cases by status.",
+    )
+    list_cases.add_argument(
+        "--assignee-id",
+        help="Filter cases by assigned actor ID.",
+    )
+    list_cases.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Zero-based record offset (default: 0).",
+    )
+    list_cases.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum cases to return (1-200, default: 50).",
+    )
+
+    get_case = case_commands.add_parser(
+        "get", help="Inspect one review case in detail."
+    )
+    get_case.add_argument(
+        "--case-id",
+        required=True,
+        help="Review case identifier to inspect.",
+    )
 
     backup = commands.add_parser("backup", help="Create an atomic SQLite backup.")
     backup.add_argument("--output", required=True, help="Backup destination path.")
