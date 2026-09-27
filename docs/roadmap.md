@@ -25,7 +25,7 @@ boundaries only and require separate approval before implementation.
 | 17 | Reference-data audit trail for administration mutations | Complete |
 | 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
 | 19 | Reference CLI record completion: invoice and purchase-order writes | Complete |
-| 20 | Review operator inspection, console filtering, and session lifecycle | In progress |
+| 20 | Review operator inspection, console filtering, and session lifecycle | Complete |
 
 ## Phase 7: release engineering
 
@@ -752,7 +752,7 @@ finding changes.
 
 ## Phase 20: review operator inspection, console filtering, and session lifecycle management
 
-Status: in progress (routine completion of operator and review surfaces, no ADR required).
+Status: complete (routine completion of operator and review surfaces, no ADR required).
 
 Goal: complete the operator and reviewer surfaces for the review subsystem.
 Currently, operators on the server have no CLI commands to inspect cases or
@@ -798,7 +798,7 @@ retention/purge of case records (ADR 0010), and any API, schema, or threshold ch
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 19 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 20 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
