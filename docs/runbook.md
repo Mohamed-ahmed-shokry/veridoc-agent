@@ -125,12 +125,18 @@ secrets are never stored in images or queried via HTTP.
 ### 4.3 Rotate Reviewer Password / Session Secret
 1. Update actor entry in `/opt/veridoc/secrets/actors.json` with new SHA-256 digest.
 2. Restart container: `docker restart veridoc`.
-3. Prior sessions remain bounded by 12-hour session lifetime or expire immediately.
+3. To immediately revoke all existing sessions for the compromised actor without waiting for the 12-hour session expiry:
+   ```bash
+   docker exec veridoc veridoc-review \
+     --database /data/veridoc-review.sqlite3 \
+     sessions revoke --actor-id <actor-id>
+   ```
 
-## 5. Scheduled Backups and Retention
+## 5. Scheduled Backups, Retention, and Session Pruning
 
 Per [ADR 0015](decisions/0015-encrypted-single-writer-storage.md), retention keeps
-the two most recent verified backups per store plus the live database.
+the two most recent verified backups per store plus the live database. In addition,
+expired or revoked review sessions older than the retention threshold are pruned:
 
 ### 5.1 Execute Scheduled Backup
 
@@ -142,13 +148,14 @@ docker exec veridoc veridoc-backup \
   --review-db /data/veridoc-review.sqlite3 \
   --backup-dir /data/backups \
   --quarantine-dir /data/quarantine \
-  --keep 2
+  --keep 2 \
+  --session-retention-days 7
 ```
 
 ### 5.2 Automate via Host Cron
 
 ```cron
-0 2 * * * docker exec veridoc veridoc-backup --reference-db /data/veridoc-reference.sqlite3 --review-db /data/veridoc-review.sqlite3 --backup-dir /data/backups --quarantine-dir /data/quarantine --keep 2 >> /var/log/veridoc-backup.log 2>&1
+0 2 * * * docker exec veridoc veridoc-backup --reference-db /data/veridoc-reference.sqlite3 --review-db /data/veridoc-review.sqlite3 --backup-dir /data/backups --quarantine-dir /data/quarantine --keep 2 --session-retention-days 7 >> /var/log/veridoc-backup.log 2>&1
 ```
 
 ## 6. Disaster Recovery: Stopped-Service Atomic Restore

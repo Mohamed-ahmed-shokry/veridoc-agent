@@ -243,7 +243,10 @@ Tesseract-measured re-run that updates the decision remains an operator
 procedure for the equipped environment. Phase 15 adds digest-bound,
 offline-verifiable auditor evidence bundles for review cases through an
 authenticated route, the review maintenance CLI, and a console download
-control.
+control. Phase 20 adds review operator inspection commands (`veridoc-review cases list|get`),
+session lifecycle management (`veridoc-review sessions list|revoke|prune`),
+automated session pruning in scheduled deployment maintenance (`veridoc-backup --session-retention-days`),
+and DOM-safe review console status and assignee filtering.
 
 The current and planned workflow is:
 

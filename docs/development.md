@@ -534,18 +534,52 @@ case was created — processing performed after a restore uses whichever
 reference database is currently configured (ADR 0010). Keep review backups
 outside the repository and protect them as review data.
 
+## Review case inspection and session lifecycle
+
+Inspect review cases and manage operator session state directly using the review CLI:
+
+```powershell
+# List review cases with optional status or assignee filter
+uv run veridoc-review cases list
+uv run veridoc-review cases list --status unassigned --limit 20
+uv run veridoc-review cases list --assignee-id rev_001
+
+# Inspect full case detail, snapshot, and event history
+uv run veridoc-review cases get --case-id case_01j7...
+
+# List operator sessions (active or historical)
+uv run veridoc-review sessions list
+uv run veridoc-review sessions list --actor-id rev_001 --active-only
+
+# Revoke a single compromised session by digest or bulk-revoke all active sessions for an actor
+uv run veridoc-review sessions revoke --digest <session_digest>
+uv run veridoc-review sessions revoke --actor-id rev_compromised
+
+# Prune expired or revoked sessions older than N days
+uv run veridoc-review sessions prune --older-than-days 7
+```
+
+In the browser console at `/review/console`, operators can also interactively
+filter cases by status dropdown (`unassigned`, `assigned`, `escalated`, `decided`)
+and assignee ID text input. Applying or clearing filters resets pagination to the
+first page, rendering all fields safely through DOM text nodes.
+
 ## Automated maintenance and container packaging
 
 Run deployment maintenance to create verified backups of both stores, prune
-historical backups to the 2 most recent verified copies, and dispose of expired
-quarantine records:
+historical backups to the 2 most recent verified copies, prune expired review
+sessions older than the retention threshold, and dispose of expired quarantine records:
 
 ```powershell
 uv run veridoc-backup `
   --reference-db veridoc-reference.sqlite3 `
   --review-db veridoc-review.sqlite3 `
-  --backup-dir backups
+  --backup-dir backups `
+  --session-retention-days 7
 ```
+
+`--session-retention-days` defaults to 7 days; sessions expired or revoked longer
+than this window are pruned from the review store during each maintenance run.
 
 Build the deployment container image:
 

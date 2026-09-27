@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 20 review operator inspection, console filtering, and session lifecycle:
+  - Bounded review session summary and page schemas (`ReviewSessionSummary`, `SessionPage`) and session management protocol operations (`list_sessions`, `revoke_actor_sessions`, `prune_sessions`) on `ReviewSessionStore`.
+  - SQLite review repository implementation for session querying, actor bulk revocation, and timestamp-based session pruning.
+  - Review CLI commands `veridoc-review cases list` (with `--status`, `--assignee-id`, `--offset`, `--limit`) and `veridoc-review cases get` (`--case-id`) for operator-side case inspection.
+  - Review CLI commands `veridoc-review sessions list` (with `--actor-id`, `--active-only`, `--offset`, `--limit`), `veridoc-review sessions revoke` (supporting `--digest` or `--actor-id`), and `veridoc-review sessions prune` (`--older-than-days`).
+  - Automated session pruning in `veridoc-backup` deployment maintenance via `--session-retention-days` (default 7 days).
+  - Review console (`/review/console`) status dropdown and assignee filter inputs with query parameter binding, offset reset, and strict DOM text-node rendering (preserving `innerHTML` prohibition).
 - Phase 19 reference CLI record completion:
   - `veridoc-reference invoices add/update/delete` and `purchase-orders
     add/update/delete` commands creating, replacing, and removing records

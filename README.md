@@ -44,7 +44,10 @@ authorization ceilings and detects duplicates over canonicalized invoice
 numbers. Phase 17 records every reference-data mutation in an append-only
 audit log with request linkage and before/after images, readable through
 `veridoc-reference audit-log`. Phase 17 completed that audit trail with
-in-transaction atomicity.
+in-transaction atomicity. Phase 20 adds review operator inspection commands,
+session lifecycle management (listing, immediate revocation, and pruning),
+automated session maintenance in `veridoc-backup`, and DOM-safe status and
+assignee filtering in the review console.
 
 ## Implemented capabilities
 
@@ -111,8 +114,10 @@ in-transaction atomicity.
 - authoritative vendor entity master registry with multi-attribute entity resolution ([ADR 0021](docs/decisions/0021-vendor-master-registry-and-schema.md), [ADR 0022](docs/decisions/0022-multi-attribute-vendor-entity-resolution.md));
 - deterministic remit-to bank account mismatch and tax ID verification rules to protect against invoice redirection fraud ([ADR 0023](docs/decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md));
 - loopback-isolated, Bearer-authenticated vendor master data administration API (`/admin/reference-data/vendors`) and bulk JSON import support;
-- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `add`, `update`, `delete`), `invoices` and `purchase-orders` record commands (`add`, `update`, `delete`), and `audit-log` inspection; and
-- authenticated review console integration rendering vendor entity resolution badges and bank mismatch warnings safely without `innerHTML`.
+- `veridoc-reference vendors` CLI subcommands (`list`, `get`, `add`, `update`, `delete`), `invoices` and `purchase-orders` record commands (`add`, `update`, `delete`), and `audit-log` inspection;
+- `veridoc-review cases` (`list`, `get`) and `sessions` (`list`, `revoke`, `prune`) administrative CLI subcommands;
+- automated review session pruning in `veridoc-backup` via `--session-retention-days`; and
+- authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
 

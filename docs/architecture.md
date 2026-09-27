@@ -346,6 +346,27 @@ digest. Export and verification are read-only: no route, CLI command, or
 console control edits a case or an event. See
 [ADR 0025](decisions/0025-auditor-evidence-export-for-review-cases.md).
 
+### Review case inspection and session lifecycle
+
+The review subsystem provides administrative inspection and session lifecycle
+management through the typed repository boundary (`ReviewSessionStore` protocol)
+and the `veridoc-review` CLI:
+
+- **Case inspection**: `veridoc-review cases list` inspects cases with pagination
+  and filtering by `status` and `assignee_id`; `veridoc-review cases get` prints
+  the full snapshot, latest state, and event history for a specific case.
+- **Session management**: Session digests, actor IDs, creation, expiration, and
+  revocation are queried via `veridoc-review sessions list`. Operators can
+  revoke a single session digest or all active sessions for a compromised actor
+  (`veridoc-review sessions revoke`).
+- **Session pruning**: Expired or revoked sessions can be permanently pruned
+  (`veridoc-review sessions prune --older-than-days N`), and scheduled deployment
+  maintenance (`veridoc-backup --session-retention-days N`) executes automated
+  pruning alongside database backups and quarantine cleanup.
+- **Console filtering**: The authenticated review console (`GET /review/console`)
+  provides interactive DOM-safe filtering by status and assignee with pagination
+  reset, querying `/review/cases` using strict text-node DOM manipulation.
+
 ## Dependency direction
 
 ```text
