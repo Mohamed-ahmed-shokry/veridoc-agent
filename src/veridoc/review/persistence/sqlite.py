@@ -28,7 +28,9 @@ from veridoc.review.models import (
     RequestId,
     ReviewEvent,
     ReviewSession,
+    ReviewSessionSummary,
     ReviewSnapshot,
+    SessionPage,
     hydrate_review_snapshot,
 )
 from veridoc.review.persistence.migrations import (
@@ -524,6 +526,81 @@ class SQLiteReviewRepository:
                 (_timestamp(), session_digest),
             )
 
+    def list_sessions(
+        self,
+        *,
+        actor_id: ActorId | None = None,
+        active_only: bool = False,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> SessionPage:
+        """Return one bounded, optionally filtered page of session summaries."""
+        now = datetime.now(UTC)
+        now_str = _format_datetime(now)
+        conditions: list[str] = []
+        parameters: list[object] = []
+
+        if actor_id is not None:
+            conditions.append("actor_id = ?")
+            parameters.append(actor_id)
+        if active_only:
+            conditions.append("revoked_at IS NULL AND expires_at > ?")
+            parameters.append(now_str)
+
+        where_clause = f" WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        with self._read_connection() as connection:
+            total = int(
+                connection.execute(
+                    f"SELECT COUNT(*) FROM review_sessions{where_clause}",
+                    parameters,
+                ).fetchone()[0]
+            )
+            rows = connection.execute(
+                f"""
+                SELECT * FROM review_sessions{where_clause}
+                ORDER BY id DESC
+                LIMIT ? OFFSET ?
+                """,
+                (*parameters, limit, offset),
+            ).fetchall()
+            return SessionPage(
+                records=[_session_summary_from_row(row, now=now) for row in rows],
+                offset=offset,
+                limit=limit,
+                total=total,
+            )
+
+    def revoke_actor_sessions(self, actor_id: ActorId) -> int:
+        """Mark all active sessions for an actor revoked. Returns the count of revoked sessions."""
+        now = datetime.now(UTC)
+        now_str = _format_datetime(now)
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE review_sessions
+                SET revoked_at = ?
+                WHERE actor_id = ?
+                  AND revoked_at IS NULL
+                  AND expires_at > ?
+                """,
+                (now_str, actor_id, now_str),
+            )
+            return cursor.rowcount
+
+    def prune_sessions(self, *, before: datetime) -> int:
+        """Delete sessions whose expiry is before the given timestamp. Returns the count of deleted sessions."""
+        before_str = _format_datetime(before)
+        with self._connection() as connection:
+            cursor = connection.execute(
+                """
+                DELETE FROM review_sessions
+                WHERE expires_at < ?
+                """,
+                (before_str,),
+            )
+            return cursor.rowcount
+
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self._database_path)
         connection.row_factory = sqlite3.Row
@@ -876,6 +953,24 @@ def _session_from_row(row: sqlite3.Row) -> ReviewSession:
             created_at=row["created_at"],
             expires_at=row["expires_at"],
             revoked_at=row["revoked_at"],
+        )
+    except ValueError as exc:
+        raise InvalidPersistedReviewDataError from exc
+
+
+def _session_summary_from_row(
+    row: sqlite3.Row, *, now: datetime
+) -> ReviewSessionSummary:
+    try:
+        session = _session_from_row(row)
+        is_active = session.revoked_at is None and session.expires_at > now
+        return ReviewSessionSummary(
+            session_digest=session.session_digest,
+            actor_id=session.actor_id,
+            created_at=session.created_at,
+            expires_at=session.expires_at,
+            revoked_at=session.revoked_at,
+            is_active=is_active,
         )
     except ValueError as exc:
         raise InvalidPersistedReviewDataError from exc

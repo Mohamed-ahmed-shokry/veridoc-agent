@@ -1,7 +1,7 @@
 """SQLite review-store repository tests."""
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -850,6 +850,125 @@ def test_revoke_session_sets_revoked_at_once(tmp_path: Path) -> None:
 def test_revoke_session_is_a_safe_no_op_for_an_unknown_digest(tmp_path: Path) -> None:
     repository = _repository(tmp_path)
     repository.revoke_session("f" * 64)
+
+
+def test_list_sessions_returns_bounded_page_and_calculates_is_active(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    now = datetime.now(UTC)
+    future = now + timedelta(hours=12)
+    past = now - timedelta(hours=1)
+
+    # Session 1: active (reviewer-1)
+    repository.create_session(
+        session_digest="1" * 64, actor_id="reviewer-1", expires_at=future
+    )
+    # Session 2: expired (reviewer-1)
+    repository.create_session(
+        session_digest="2" * 64, actor_id="reviewer-1", expires_at=past
+    )
+    # Session 3: revoked (reviewer-2)
+    repository.create_session(
+        session_digest="3" * 64, actor_id="reviewer-2", expires_at=future
+    )
+    repository.revoke_session("3" * 64)
+
+    # Unfiltered list
+    all_sessions = repository.list_sessions(offset=0, limit=50)
+    assert all_sessions.total == 3
+    assert len(all_sessions.records) == 3
+
+    # Active only list
+    active_sessions = repository.list_sessions(active_only=True)
+    assert active_sessions.total == 1
+    assert len(active_sessions.records) == 1
+    assert active_sessions.records[0].session_digest == "1" * 64
+    assert active_sessions.records[0].is_active is True
+
+    # Filtered by actor
+    reviewer_1_sessions = repository.list_sessions(actor_id="reviewer-1")
+    assert reviewer_1_sessions.total == 2
+    assert len(reviewer_1_sessions.records) == 2
+
+    # Pagination
+    paged = repository.list_sessions(offset=1, limit=1)
+    assert paged.total == 3
+    assert len(paged.records) == 1
+    assert paged.offset == 1
+    assert paged.limit == 1
+
+
+def test_revoke_actor_sessions_revokes_active_sessions_for_actor(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    future = datetime.now(UTC) + timedelta(hours=12)
+    past = datetime.now(UTC) - timedelta(hours=1)
+
+    repository.create_session(
+        session_digest="1" * 64, actor_id="reviewer-1", expires_at=future
+    )
+    repository.create_session(
+        session_digest="2" * 64, actor_id="reviewer-1", expires_at=future
+    )
+    repository.create_session(
+        session_digest="3" * 64, actor_id="reviewer-1", expires_at=past
+    )
+    repository.create_session(
+        session_digest="4" * 64, actor_id="reviewer-2", expires_at=future
+    )
+
+    # Revoke active sessions for reviewer-1
+    revoked_count = repository.revoke_actor_sessions("reviewer-1")
+    assert revoked_count == 2
+
+    # Second call returns 0 since they are already revoked
+    assert repository.revoke_actor_sessions("reviewer-1") == 0
+
+    # Verify reviewer-2 session was unaffected
+    s4 = repository.resolve_session("4" * 64)
+    assert s4 is not None
+    assert s4.revoked_at is None
+
+
+def test_prune_sessions_removes_expired_sessions_before_cutoff(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path)
+    now = datetime.now(UTC)
+    two_days_ago = now - timedelta(days=2)
+    yesterday = now - timedelta(days=1)
+    tomorrow = now + timedelta(days=1)
+
+    repository.create_session(
+        session_digest="1" * 64, actor_id="reviewer-1", expires_at=two_days_ago
+    )
+    repository.create_session(
+        session_digest="2" * 64, actor_id="reviewer-1", expires_at=yesterday
+    )
+    repository.create_session(
+        session_digest="3" * 64, actor_id="reviewer-1", expires_at=tomorrow
+    )
+
+    # Prune sessions older than yesterday's cutoff (before = yesterday)
+    deleted = repository.prune_sessions(before=yesterday)
+    # two_days_ago < yesterday, so 1 deleted
+    assert deleted == 1
+
+    remaining = repository.list_sessions()
+    assert remaining.total == 2
+    digests = {s.session_digest for s in remaining.records}
+    assert "1" * 64 not in digests
+    assert "2" * 64 in digests
+    assert "3" * 64 in digests
+
+    # Prune before now
+    deleted_now = repository.prune_sessions(before=now)
+    assert deleted_now == 1
+    remaining_now = repository.list_sessions()
+    assert remaining_now.total == 1
+    assert remaining_now.records[0].session_digest == "3" * 64
 
 
 def test_validate_persisted_review_data_accepts_a_healthy_history(
