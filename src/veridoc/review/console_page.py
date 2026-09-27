@@ -14,7 +14,7 @@ def render_review_console_page() -> str:
     form, section { border: 1px solid #d1d5db; border-radius: .5rem; padding: 1rem; margin: 1rem 0; }
     button { margin-top: .75rem; padding: .5rem .75rem; }
     label { display: block; margin-top: .5rem; }
-    input { width: 100%; box-sizing: border-box; padding: .4rem; }
+    input, select { width: 100%; box-sizing: border-box; padding: .4rem; }
     .error { color: #b91c1c; }
     .hidden { display: none; }
     .case-row { border: 1px solid #e5e7eb; border-radius: .4rem; padding: .6rem; margin: .5rem 0; }
@@ -49,6 +49,20 @@ def render_review_console_page() -> str:
 
     <section id="cases-section" class="hidden">
       <h2>Review cases</h2>
+      <div id="case-filters">
+        <label for="filter-status">Filter by status</label>
+        <select id="filter-status">
+          <option value="">All statuses</option>
+          <option value="unassigned">Unassigned</option>
+          <option value="assigned">Assigned</option>
+          <option value="escalated">Escalated</option>
+          <option value="decided">Decided</option>
+        </select>
+        <label for="filter-assignee">Filter by assignee</label>
+        <input id="filter-assignee" type="text" placeholder="Actor ID" autocomplete="off">
+        <button id="apply-filters-button" type="button">Apply filters</button>
+        <button id="clear-filters-button" type="button">Clear filters</button>
+      </div>
       <button id="refresh-cases-button" type="button">Refresh</button>
       <p id="case-list-status" aria-live="polite"></p>
       <div id="case-list"></div>
@@ -107,6 +121,10 @@ def render_review_console_page() -> str:
     const sessionStatus = document.getElementById("session-status");
     const logoutButton = document.getElementById("logout-button");
     const casesSection = document.getElementById("cases-section");
+    const filterStatus = document.getElementById("filter-status");
+    const filterAssignee = document.getElementById("filter-assignee");
+    const applyFiltersButton = document.getElementById("apply-filters-button");
+    const clearFiltersButton = document.getElementById("clear-filters-button");
     const caseList = document.getElementById("case-list");
     const caseListStatus = document.getElementById("case-list-status");
     const refreshCasesButton = document.getElementById("refresh-cases-button");
@@ -162,6 +180,9 @@ def render_review_console_page() -> str:
       escalateStatus.textContent = "";
       decideStatus.textContent = "";
       credentialInput.value = "";
+      filterStatus.value = "";
+      filterAssignee.value = "";
+      caseListOffset = 0;
     }
 
     function showSignedIn(actor) {
@@ -396,9 +417,16 @@ def render_review_console_page() -> str:
       caseListStatus.textContent = "Loading review cases…";
       caseListStatus.className = "";
       try {
-        const response = await fetch(
-          `/review/cases?limit=${CASE_LIST_LIMIT}&offset=${caseListOffset}`,
-        );
+        let url = `/review/cases?limit=${CASE_LIST_LIMIT}&offset=${caseListOffset}`;
+        const selectedStatus = filterStatus.value.trim();
+        if (selectedStatus) {
+          url += `&status=${encodeURIComponent(selectedStatus)}`;
+        }
+        const selectedAssignee = filterAssignee.value.trim();
+        if (selectedAssignee) {
+          url += `&assignee_id=${encodeURIComponent(selectedAssignee)}`;
+        }
+        const response = await fetch(url);
         if (response.status === 401) {
           showSignedOut();
           return;
@@ -414,6 +442,35 @@ def render_review_console_page() -> str:
         caseListStatus.className = "error";
       }
     }
+
+    applyFiltersButton.addEventListener("click", () => {
+      caseListOffset = 0;
+      loadCases();
+    });
+
+    clearFiltersButton.addEventListener("click", () => {
+      filterStatus.value = "";
+      filterAssignee.value = "";
+      caseListOffset = 0;
+      loadCases();
+    });
+
+    filterStatus.addEventListener("change", () => {
+      caseListOffset = 0;
+      loadCases();
+    });
+
+    filterAssignee.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        caseListOffset = 0;
+        loadCases();
+      }
+    });
+
+    refreshCasesButton.addEventListener("click", () => {
+      loadCases();
+    });
 
     previousPageButton.addEventListener("click", () => {
       caseListOffset = Math.max(0, caseListOffset - CASE_LIST_LIMIT);

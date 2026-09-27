@@ -28,7 +28,17 @@ async def test_console_page_renders_login_and_session_controls_safely() -> None:
     assert 'fetch("/review/session"' in body
     assert 'finally {\n        credentialInput.value = "";' in body
     assert 'id="case-list"' in body
-    assert 'fetch("/review/cases' in body
+    assert "fetch(url)" in body or 'fetch("/review/cases' in body
+    assert 'id="filter-status"' in body
+    assert 'id="filter-assignee"' in body
+    assert 'id="apply-filters-button"' in body
+    assert 'id="clear-filters-button"' in body
+    assert 'value="unassigned"' in body
+    assert 'value="assigned"' in body
+    assert 'value="escalated"' in body
+    assert 'value="decided"' in body
+    assert "&status=" in body
+    assert "&assignee_id=" in body
     assert 'id="case-detail"' in body
     assert "loadCaseDetail" in body
     assert "export-evidence-button" in body
