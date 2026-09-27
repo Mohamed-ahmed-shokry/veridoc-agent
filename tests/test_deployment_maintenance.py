@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import json
 import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -130,6 +131,51 @@ def test_run_deployment_maintenance_prunes_expired_quarantine(tmp_path: Path) ->
     assert res["pruned_quarantine_records"] == 1
 
 
+def test_run_deployment_maintenance_prunes_expired_sessions(tmp_path: Path) -> None:
+    """Maintenance prunes review sessions expired beyond the retention threshold."""
+    ref_db = tmp_path / "reference.sqlite3"
+    SQLiteInvoiceRepository(ref_db).initialize()
+
+    rev_db = tmp_path / "review.sqlite3"
+    rev_repo = SQLiteReviewRepository(rev_db)
+    rev_repo.initialize()
+
+    now = datetime.now(UTC)
+    # Session 1: active (expires in 12h)
+    rev_repo.create_session(
+        session_digest="1" * 64,
+        actor_id="reviewer-1",
+        expires_at=now + timedelta(hours=12),
+    )
+    # Session 2: expired 2 days ago (within 7-day retention)
+    rev_repo.create_session(
+        session_digest="2" * 64,
+        actor_id="reviewer-1",
+        expires_at=now - timedelta(days=2),
+    )
+    # Session 3: expired 10 days ago (beyond 7-day retention)
+    rev_repo.create_session(
+        session_digest="3" * 64,
+        actor_id="reviewer-1",
+        expires_at=now - timedelta(days=10),
+    )
+
+    res = run_deployment_maintenance(
+        reference_db=ref_db,
+        review_db=rev_db,
+        backup_dir=tmp_path / "backups",
+        session_retention_days=7,
+    )
+
+    assert res["pruned_review_sessions"] == 1
+    remaining = rev_repo.list_sessions()
+    assert remaining.total == 2
+    digests = {s.session_digest for s in remaining.records}
+    assert "1" * 64 in digests
+    assert "2" * 64 in digests
+    assert "3" * 64 not in digests
+
+
 def test_deployment_maintenance_cli_succeeds(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -154,6 +200,8 @@ def test_deployment_maintenance_cli_succeeds(
             str(backup_dir),
             "--keep",
             "2",
+            "--session-retention-days",
+            "14",
         ]
     )
 
@@ -162,3 +210,5 @@ def test_deployment_maintenance_cli_succeeds(
     assert "reference_backup" in payload
     assert "review_backup" in payload
     assert len(payload["retained_reference_backups"]) == 1
+    assert "pruned_review_sessions" in payload
+    assert payload["pruned_review_sessions"] == 0

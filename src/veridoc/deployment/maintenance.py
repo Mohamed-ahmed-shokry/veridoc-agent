@@ -10,9 +10,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sqlite3
 import sys
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from veridoc.persistence.maintenance import (
@@ -21,12 +22,15 @@ from veridoc.persistence.maintenance import (
 from veridoc.review.persistence.maintenance import (
     backup_database as backup_review_database,
 )
+from veridoc.review.persistence.sqlite import SQLiteReviewRepository
+from veridoc.review.protocol import ReviewDataUnavailableError
 from veridoc.scanning.quarantine import QuarantineStore
 
 _DEFAULT_REFERENCE_DATABASE = "veridoc-reference.sqlite3"
 _DEFAULT_REVIEW_DATABASE = "veridoc-review.sqlite3"
 _DEFAULT_BACKUP_DIR = "backups"
 _DEFAULT_KEEP_COUNT = 2
+_DEFAULT_SESSION_RETENTION_DAYS = 7
 
 
 def prune_backup_retention(
@@ -63,6 +67,7 @@ def run_deployment_maintenance(
     backup_dir: Path | str = _DEFAULT_BACKUP_DIR,
     quarantine_dir: Path | str | None = None,
     keep_count: int = _DEFAULT_KEEP_COUNT,
+    session_retention_days: int = _DEFAULT_SESSION_RETENTION_DAYS,
     timestamp: str | None = None,
 ) -> dict[str, object]:
     """Execute scheduled backups and retention pruning for both stores."""
@@ -101,6 +106,17 @@ def run_deployment_maintenance(
                     q_store.dispose(entry.entry_id, reason="retention expired")
                     pruned_quarantine_count += 1
 
+    pruned_session_count = 0
+    review_path = Path(review_db)
+    if review_path.is_file():
+        try:
+            review_repo = SQLiteReviewRepository(review_path)
+            review_repo.initialize()
+            cutoff = datetime.now(UTC) - timedelta(days=session_retention_days)
+            pruned_session_count = review_repo.prune_sessions(before=cutoff)
+        except (ReviewDataUnavailableError, sqlite3.Error, OSError):
+            pruned_session_count = 0
+
     return {
         "timestamp": ts,
         "reference_backup": str(ref_backup),
@@ -108,6 +124,7 @@ def run_deployment_maintenance(
         "retained_reference_backups": [str(p) for p in retained_ref],
         "retained_review_backups": [str(p) for p in retained_rev],
         "pruned_quarantine_records": pruned_quarantine_count,
+        "pruned_review_sessions": pruned_session_count,
     }
 
 
@@ -144,6 +161,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=int(os.environ.get("VERIDOC_BACKUP_KEEP", str(_DEFAULT_KEEP_COUNT))),
         help="Number of backup snapshots to retain per database.",
     )
+    parser.add_argument(
+        "--session-retention-days",
+        type=int,
+        default=int(
+            os.environ.get(
+                "VERIDOC_SESSION_RETENTION_DAYS", str(_DEFAULT_SESSION_RETENTION_DAYS)
+            )
+        ),
+        help="Days to retain expired review sessions before pruning (default: 7).",
+    )
 
     args = parser.parse_args(argv)
     try:
@@ -153,6 +180,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             backup_dir=args.backup_dir,
             quarantine_dir=args.quarantine_dir,
             keep_count=args.keep,
+            session_retention_days=args.session_retention_days,
         )
         sys.stdout.write(json.dumps(result, indent=2) + "\n")
         return 0
