@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from veridoc.review.config import DEFAULT_REVIEW_DATABASE
@@ -41,6 +42,13 @@ def main(arguments: Sequence[str] | None = None) -> int:
                 return _list_cases(options)
             if options.case_command == "get":
                 return _get_case(options)
+        if options.command == "sessions":
+            if options.session_command == "list":
+                return _list_sessions(options)
+            if options.session_command == "revoke":
+                return _revoke_sessions(options)
+            if options.session_command == "prune":
+                return _prune_sessions(options)
         if options.command == "restore":
             if not options.confirm_replace:
                 print("Restore requires --confirm-replace.", file=sys.stderr)
@@ -189,6 +197,84 @@ def _get_case(options: argparse.Namespace) -> int:
     return 0
 
 
+def _list_sessions(options: argparse.Namespace) -> int:
+    """Print one bounded, optionally filtered page of review sessions."""
+    if options.offset < 0 or not 1 <= options.limit <= 200:
+        print(
+            "sessions list requires --offset >= 0 and 1 <= --limit <= 200.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        repository = SQLiteReviewRepository(options.database)
+        repository.initialize()
+        page = repository.list_sessions(
+            actor_id=options.actor_id,
+            active_only=options.active_only,
+            offset=options.offset,
+            limit=options.limit,
+        )
+    except ReviewDataUnavailableError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+
+    print(f"Total review sessions: {page.total}")
+    for session in page.records:
+        if session.is_active:
+            status_label = "ACTIVE"
+        elif session.revoked_at is not None:
+            status_label = "REVOKED"
+        else:
+            status_label = "EXPIRED"
+        revoked_part = f" revoked={session.revoked_at}" if session.revoked_at else ""
+        print(
+            f"[{status_label}] {session.session_digest[:16]}... "
+            f"actor={session.actor_id} created={session.created_at} "
+            f"expires={session.expires_at}{revoked_part}"
+        )
+    return 0
+
+
+def _revoke_sessions(options: argparse.Namespace) -> int:
+    """Revoke one session by digest or all active sessions for an actor."""
+    if not bool(options.digest) ^ bool(options.actor_id):
+        print(
+            "sessions revoke requires exactly one of --digest or --actor-id.",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        repository = SQLiteReviewRepository(options.database)
+        repository.initialize()
+        if options.digest:
+            repository.revoke_session(options.digest)
+            print(f"Review session revoked: {options.digest}")
+            return 0
+        count = repository.revoke_actor_sessions(options.actor_id)
+        print(f"Revoked {count} active session(s) for actor: {options.actor_id}")
+        return 0
+    except ReviewDataUnavailableError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+
+
+def _prune_sessions(options: argparse.Namespace) -> int:
+    """Prune expired review sessions older than the specified retention threshold."""
+    if options.older_than_days < 0:
+        print("sessions prune requires --older-than-days >= 0.", file=sys.stderr)
+        return 2
+    try:
+        repository = SQLiteReviewRepository(options.database)
+        repository.initialize()
+        before = datetime.now(UTC) - timedelta(days=options.older_than_days)
+        deleted = repository.prune_sessions(before=before)
+        print(f"Pruned {deleted} expired review session(s).")
+        return 0
+    except ReviewDataUnavailableError as exc:
+        print(exc.message, file=sys.stderr)
+        return 1
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="veridoc-review",
@@ -240,6 +326,59 @@ def _parser() -> argparse.ArgumentParser:
         "--case-id",
         required=True,
         help="Review case identifier to inspect.",
+    )
+
+    sessions_parser = commands.add_parser(
+        "sessions",
+        help="Inspect and manage review sessions.",
+    )
+    session_commands = sessions_parser.add_subparsers(
+        dest="session_command", required=True
+    )
+
+    list_sessions = session_commands.add_parser("list", help="List review sessions.")
+    list_sessions.add_argument(
+        "--actor-id",
+        help="Filter sessions by actor ID.",
+    )
+    list_sessions.add_argument(
+        "--active-only",
+        action="store_true",
+        help="Show only active (unexpired, unrevoked) sessions.",
+    )
+    list_sessions.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="Zero-based record offset (default: 0).",
+    )
+    list_sessions.add_argument(
+        "--limit",
+        type=int,
+        default=50,
+        help="Maximum sessions to return (1-200, default: 50).",
+    )
+
+    revoke_session = session_commands.add_parser(
+        "revoke", help="Revoke one session by digest or all sessions for an actor."
+    )
+    revoke_session.add_argument(
+        "--digest",
+        help="Session digest to revoke.",
+    )
+    revoke_session.add_argument(
+        "--actor-id",
+        help="Actor ID whose active sessions should be revoked.",
+    )
+
+    prune_sessions = session_commands.add_parser(
+        "prune", help="Prune expired review sessions."
+    )
+    prune_sessions.add_argument(
+        "--older-than-days",
+        type=int,
+        default=0,
+        help="Prune sessions expired at least this many days ago (default: 0).",
     )
 
     backup = commands.add_parser("backup", help="Create an atomic SQLite backup.")
