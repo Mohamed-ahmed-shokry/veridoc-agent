@@ -25,6 +25,7 @@ boundaries only and require separate approval before implementation.
 | 17 | Reference-data audit trail for administration mutations | Complete |
 | 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
 | 19 | Reference CLI record completion: invoice and purchase-order writes | Complete |
+| 20 | Review operator inspection, console filtering, and session lifecycle | In progress |
 
 ## Phase 7: release engineering
 
@@ -748,6 +749,52 @@ Explicit non-goals: CLI listing or inspection for invoices and purchase
 orders (API operations), bulk CLI import (the API import route covers
 batches), session management commands, and any API, schema, threshold, or
 finding changes.
+
+## Phase 20: review operator inspection, console filtering, and session lifecycle management
+
+Status: in progress (routine completion of operator and review surfaces, no ADR required).
+
+Goal: complete the operator and reviewer surfaces for the review subsystem.
+Currently, operators on the server have no CLI commands to inspect cases or
+manage review sessions (`cases list`, `cases get`, `sessions list`, `sessions
+revoke`, and `sessions prune` are absent from `veridoc-review`), expired sessions
+accumulate without maintenance pruning, and the review console lacks UI filter
+controls for case status and assignee even though the underlying API route supports
+them. Phase 20 adds case inspection and session lifecycle subcommands to `veridoc-review`,
+integrates session pruning into automated deployment maintenance (`veridoc-backup`),
+and adds safe DOM-based status and assignee filtering to the review console.
+
+Planned deliverables:
+
+- `ReviewSessionSummary` and `SessionPage` domain models, plus `list_sessions`,
+  `revoke_actor_sessions`, and `prune_sessions` protocol methods implemented on
+  `SQLiteReviewRepository`;
+- `veridoc-review cases list` with bounded `--status`, `--assignee-id`, `--offset`,
+  and `--limit` options, and `veridoc-review cases get --case-id <id>` formatting
+  snapshot metadata, extraction summary, findings, and event history;
+- `veridoc-review sessions list` with `--actor-id`, `--active-only`, `--offset`,
+  and `--limit` options, `veridoc-review sessions revoke` with `--digest` or `--actor-id`,
+  and `veridoc-review sessions prune` with `--older-than-days`;
+- session pruning integration in `veridoc-backup` (`run_deployment_maintenance`)
+  with `--session-retention-days`;
+- status and assignee filter controls in the review console UI with safe DOM text node
+  construction (no `innerHTML`);
+- contract tests covering case inspection, session queries/revocation/pruning,
+  CLI commands, maintenance integration, and console DOM safety; and
+- updated development guide, runbook, architecture notes, and release evidence.
+
+Acceptance criteria:
+
+- operators can list and inspect review cases from `veridoc-review` with bounded output;
+- operators can list, revoke, and prune review sessions from `veridoc-review`;
+- deployment maintenance prunes expired sessions based on configured retention;
+- review console filters cases by status and assignee without `innerHTML`;
+- the full quality gate passes; and
+- documentation matches the delivered behavior.
+
+Explicit non-goals: case editing or CLI decision making (decisions require human
+review workflow via console or authenticated API), remote identity provider integration,
+retention/purge of case records (ADR 0010), and any API, schema, or threshold changes.
 
 ## Approval rule
 
