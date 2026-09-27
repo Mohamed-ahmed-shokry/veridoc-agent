@@ -18,6 +18,7 @@ from veridoc.review.models import (
     RequestId,
     ReviewSession,
     ReviewSnapshot,
+    SessionPage,
 )
 
 
@@ -181,3 +182,19 @@ class ReviewSessionStore(Protocol):
         """Mark one session revoked; revoking an already-revoked session is a
         safe no-op.
         """
+
+    def list_sessions(
+        self,
+        *,
+        actor_id: ActorId | None = None,
+        active_only: bool = False,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> SessionPage:
+        """Return one bounded, optionally filtered page of session summaries."""
+
+    def revoke_actor_sessions(self, actor_id: ActorId) -> int:
+        """Mark all active sessions for an actor revoked. Returns the count of revoked sessions."""
+
+    def prune_sessions(self, *, before: datetime) -> int:
+        """Delete expired or revoked sessions whose expiry is before the given timestamp. Returns the count of deleted sessions."""

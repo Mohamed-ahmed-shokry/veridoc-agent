@@ -23,7 +23,10 @@ from veridoc.review.models import (
     ReasonText,
     ReviewEvent,
     ReviewModel,
+    ReviewSession,
+    ReviewSessionSummary,
     ReviewSnapshot,
+    SessionPage,
     build_review_snapshot,
     compute_content_digest,
     compute_request_digest,
@@ -320,3 +323,93 @@ def test_review_model_forbids_extra_fields_and_strips_strings() -> None:
 
     with pytest.raises(ValidationError):
         _Probe(actor_id="reviewer-1", extra="not-allowed")
+
+
+def test_review_session_validates_and_forbids_extra_fields() -> None:
+    now = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+    expiry = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+    digest = "a" * 64
+
+    session = ReviewSession(
+        session_digest=digest,
+        actor_id="reviewer-1",
+        created_at=now,
+        expires_at=expiry,
+    )
+    assert session.session_digest == digest
+    assert session.actor_id == "reviewer-1"
+    assert session.revoked_at is None
+
+    with pytest.raises(ValidationError):
+        ReviewSession(
+            session_digest=digest,
+            actor_id="reviewer-1",
+            created_at=now,
+            expires_at=expiry,
+            extra_field="bad",
+        )
+
+
+def test_review_session_summary_validates_and_forbids_extra_fields() -> None:
+    now = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+    expiry = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+    digest = "a" * 64
+
+    summary = ReviewSessionSummary(
+        session_digest=digest,
+        actor_id="reviewer-1",
+        created_at=now,
+        expires_at=expiry,
+        is_active=True,
+    )
+    assert summary.session_digest == digest
+    assert summary.actor_id == "reviewer-1"
+    assert summary.is_active is True
+    assert summary.revoked_at is None
+
+    with pytest.raises(ValidationError):
+        ReviewSessionSummary(
+            session_digest=digest,
+            actor_id="reviewer-1",
+            created_at=now,
+            expires_at=expiry,
+            is_active=True,
+            extra_field="bad",
+        )
+
+    with pytest.raises(ValidationError):
+        ReviewSessionSummary(
+            session_digest="not-a-sha256-hex",
+            actor_id="reviewer-1",
+            created_at=now,
+            expires_at=expiry,
+            is_active=True,
+        )
+
+
+def test_session_page_bounds_offset_and_limit() -> None:
+    now = datetime(2026, 8, 22, 12, 0, tzinfo=UTC)
+    expiry = datetime(2026, 8, 23, 0, 0, tzinfo=UTC)
+    record = ReviewSessionSummary(
+        session_digest="b" * 64,
+        actor_id="reviewer-2",
+        created_at=now,
+        expires_at=expiry,
+        is_active=False,
+        revoked_at=now,
+    )
+    page = SessionPage(records=[record], offset=0, limit=50, total=1)
+    assert len(page.records) == 1
+    assert page.total == 1
+
+    with pytest.raises(ValidationError):
+        SessionPage(records=[], offset=-1, limit=50, total=0)
+
+    with pytest.raises(ValidationError):
+        SessionPage(records=[], offset=0, limit=0, total=0)
+
+    with pytest.raises(ValidationError):
+        SessionPage(records=[], offset=0, limit=201, total=0)
+
+    with pytest.raises(ValidationError):
+        SessionPage(records=[], offset=0, limit=50, total=-1)

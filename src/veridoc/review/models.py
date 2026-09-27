@@ -239,3 +239,23 @@ class ReviewSession(ReviewModel):
     created_at: AwareDatetime
     expires_at: AwareDatetime
     revoked_at: AwareDatetime | None = None
+
+
+class ReviewSessionSummary(ReviewModel):
+    """One bounded session summary record for operator inspection."""
+
+    session_digest: str = Field(pattern=r"^[0-9a-f]{64}$")
+    actor_id: ActorId
+    created_at: AwareDatetime
+    expires_at: AwareDatetime
+    revoked_at: AwareDatetime | None = None
+    is_active: bool
+
+
+class SessionPage(ReviewModel):
+    """One bounded page of session summaries."""
+
+    records: list[ReviewSessionSummary]
+    offset: int = Field(ge=0)
+    limit: int = Field(ge=1, le=200)
+    total: int = Field(ge=0)

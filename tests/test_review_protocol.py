@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.processing.models import ProcessingResult, ProcessingVerdict
 from veridoc.review.models import (
+    ActorId,
     CaseAssignmentRequest,
     CaseDecisionRequest,
     CaseDetail,
@@ -17,6 +18,7 @@ from veridoc.review.models import (
     IdempotentRequest,
     ReviewSession,
     ReviewSnapshot,
+    SessionPage,
     build_review_snapshot,
 )
 from veridoc.review.protocol import (
@@ -162,6 +164,25 @@ class _FakeSessionStore:
 
     def revoke_session(self, session_digest: str) -> None:
         del session_digest
+
+    def list_sessions(
+        self,
+        *,
+        actor_id: ActorId | None = None,
+        active_only: bool = False,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> SessionPage:
+        del actor_id, active_only, offset, limit
+        return SessionPage(records=[], offset=0, limit=50, total=0)
+
+    def revoke_actor_sessions(self, actor_id: ActorId) -> int:
+        del actor_id
+        return 0
+
+    def prune_sessions(self, *, before: datetime) -> int:
+        del before
+        return 0
 
 
 def test_fake_writer_satisfies_the_review_case_writer_protocol() -> None:
