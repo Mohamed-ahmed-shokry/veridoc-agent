@@ -8,6 +8,21 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 21 stale invoice detection:
+  - Architecture Decision Record 0028 documenting the fraud model, exclusion
+    rationale for PO-anchored and zero-total invoices, and the 90-day threshold.
+  - `stale_invoice` added to the `FindingType` literal union in
+    `veridoc.verification.models`.
+  - `check_invoice_staleness()` pure function in `veridoc.verification.staleness`
+    returning a `medium`-severity `stale_invoice` finding for invoices whose
+    `invoice_date` is more than 90 days before the reference date, with no
+    purchase-order reference and a positive total.  The reference date is
+    injectable for deterministic testing.
+  - `VerificationService.verify()` calls `check_invoice_staleness` after
+    `check_arithmetic`, adding staleness findings to every verification result.
+  - 21 focused tests in `tests/test_verification_staleness.py` covering all
+    exclusion paths, triggering paths, boundary conditions, PO suppression
+    variants, Decimal accuracy, immutability, and default reference-date behavior.
 - Phase 20 review operator inspection, console filtering, and session lifecycle:
   - Bounded review session summary and page schemas (`ReviewSessionSummary`, `SessionPage`) and session management protocol operations (`list_sessions`, `revoke_actor_sessions`, `prune_sessions`) on `ReviewSessionStore`.
   - SQLite review repository implementation for session querying, actor bulk revocation, and timestamp-based session pruning.
