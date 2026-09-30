@@ -139,6 +139,7 @@ tests/
 ├── test_sqlite_vendor_repository.py Phase 12 SQLite vendor repository persistence and lookups
 ├── test_vendor_resolution.py       Phase 12 multi-attribute vendor entity resolution engine
 ├── test_verification_vendor_rules.py Phase 12 vendor and bank account reconciliation rules
+├── test_verification_staleness.py   Phase 21 stale invoice detection rule and exclusion paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
