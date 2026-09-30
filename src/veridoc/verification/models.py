@@ -37,6 +37,7 @@ FindingType = Literal[
     "suspended_vendor",
     "vendor_bank_account_mismatch",
     "vendor_tax_id_mismatch",
+    "stale_invoice",
 ]
 
 
