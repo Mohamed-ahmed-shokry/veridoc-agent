@@ -915,6 +915,38 @@ case filtering by status and assignee) are fully verified and documented. No
 API, schema, migration, finding-type, or threshold changes. Phase 14 remains
 planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 21 completion snapshot
+
+The local Phase 21 completion gate was recorded on 2026-09-30 against commit
+`0d43f18` before this evidence section and the final documentation updates were
+added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | 275 files already formatted |
+| `uv run mypy` | No issues in 108 production source files |
+| `uv run pytest --cov=veridoc` | 1154 passed; 93.63% branch coverage against a 90% floor |
+| `uv run pytest tests/test_verification_staleness.py` | 21 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `git status --short` | Clean worktree |
+
+The Phase 21 deliverables (`stale_invoice` finding type, `check_invoice_staleness`
+pure function with injected reference date, `VerificationService` integration,
+21 staleness tests, ADR 0028, updated testing.md inventory, updated AGENTS.md,
+updated roadmap, and updated CHANGELOG) are fully verified and documented. No
+API, schema migration, new dependency, route, or threshold change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator
+environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
