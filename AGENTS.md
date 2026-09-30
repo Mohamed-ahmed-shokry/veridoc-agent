@@ -15,7 +15,9 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 12 are complete. The runtime implementation remains deliberately small:
+Phase 0 through Phase 13 and Phase 15 through Phase 21 are complete. Phase 14 is
+planned but blocked on a Tesseract-equipped operator environment. The runtime
+implementation remains deliberately small:
 
 - `src/veridoc/__init__.py` exposes package metadata.
 - `src/veridoc/__main__.py` starts the local API process.
@@ -212,6 +214,23 @@ Phase 0 through Phase 12 are complete. The runtime implementation remains delibe
   multi-attribute resolution cascading logic, SQLite vendor persistence,
   deterministic bank account mismatch and tax ID verification rules, and
   authenticated vendor master administration routes.
+- `tests/test_evaluation_corpus.py` covers the Phase 13 benchmark corpus slice
+  minimums, ground-truth arithmetic self-consistency, and manifest integrity.
+- `tests/test_review_evidence.py` and `tests/test_review_evidence_cli.py` cover
+  Phase 15 digest-bound bundle build/verify, every tamper class, the evidence
+  route auth/404 contract, and the CLI export/verify-bundle commands.
+- `tests/test_administration_audit.py` covers Phase 17 audit migration, entry
+  round-trips, per-route request-ID linkage, malformed-row validation, and
+  backup/restore log preservation.
+- `tests/test_review_cli.py` covers Phase 20 `veridoc-review cases list|get` and
+  `veridoc-review sessions list|revoke|prune` operator CLI contracts.
+- `tests/test_deployment_maintenance.py` covers Phase 20 automated session pruning
+  via `veridoc-backup --session-retention-days`.
+- `tests/test_verification_staleness.py` covers Phase 21 deterministic stale
+  invoice detection: all exclusion paths (absent date, zero/negative total, fresh
+  date, exact threshold boundary, PO anchor) and all triggering paths (one day past
+  threshold, very old date, minimal positive total, parametrized PO suppression, and
+  decimal accuracy).
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -243,10 +262,21 @@ Tesseract-measured re-run that updates the decision remains an operator
 procedure for the equipped environment. Phase 15 adds digest-bound,
 offline-verifiable auditor evidence bundles for review cases through an
 authenticated route, the review maintenance CLI, and a console download
-control. Phase 20 adds review operator inspection commands (`veridoc-review cases list|get`),
+control. Phase 16 canonicalizes invoice-number identity and converts PO
+matching from exact equality into one-sided authorization ceilings, removing
+systematic false positives without losing over-billing recall. Phase 17
+adds an append-only administration audit log recording every invoice,
+purchase-order, and vendor mutation with its request correlation ID and
+canonical before/after images. Phase 18 adds vendor CLI add/update commands
+and review console pagination. Phase 19 adds invoice and purchase-order CLI
+add/update/delete commands completing file-based reference-data writes.
+Phase 20 adds review operator inspection commands (`veridoc-review cases list|get`),
 session lifecycle management (`veridoc-review sessions list|revoke|prune`),
 automated session pruning in scheduled deployment maintenance (`veridoc-backup --session-retention-days`),
-and DOM-safe review console status and assignee filtering.
+and DOM-safe review console status and assignee filtering. Phase 21 adds a
+deterministic `stale_invoice` verification rule (ADR 0028) flagging invoices
+dated more than 90 days before the current processing date with no PO reference
+and a positive total.
 
 The current and planned workflow is:
 
@@ -418,6 +448,12 @@ uv run pytest tests/test_vendor_resolution.py
 uv run pytest tests/test_verification_vendor_rules.py
 uv run pytest tests/test_administration_sqlite_vendors.py
 uv run pytest tests/test_administration_vendor_api.py
+uv run pytest tests/test_evaluation_corpus.py
+uv run pytest tests/test_administration_audit.py
+uv run pytest tests/test_review_evidence.py
+uv run pytest tests/test_review_evidence_cli.py
+uv run pytest tests/test_review_case_evidence_api.py
+uv run pytest tests/test_verification_staleness.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -711,9 +747,14 @@ following documentation commit.
   pagination). **Complete.**
 - Phase 19: reference CLI record completion (invoice/purchase-order
   writes). **Complete.**
+- Phase 20: review operator inspection, console filtering, and session
+  lifecycle management. **Complete.**
+- Phase 21: stale invoice detection — deterministic `stale_invoice` verification
+  rule for backdated or resubmitted invoices with no PO reference (ADR 0028).
+  **Complete.**
 
-Phases 15 through 19 are complete. Phase 14 awaits its environment. Before
-any later phase, inspect the
-repository, run the existing suite, present the implementation and commit
-plan, identify documentation changes, and wait for explicit approval. The
-same rule applies to any future phase's approval.
+Phases 0 through 13 and Phases 15 through 21 are complete. Phase 14 awaits its
+environment. Before any later phase, inspect the repository, run the existing
+suite, present the implementation and commit plan, identify documentation changes,
+and wait for explicit approval. The same rule applies to any future phase's
+approval.
