@@ -11,7 +11,7 @@ absent-total invoices are excluded because they carry no payment risk.
 
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
@@ -42,7 +42,7 @@ def check_invoice_staleness(
     if invoice.purchase_order_number and invoice.purchase_order_number.strip():
         return []
 
-    today = reference_date if reference_date is not None else date.today()
+    today = reference_date if reference_date is not None else datetime.now(UTC).date()
     threshold_date = today - timedelta(days=STALENESS_THRESHOLD_DAYS)
     if invoice.invoice_date >= threshold_date:
         return []

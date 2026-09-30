@@ -9,7 +9,7 @@ All tests inject an explicit reference_date so results are independent of
 the wall clock.
 """
 
-from datetime import date, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -163,7 +163,7 @@ def test_stale_invoice_with_minimal_positive_total() -> None:
 
 def test_default_reference_date_is_today() -> None:
     """When no reference_date is supplied the rule uses date.today()."""
-    fresh_relative_to_today = date.today() - timedelta(days=1)
+    fresh_relative_to_today = datetime.now(UTC).date() - timedelta(days=1)
     invoice = _invoice(invoice_date=fresh_relative_to_today, total="100.00")
     # Fresh relative to today → no finding.
     assert check_invoice_staleness(invoice) == []
