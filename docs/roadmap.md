@@ -26,6 +26,7 @@ boundaries only and require separate approval before implementation.
 | 18 | Operator surface completion: vendor CLI writes and console pagination | Complete |
 | 19 | Reference CLI record completion: invoice and purchase-order writes | Complete |
 | 20 | Review operator inspection, console filtering, and session lifecycle | Complete |
+| 21 | Stale invoice detection rule (ADR 0028) | Complete |
 
 ## Phase 7: release engineering
 
@@ -796,9 +797,61 @@ Explicit non-goals: case editing or CLI decision making (decisions require human
 review workflow via console or authenticated API), remote identity provider integration,
 retention/purge of case records (ADR 0010), and any API, schema, or threshold changes.
 
+## Phase 21: stale invoice detection
+
+### Objective
+
+Add a deterministic `stale_invoice` verification rule to catch backdated or
+resubmitted invoices that the existing rule set cannot detect without a vendor
+history or purchase-order anchor.
+
+### Problem
+
+The verification layer has no check for invoice age relative to the processing
+date.  An invoice dated more than 90 days ago with no purchase-order reference
+and a positive total is a meaningful fraud indicator: it may have been backdated
+to evade controls, or may be a resubmission of a previously paid invoice whose
+number was altered to evade duplicate detection.  The existing rules handle
+arithmetic, PO ceilings, duplicate numbers, and vendor-history anomalies, but
+none of them catch a stale, anchor-free, positive-total invoice.
+
+### Decision summary
+
+See [ADR 0028](decisions/0028-stale-invoice-detection.md).  The rule fires when
+`invoice_date < today - 90 days` and `purchase_order_number` is absent or blank
+and `total > 0`.  Severity is `medium` (warrants human review; not proof of
+fraud alone).  The reference date is injected as a parameter for determinism.
+PO-anchored and zero-total invoices are explicitly excluded.  No migration, new
+repository method, or threshold-calibration change is required.
+
+### Deliverables
+
+- `stale_invoice` added to `FindingType` in `veridoc.verification.models`;
+- `check_invoice_staleness()` pure function in `veridoc.verification.staleness`
+  with injected reference date;
+- `VerificationService.verify()` calls `check_invoice_staleness` after
+  `check_arithmetic`;
+- `tests/test_verification_staleness.py` covering all 21 cases: every exclusion
+  path, triggering path, boundary condition, parametrized PO suppression, decimal
+  accuracy, immutability, and default-date behavior;
+- `docs/decisions/0028-stale-invoice-detection.md` (ADR 0028);
+- `docs/testing.md` inventory updated;
+- `AGENTS.md` updated to reflect all 21 complete phases;
+- `CHANGELOG.md` updated.
+
+### Acceptance criteria
+
+- `stale_invoice` appears in `FindingType` and is accepted by `VerificationFinding`;
+- the pure function returns exactly one finding for stale invoices meeting all
+  conditions and an empty list for every exclusion case;
+- `VerificationService` includes staleness findings in its output;
+- all 21 staleness tests pass and the full quality gate passes;
+- `test_documentation.py` validates the updated test-module inventory;
+- no pre-existing test regressions.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 20 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 21 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
