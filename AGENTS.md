@@ -622,6 +622,28 @@ documentation set is:
   pre-decode upload scanning and quarantine decision.
 - `docs/decisions/0017-operational-only-telemetry.md` for the
   operational telemetry export and redaction decision.
+- `docs/decisions/0018-preregistered-evaluation-protocol-and-thresholds.md` for
+  the preregistered evaluation protocol and acceptance thresholds decision.
+- `docs/decisions/0019-provider-identity-capture-and-drift-triggers.md` for the
+  frozen provider-identity capture and drift-trigger decision.
+- `docs/decisions/0020-corpus-governance-and-synthetic-manifest-schema.md` for
+  the corpus governance, SHA-256 manifest, and synthetic data decision.
+- `docs/decisions/0021-vendor-master-registry-and-schema.md` for the vendor
+  master registry schema decision.
+- `docs/decisions/0022-multi-attribute-vendor-entity-resolution.md` for the
+  multi-attribute cascading entity resolution decision.
+- `docs/decisions/0023-deterministic-vendor-and-bank-reconciliation-rules.md`
+  for the deterministic bank account and tax ID reconciliation decision.
+- `docs/decisions/0024-expand-synthetic-corpus-to-slice-minimums.md` for the
+  corpus slice-minimum expansion and committed construction decision.
+- `docs/decisions/0025-auditor-evidence-export-for-review-cases.md` for the
+  digest-bound auditor evidence bundle design.
+- `docs/decisions/0026-one-sided-po-ceilings-and-normalized-duplicates.md` for
+  the authorization-ceiling PO matching and canonical invoice-number decision.
+- `docs/decisions/0027-append-only-admin-audit-log.md` for the append-only
+  administration audit log decision.
+- `docs/decisions/0028-stale-invoice-detection.md` for the 90-day stale invoice
+  detection rule, exclusion rationale, and fraud model.
 - `docs/runbook.md` for deployment operations, container management, incident
   response, backup/restore drills, and secret rotation.
 - `tests/fixtures/README.md` for deterministic fictional fixture use and

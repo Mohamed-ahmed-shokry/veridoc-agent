@@ -44,3 +44,4 @@ Accepted decisions:
 - [0025: Export digest-bound auditor evidence bundles for review cases](0025-auditor-evidence-export-for-review-cases.md)
 - [0026: Use one-sided PO ceilings and normalized invoice-number identity](0026-one-sided-po-ceilings-and-normalized-duplicates.md)
 - [0027: Record administration mutations in an append-only audit log](0027-append-only-admin-audit-log.md)
+- [0028: Detect stale invoices by issue date](0028-stale-invoice-detection.md)
