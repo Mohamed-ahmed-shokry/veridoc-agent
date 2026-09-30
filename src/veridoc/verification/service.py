@@ -20,6 +20,7 @@ from veridoc.verification.purchase_orders import (
     check_purchase_order_ceiling,
 )
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
+from veridoc.verification.staleness import check_invoice_staleness
 from veridoc.verification.vendor_rules import check_vendor_registry
 from veridoc.verification.vendors import vendor_key_for
 
@@ -46,6 +47,7 @@ class VerificationService:
     def verify(self, invoice: InvoiceExtraction) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_arithmetic(invoice)
+        findings.extend(check_invoice_staleness(invoice))
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)
