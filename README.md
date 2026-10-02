@@ -522,19 +522,7 @@ The current HTTP application reads these process environment variables:
 | `VERIDOC_REVIEW_ORIGIN` | none | Required exact HTTPS browser origin for `/review/*` |
 | `VERIDOC_REVIEW_DATABASE` | `veridoc-review.sqlite3` | Local SQLite path for the dedicated review store |
 
-The application does not load `.env`. Never commit real credentials, invoices,
-production documents, personal information, customer data, or confidential
-business data. Tests use deterministic fictional fixtures only; see the
-[fixture-generation guide](tests/fixtures/README.md) before adding one. See
-[data and security](docs/data-and-security.md) for the full policy.
 
-## Phase roadmap
-
-| Phase | Scope | Status |
-| --- | --- | --- |
-| 0 | Repository, FastAPI health scaffold, tests, initial documentation | Complete |
-| 1 | Safe invoice ingestion and one OCR baseline | Complete |
-| 2 | Typed invoice extraction and LangGraph state/node | Complete |
 | 3 | SQLite reference repository and deterministic/statistical verification | Complete |
 | 4 | Evidence-grounded explanation layer | Complete |
 | 5 | Complete processing API and minimal review interface | Complete |
