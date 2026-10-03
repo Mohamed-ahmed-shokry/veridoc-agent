@@ -947,6 +947,43 @@ API, schema migration, new dependency, route, or threshold change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator
 environment.
 
+## Phase 22 completion snapshot
+
+The local Phase 22 completion gate was recorded on 2026-10-04 against commit
+`cf7e952` before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | 278 files already formatted |
+| `uv run mypy` | No issues in 109 production source files |
+| `uv run pytest --cov=veridoc` | 1173 passed; 93.65% branch coverage against a 90% floor |
+| `uv run pytest tests/test_verification_future_dates.py` | 19 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | PASSED |
+| `uv run python scripts/check_distribution.py` | Validated wheel and source distribution |
+| Isolated wheel smoke test | PASSED |
+| Isolated source-distribution smoke test | PASSED |
+| `git diff --check` | Clean (zero whitespace errors) |
+| `git status --short` | Clean worktree |
+
+The Phase 22 deliverables (`future_invoice_date` finding type, `check_future_invoice_date`
+pure function with injected reference date, `VerificationService` integration,
+19 future invoice date tests, ADR 0029, updated testing.md inventory, updated AGENTS.md,
+updated roadmap, and updated CHANGELOG) are fully verified and documented. No
+API, schema migration, new dependency, route, or threshold change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator
+environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
