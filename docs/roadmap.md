@@ -27,6 +27,7 @@ boundaries only and require separate approval before implementation.
 | 19 | Reference CLI record completion: invoice and purchase-order writes | Complete |
 | 20 | Review operator inspection, console filtering, and session lifecycle | Complete |
 | 21 | Stale invoice detection rule (ADR 0028) | Complete |
+| 22 | Future invoice date detection rule (ADR 0029) | Complete |
 
 ## Phase 7: release engineering
 
@@ -849,9 +850,66 @@ repository method, or threshold-calibration change is required.
 - `test_documentation.py` validates the updated test-module inventory;
 - no pre-existing test regressions.
 
+## Phase 22: future invoice date detection
+
+### Objective
+
+Add a deterministic `future_invoice_date` verification rule to catch
+post-dated or forward-dated invoices whose issue date occurs after the current
+processing date.
+
+### Problem
+
+The verification layer checks relative dates within an invoice
+(`invoice_date <= due_date`) and historical staleness (`invoice_date < today - 90 days`),
+but has no check for invoices dated in the future. In accounts payable operations,
+tax compliance (VAT, GST, sales tax), and accounting standards (GAAP, IFRS), an
+invoice dated in the future cannot legally be posted or claimed for input tax
+deductions prior to its tax point / issue date. Post-dated invoices are classic
+indicators of accounting cutoff manipulation, premature billing fraud, or vision/OCR
+date extraction errors (such as year hallucination or month-day transposition).
+An invoice dated in the future previously evaded all verification rules and yielded
+an unearned `clear` verdict.
+
+### Decision summary
+
+See [ADR 0029](decisions/0029-future-invoice-date-detection.md). The rule fires when
+`invoice_date > today`. Severity is `medium` (warrants human review; not fatal
+rejection alone, allowing review of timezone drift or clerical errors). The
+reference date is injected as a parameter for determinism (defaulting to UTC today).
+Unlike staleness, purchase orders and zero/credit totals do not suppress the check:
+a purchase order never authorizes billing in the future, and post-dated credit memos
+are equally invalid. No migration or threshold calibration is required.
+
+### Deliverables
+
+- `future_invoice_date` added to `FindingType` in `veridoc.verification.models`;
+- `check_future_invoice_date()` pure function in `veridoc.verification.future_dates`
+  with injected reference date;
+- `VerificationService.verify()` calls `check_future_invoice_date` alongside
+  `check_invoice_staleness`;
+- `tests/test_verification_future_dates.py` covering all paths: non-triggering
+  paths (absent date, today, past dates), triggering paths (tomorrow, far future,
+  singular/plural day formatting, total independence, PO independence),
+  immutability, default reference date, and service/verdict integration;
+- `docs/decisions/0029-future-invoice-date-detection.md` (ADR 0029);
+- `docs/testing.md` inventory updated;
+- `AGENTS.md` updated to reflect all 22 complete phases;
+- `CHANGELOG.md` updated.
+
+### Acceptance criteria
+
+- `future_invoice_date` appears in `FindingType` and is accepted by `VerificationFinding`;
+- the pure function returns exactly one finding for post-dated invoices and an
+  empty list for current, past, or absent dates;
+- `VerificationService` includes future invoice date findings in its output;
+- all future date tests pass and the full quality gate passes;
+- `test_documentation.py` validates the updated test-module inventory and links;
+- no pre-existing test regressions.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 21 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 22 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
