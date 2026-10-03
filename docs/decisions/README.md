@@ -45,3 +45,4 @@ Accepted decisions:
 - [0026: Use one-sided PO ceilings and normalized invoice-number identity](0026-one-sided-po-ceilings-and-normalized-duplicates.md)
 - [0027: Record administration mutations in an append-only audit log](0027-append-only-admin-audit-log.md)
 - [0028: Detect stale invoices by issue date](0028-stale-invoice-detection.md)
+- [0029: Detect future-dated invoices by issue date](0029-future-invoice-date-detection.md)
