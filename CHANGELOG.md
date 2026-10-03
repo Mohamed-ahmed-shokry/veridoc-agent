@@ -8,6 +8,23 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 22 future invoice date detection:
+  - Architecture Decision Record 0029 documenting the post-dated fraud model,
+    accounting cutoff evasion, tax input invalidity, and date extraction error patterns.
+  - `future_invoice_date` added to the `FindingType` literal union in
+    `veridoc.verification.models`.
+  - `check_future_invoice_date()` pure function in `veridoc.verification.future_dates`
+    returning a `medium`-severity `future_invoice_date` finding for invoices whose
+    `invoice_date` is strictly after the reference date (`invoice_date > today`),
+    with singular/plural day formatting and injectable reference date.
+  - `VerificationService.verify()` calls `check_future_invoice_date` alongside
+    `check_invoice_staleness`, adding future date findings to verification results
+    and driving the processing verdict to `review_required`.
+  - 19 focused tests in `tests/test_verification_future_dates.py` covering all
+    non-triggering paths (absent date, today, past dates), triggering paths
+    (tomorrow, far future, singular/plural day formatting, total independence,
+    PO independence), immutability, default and explicit reference dates, service
+    integration, and processing verdict derivation.
 - Phase 21 stale invoice detection:
   - Architecture Decision Record 0028 documenting the fraud model, exclusion
     rationale for PO-anchored and zero-total invoices, and the 90-day threshold.
