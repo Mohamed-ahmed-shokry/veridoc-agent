@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import date
 from typing import cast
 
 from veridoc.extraction.models import InvoiceExtraction
@@ -9,6 +10,7 @@ from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.vendors.protocol import VendorRepository
 from veridoc.verification.arithmetic import check_arithmetic
 from veridoc.verification.field_history import check_payment_terms
+from veridoc.verification.future_dates import check_future_invoice_date
 from veridoc.verification.history import check_historical_total
 from veridoc.verification.line_items import (
     check_line_item_occurrence,
@@ -44,10 +46,17 @@ class VerificationService:
             )
         )
 
-    def verify(self, invoice: InvoiceExtraction) -> VerificationResult:
+    def verify(
+        self,
+        invoice: InvoiceExtraction,
+        reference_date: date | None = None,
+    ) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_arithmetic(invoice)
-        findings.extend(check_invoice_staleness(invoice))
+        findings.extend(check_invoice_staleness(invoice, reference_date=reference_date))
+        findings.extend(
+            check_future_invoice_date(invoice, reference_date=reference_date)
+        )
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)
