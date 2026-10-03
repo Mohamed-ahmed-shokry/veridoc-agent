@@ -38,6 +38,7 @@ FindingType = Literal[
     "vendor_bank_account_mismatch",
     "vendor_tax_id_mismatch",
     "stale_invoice",
+    "future_invoice_date",
 ]
 
 
