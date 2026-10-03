@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 21 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 22 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -231,6 +231,11 @@ implementation remains deliberately small:
   date, exact threshold boundary, PO anchor) and all triggering paths (one day past
   threshold, very old date, minimal positive total, parametrized PO suppression, and
   decimal accuracy).
+- `tests/test_verification_future_dates.py` covers Phase 22 deterministic future
+  invoice date detection: non-triggering paths (absent date, today, past dates)
+  and triggering paths (tomorrow, far future, singular/plural day formatting,
+  positive/zero/negative/absent total, PO presence, immutability, default and
+  explicit reference dates, service integration, and processing verdict).
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -276,7 +281,10 @@ automated session pruning in scheduled deployment maintenance (`veridoc-backup -
 and DOM-safe review console status and assignee filtering. Phase 21 adds a
 deterministic `stale_invoice` verification rule (ADR 0028) flagging invoices
 dated more than 90 days before the current processing date with no PO reference
-and a positive total.
+and a positive total. Phase 22 adds a deterministic `future_invoice_date`
+verification rule (ADR 0029) flagging invoices dated strictly after the
+current processing date to detect post-dated fraud, cutoff evasion, and date
+extraction errors.
 
 The current and planned workflow is:
 
@@ -454,6 +462,7 @@ uv run pytest tests/test_review_evidence.py
 uv run pytest tests/test_review_evidence_cli.py
 uv run pytest tests/test_review_case_evidence_api.py
 uv run pytest tests/test_verification_staleness.py
+uv run pytest tests/test_verification_future_dates.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -644,6 +653,8 @@ documentation set is:
   administration audit log decision.
 - `docs/decisions/0028-stale-invoice-detection.md` for the 90-day stale invoice
   detection rule, exclusion rationale, and fraud model.
+- `docs/decisions/0029-future-invoice-date-detection.md` for the future invoice
+  date detection rule, cutoff evasion rationale, and fraud model.
 - `docs/runbook.md` for deployment operations, container management, incident
   response, backup/restore drills, and secret rotation.
 - `tests/fixtures/README.md` for deterministic fictional fixture use and
@@ -774,8 +785,10 @@ following documentation commit.
 - Phase 21: stale invoice detection — deterministic `stale_invoice` verification
   rule for backdated or resubmitted invoices with no PO reference (ADR 0028).
   **Complete.**
+- Phase 22: future invoice date detection — deterministic `future_invoice_date`
+  verification rule for post-dated invoices (ADR 0029). **Complete.**
 
-Phases 0 through 13 and Phases 15 through 21 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 22 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
