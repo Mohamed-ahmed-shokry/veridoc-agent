@@ -984,6 +984,37 @@ API, schema migration, new dependency, route, or threshold change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator
 environment.
 
+## Phase 23 completion snapshot
+
+The local Phase 23 completion gate was recorded on 2026-10-05 against commit
+`522f7eb` before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | 281 files already formatted |
+| `uv run mypy` | No issues in 110 production source files |
+| `uv run pytest` | 1195 passed |
+| `uv run pytest tests/test_verification_duplicate_line_items.py` | 21 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `git diff --check` | Clean (zero whitespace errors) |
+| `git status --short` | Clean worktree |
+
+The Phase 23 deliverables (`duplicate_line_item` finding type, `check_duplicate_line_items`
+pure function, `VerificationService` integration, 21 duplicate line item tests,
+ADR 0030, updated testing.md inventory, updated AGENTS.md, updated roadmap, and
+updated CHANGELOG) are fully verified and documented. No API, schema migration,
+new dependency, route, or threshold change was made. Phase 14 remains planned
+but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
