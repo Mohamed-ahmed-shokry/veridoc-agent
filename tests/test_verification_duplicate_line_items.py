@@ -436,8 +436,12 @@ def test_product_identifier_takes_precedence_over_differing_description() -> Non
 
 
 def test_duplicate_line_item_immutability() -> None:
-    line_0 = _line_item(product_identifier="IMMUTABLE-1", quantity="1", unit_price="5.00")
-    line_1 = _line_item(product_identifier="IMMUTABLE-1", quantity="1", unit_price="5.00")
+    line_0 = _line_item(
+        product_identifier="IMMUTABLE-1", quantity="1", unit_price="5.00"
+    )
+    line_1 = _line_item(
+        product_identifier="IMMUTABLE-1", quantity="1", unit_price="5.00"
+    )
     invoice = _invoice(line_items=[line_0, line_1])
 
     original_dump = invoice.model_dump()
@@ -483,8 +487,12 @@ def test_verification_service_includes_duplicate_line_item_findings() -> None:
 def test_derive_verdict_high_severity_for_exact_duplicate() -> None:
     invoice = _invoice(
         line_items=[
-            _line_item(product_identifier="SKU-EXACT", quantity="1", unit_price="50.00"),
-            _line_item(product_identifier="SKU-EXACT", quantity="1", unit_price="50.00"),
+            _line_item(
+                product_identifier="SKU-EXACT", quantity="1", unit_price="50.00"
+            ),
+            _line_item(
+                product_identifier="SKU-EXACT", quantity="1", unit_price="50.00"
+            ),
         ]
     )
     findings = check_duplicate_line_items(invoice)
@@ -498,8 +506,12 @@ def test_derive_verdict_high_severity_for_exact_duplicate() -> None:
 def test_derive_verdict_medium_severity_for_partial_duplicate() -> None:
     invoice = _invoice(
         line_items=[
-            _line_item(product_identifier="SKU-PARTIAL", quantity="1", unit_price="50.00"),
-            _line_item(product_identifier="SKU-PARTIAL", quantity="2", unit_price="50.00"),
+            _line_item(
+                product_identifier="SKU-PARTIAL", quantity="1", unit_price="50.00"
+            ),
+            _line_item(
+                product_identifier="SKU-PARTIAL", quantity="2", unit_price="50.00"
+            ),
         ]
     )
     findings = check_duplicate_line_items(invoice)
