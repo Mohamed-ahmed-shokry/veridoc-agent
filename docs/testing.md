@@ -141,6 +141,7 @@ tests/
 ├── test_verification_vendor_rules.py Phase 12 vendor and bank account reconciliation rules
 ├── test_verification_staleness.py   Phase 21 stale invoice detection rule and exclusion paths
 ├── test_verification_future_dates.py Phase 22 future invoice date detection rule and paths
+├── test_verification_duplicate_line_items.py Phase 23 duplicate line item detection rule and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
