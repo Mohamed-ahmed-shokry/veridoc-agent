@@ -9,6 +9,7 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.vendors.protocol import VendorRepository
 from veridoc.verification.arithmetic import check_arithmetic
+from veridoc.verification.duplicate_line_items import check_duplicate_line_items
 from veridoc.verification.field_history import check_payment_terms
 from veridoc.verification.future_dates import check_future_invoice_date
 from veridoc.verification.history import check_historical_total
@@ -53,6 +54,7 @@ class VerificationService:
     ) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_arithmetic(invoice)
+        findings.extend(check_duplicate_line_items(invoice))
         findings.extend(check_invoice_staleness(invoice, reference_date=reference_date))
         findings.extend(
             check_future_invoice_date(invoice, reference_date=reference_date)
