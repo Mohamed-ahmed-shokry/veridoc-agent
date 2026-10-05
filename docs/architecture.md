@@ -417,10 +417,10 @@ current boundaries rather than bypass them:
 - evaluation must report OCR/extraction quality separately from deterministic
   verification-rule coverage and end-to-end operational performance.
 
-Phase 9 is implemented as described above. Phases 10 through 13 and Phase 15
-are complete; Phase 14 is planned but blocked on a Tesseract-equipped
-operator environment, and Phase 16 is in progress. See the
-[project roadmap](roadmap.md) for the current phase status.
+Phase 9 is implemented as described above. Phases 10 through 13 and Phases 15
+through 23 are complete; Phase 14 is planned but blocked on a Tesseract-equipped
+operator environment. See the [project roadmap](roadmap.md) for the current
+phase status.
 
 ## External boundaries
 

@@ -28,6 +28,7 @@ boundaries only and require separate approval before implementation.
 | 20 | Review operator inspection, console filtering, and session lifecycle | Complete |
 | 21 | Stale invoice detection rule (ADR 0028) | Complete |
 | 22 | Future invoice date detection rule (ADR 0029) | Complete |
+| 23 | Duplicate line item detection rule (ADR 0030) | Complete |
 
 ## Phase 7: release engineering
 
@@ -907,9 +908,85 @@ are equally invalid. No migration or threshold calibration is required.
 - `test_documentation.py` validates the updated test-module inventory and links;
 - no pre-existing test regressions.
 
+## Phase 23: duplicate line item detection
+
+### Objective
+
+Add a deterministic `duplicate_line_item` verification rule to detect repeated
+or duplicate line items within a single invoice, preventing double-billing fraud,
+data entry duplication, and OCR table extraction artifacts from receiving an
+unearned `clear` verdict.
+
+### Problem
+
+The verification layer validates arithmetic consistency (subtotals, tax, discounts,
+line-item math, totals), temporal dates (future issue dates, stale invoices, due
+date ordering), vendor registry compliance, cross-invoice duplicate invoice numbers,
+and historical statistics. However, it previously lacked any intra-invoice check for
+duplicate line items.
+
+In accounts payable and invoice processing, duplicate line items represent a major
+clerical error and billing fraud pattern:
+
+1. **Double-billing fraud and data entry errors** — an issuer inadvertently or
+   intentionally lists the same deliverable, fee, or service multiple times
+   on a single invoice. Because the arithmetic engine validates the subtotal as the
+   sum of line-item totals (`sum(line_item.total_price) == subtotal`), an invoice
+   containing duplicated lines passes arithmetic validation without error.
+2. **Vision extraction and OCR artifacts** — vision-language models and OCR layout
+   engines occasionally re-read table rows, transcribe overlapping bounding boxes,
+   or generate duplicate structured line items from repeated headers or page
+   transitions.
+
+An invoice with duplicated lines previously passed arithmetic, temporal, and historical
+verification, receiving an unearned `clear` processing verdict unless an external
+purchase order happened to be attached or total outliers were triggered. Detecting
+duplicate line items within an invoice prevents automated acceptance of double-billed
+charges.
+
+### Decision summary
+
+See [ADR 0030](decisions/0030-duplicate-line-item-detection.md). The rule inspects
+`invoice.line_items` and computes comparison keys using `line_item_key` from
+`veridoc.verification.line_items`, canonicalizing whitespace and letter casing.
+When two or more line items share the same key, every occurrence after the first
+generates a `duplicate_line_item` finding referencing the initial occurrence index.
+Severity is differentiated based on matching depth:
+- `high` severity for exact duplicates where both `quantity` and `unit_price` match;
+- `medium` severity for partial duplicates where the key matches but `quantity` or
+  `unit_price` differs (or is omitted), routing split deliveries to human review.
+Comparison source is `"invoice_line_items"`, and deterministic rule is
+`"line items within an invoice must be unique by product identifier or description"`.
+No migration, repository change, or threshold calibration is required.
+
+### Deliverables
+
+- `duplicate_line_item` added to `FindingType` in `veridoc.verification.models`;
+- `check_duplicate_line_items()` pure function in `veridoc.verification.duplicate_line_items`;
+- `VerificationService.verify()` calls `check_duplicate_line_items`;
+- `tests/test_verification_duplicate_line_items.py` covering all paths: empty/single line
+  items, distinct lines, missing identifiers, exact matches (product ID, description),
+  casing/whitespace normalization, partial matches (differing quantity, differing unit
+  price, missing values), triple duplicates, multiple groups, interleaved lines,
+  immutability, service integration, and verdict derivation;
+- `docs/decisions/0030-duplicate-line-item-detection.md` (ADR 0030);
+- `docs/testing.md` inventory updated;
+- `AGENTS.md` updated to reflect all 23 complete phases;
+- `CHANGELOG.md` updated.
+
+### Acceptance criteria
+
+- `duplicate_line_item` appears in `FindingType` and is accepted by `VerificationFinding`;
+- the pure function returns findings for duplicate line items (high for exact, medium for
+  partial) and an empty list for unique line items;
+- `VerificationService` includes duplicate line item findings in its output;
+- all duplicate line item tests pass and the full quality gate passes;
+- `test_documentation.py` validates the updated test-module inventory and links;
+- no pre-existing test regressions.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 22 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 23 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
