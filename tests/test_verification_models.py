@@ -48,3 +48,18 @@ def test_verification_finding_rejects_invalid_evidence() -> None:
         )
     with pytest.raises(ValidationError):
         VerificationResult(unexpected="value")
+
+
+def test_verification_finding_accepts_duplicate_line_item() -> None:
+    finding = VerificationFinding(
+        finding_type="duplicate_line_item",
+        severity="high",
+        explanation="Line item 1 is a duplicate of line item 0.",
+        comparison_source="invoice_line_items",
+        deterministic_rule="line items within an invoice must be unique by product identifier or description",
+        observed_value="product:sku-100",
+        expected_value="unique line item",
+        details={"line_item_index": 1, "duplicate_of_index": 0, "match_type": "exact"},
+    )
+    assert finding.finding_type == "duplicate_line_item"
+    assert finding.severity == "high"
