@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 22 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 23 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -236,6 +236,12 @@ implementation remains deliberately small:
   and triggering paths (tomorrow, far future, singular/plural day formatting,
   positive/zero/negative/absent total, PO presence, immutability, default and
   explicit reference dates, service integration, and processing verdict).
+- `tests/test_verification_duplicate_line_items.py` covers Phase 23 deterministic duplicate
+  line item detection: non-triggering paths (empty/single lines, distinct lines, missing
+  identifiers), triggering paths (exact matches, casing/whitespace normalization, partial
+  matches with differing quantity/unit price or missing values, multiple duplicates,
+  multiple groups, interleaved lines, immutability, service integration, and verdict
+  derivation).
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -284,7 +290,10 @@ dated more than 90 days before the current processing date with no PO reference
 and a positive total. Phase 22 adds a deterministic `future_invoice_date`
 verification rule (ADR 0029) flagging invoices dated strictly after the
 current processing date to detect post-dated fraud, cutoff evasion, and date
-extraction errors.
+extraction errors. Phase 23 adds a deterministic `duplicate_line_item`
+verification rule (ADR 0030) detecting repeated or duplicate line items within
+a single invoice to flag double-billing fraud, data entry duplication, and
+OCR table extraction artifacts.
 
 The current and planned workflow is:
 
@@ -463,6 +472,7 @@ uv run pytest tests/test_review_evidence_cli.py
 uv run pytest tests/test_review_case_evidence_api.py
 uv run pytest tests/test_verification_staleness.py
 uv run pytest tests/test_verification_future_dates.py
+uv run pytest tests/test_verification_duplicate_line_items.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -787,8 +797,10 @@ following documentation commit.
   **Complete.**
 - Phase 22: future invoice date detection — deterministic `future_invoice_date`
   verification rule for post-dated invoices (ADR 0029). **Complete.**
+- Phase 23: duplicate line item detection — deterministic `duplicate_line_item`
+  verification rule for repeated line items within an invoice (ADR 0030). **Complete.**
 
-Phases 0 through 13 and Phases 15 through 22 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 23 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
