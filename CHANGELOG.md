@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 23 duplicate line item detection:
+  - Architecture Decision Record 0030 documenting intra-invoice duplicate line item risks, double-billing fraud, data entry repetition, and OCR table extraction artifacts.
+  - `duplicate_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - `check_duplicate_line_items()` pure function in `veridoc.verification.duplicate_line_items` identifying repeated product identifiers and descriptions via `line_item_key`, producing `high`-severity findings for exact duplicates (identical quantity and unit price) and `medium`-severity findings for partial duplicates (differing quantity or unit price).
+  - `VerificationService.verify()` calls `check_duplicate_line_items`, adding duplicate line item findings to verification results and routing affected invoices to human review.
+  - 21 focused tests in `tests/test_verification_duplicate_line_items.py` covering empty/single lines, distinct lines, missing identifiers, exact matches (product ID, description), casing/whitespace normalization, partial matches (differing quantity, differing unit price, missing values), triple duplicates, multiple groups, interleaved lines, immutability, service integration, and verdict derivation.
 - Phase 22 future invoice date detection:
   - Architecture Decision Record 0029 documenting the post-dated fraud model,
     accounting cutoff evasion, tax input invalidity, and date extraction error patterns.
