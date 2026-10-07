@@ -47,3 +47,4 @@ Accepted decisions:
 - [0028: Detect stale invoices by issue date](0028-stale-invoice-detection.md)
 - [0029: Detect future-dated invoices by issue date](0029-future-invoice-date-detection.md)
 - [0030: Detect duplicate line items within an invoice](0030-duplicate-line-item-detection.md)
+- [0031: Detect non-positive invoice totals](0031-non-positive-invoice-total-detection.md)
