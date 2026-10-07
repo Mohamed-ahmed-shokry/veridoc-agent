@@ -63,3 +63,23 @@ def test_verification_finding_accepts_duplicate_line_item() -> None:
     )
     assert finding.finding_type == "duplicate_line_item"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_non_positive_invoice_total() -> None:
+    finding = VerificationFinding(
+        finding_type="non_positive_invoice_total",
+        severity="high",
+        explanation="The invoice total is negative (-100.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.total > 0",
+        observed_value="-100.00",
+        expected_value="> 0.00",
+        details={
+            "field": "total",
+            "total": "-100.00",
+            "is_zero": False,
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "non_positive_invoice_total"
+    assert finding.severity == "high"

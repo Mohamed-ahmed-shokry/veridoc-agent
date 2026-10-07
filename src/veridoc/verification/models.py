@@ -40,6 +40,7 @@ FindingType = Literal[
     "stale_invoice",
     "future_invoice_date",
     "duplicate_line_item",
+    "non_positive_invoice_total",
 ]
 
 
