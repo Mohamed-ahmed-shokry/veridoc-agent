@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 23 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 24 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -242,6 +242,11 @@ implementation remains deliberately small:
   matches with differing quantity/unit price or missing values, multiple duplicates,
   multiple groups, interleaved lines, immutability, service integration, and verdict
   derivation).
+- `tests/test_verification_invoice_totals.py` covers Phase 24 deterministic non-positive
+  invoice total detection: non-triggering paths (absent total, positive totals, minimal
+  positive), triggering paths (zero totals across representations, negative totals across
+  scales, currency preservation, negative zero, PO/date/line-item independence,
+  immutability, service integration, and verdict derivation).
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -293,7 +298,11 @@ current processing date to detect post-dated fraud, cutoff evasion, and date
 extraction errors. Phase 23 adds a deterministic `duplicate_line_item`
 verification rule (ADR 0030) detecting repeated or duplicate line items within
 a single invoice to flag double-billing fraud, data entry duplication, and
-OCR table extraction artifacts.
+OCR table extraction artifacts. Phase 24 adds a deterministic
+`non_positive_invoice_total` verification rule (ADR 0031) detecting invoices
+with zero or negative total amounts to prevent zero-dollar vouchers, pro-forma
+documents, credit notes misclassified as invoices, and negative billing fraud
+from receiving an unearned clear verdict.
 
 The current and planned workflow is:
 
@@ -473,6 +482,7 @@ uv run pytest tests/test_review_case_evidence_api.py
 uv run pytest tests/test_verification_staleness.py
 uv run pytest tests/test_verification_future_dates.py
 uv run pytest tests/test_verification_duplicate_line_items.py
+uv run pytest tests/test_verification_invoice_totals.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -799,8 +809,10 @@ following documentation commit.
   verification rule for post-dated invoices (ADR 0029). **Complete.**
 - Phase 23: duplicate line item detection — deterministic `duplicate_line_item`
   verification rule for repeated line items within an invoice (ADR 0030). **Complete.**
+- Phase 24: non-positive invoice total detection — deterministic `non_positive_invoice_total`
+  verification rule for zero and negative invoice totals (ADR 0031). **Complete.**
 
-Phases 0 through 13 and Phases 15 through 23 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 24 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
