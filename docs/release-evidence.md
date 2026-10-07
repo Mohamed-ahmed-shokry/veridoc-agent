@@ -1015,6 +1015,44 @@ updated CHANGELOG) are fully verified and documented. No API, schema migration,
 new dependency, route, or threshold change was made. Phase 14 remains planned
 but blocked on a Tesseract-equipped operator environment.
 
+## Phase 24 completion snapshot
+
+The local Phase 24 completion gate was recorded on 2026-10-07 against commit
+`87bf15d` before this evidence section was added.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | 284 files already formatted |
+| `uv run mypy` | No issues in 111 production source files |
+| `uv run pytest --cov=veridoc` | 1224 passed; 93.70% branch coverage against a 90% floor |
+| `uv run pytest tests/test_verification_invoice_totals.py` | 28 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help`, `veridoc-review --help`, `veridoc-backup --help`, `veridoc-quarantine --help`, and `veridoc-evaluate --help` |
+| `git diff --check` | Clean (zero whitespace errors) |
+| `git status --short` | Clean worktree |
+
+The Phase 24 deliverables (`non_positive_invoice_total` finding type, `check_non_positive_invoice_total`
+pure function in `veridoc.verification.invoice_totals`, `VerificationService` integration,
+28 non-positive total tests, ADR 0031, updated testing.md inventory, updated AGENTS.md,
+updated architecture.md, updated roadmap, and updated CHANGELOG) are fully verified and documented.
+No API, schema migration, new dependency, route, or threshold change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
