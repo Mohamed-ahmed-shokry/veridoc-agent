@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 24 non-positive invoice total detection:
+  - Architecture Decision Record 0031 documenting non-positive invoice total risks, credit notes misclassified as invoices, zero-dollar voucher anomalies, debit manipulation, and OCR extraction failures.
+  - `non_positive_invoice_total` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - `check_non_positive_invoice_total()` pure function in `veridoc.verification.invoice_totals` identifying zero and negative totals, producing `high`-severity findings for negative totals (`total < 0`) and `medium`-severity findings for zero totals (`total == 0`), with structured details and currency preservation.
+  - `VerificationService.verify()` calls `check_non_positive_invoice_total`, adding non-positive total findings to verification results and driving the processing verdict to `review_required`.
+  - 28 focused tests in `tests/test_verification_invoice_totals.py` covering absent totals, positive totals, minimal positive, zero totals across representations (standard, integer, multi-decimal, Decimal), negative totals across scales (standard, minimal, large), currency preservation, negative zero, PO/date/line-item independence, immutability, service integration, and processing verdict derivation.
 - Phase 23 duplicate line item detection:
   - Architecture Decision Record 0030 documenting intra-invoice duplicate line item risks, double-billing fraud, data entry repetition, and OCR table extraction artifacts.
   - `duplicate_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
