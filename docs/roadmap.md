@@ -29,6 +29,7 @@ boundaries only and require separate approval before implementation.
 | 21 | Stale invoice detection rule (ADR 0028) | Complete |
 | 22 | Future invoice date detection rule (ADR 0029) | Complete |
 | 23 | Duplicate line item detection rule (ADR 0030) | Complete |
+| 24 | Non-positive invoice total detection rule (ADR 0031) | Complete |
 
 ## Phase 7: release engineering
 
@@ -984,9 +985,87 @@ No migration, repository change, or threshold calibration is required.
 - `test_documentation.py` validates the updated test-module inventory and links;
 - no pre-existing test regressions.
 
+## Phase 24: non-positive invoice total detection
+
+### Objective
+
+Add a deterministic `non_positive_invoice_total` verification rule to detect
+invoices with zero or negative total amounts, preventing zero-dollar vouchers,
+pro-forma documents, credit notes misclassified as invoices, and negative
+billing fraud from receiving an unearned `clear` processing verdict.
+
+### Problem
+
+The verification layer validates arithmetic consistency (subtotals, tax, discounts,
+line-item multiplication, totals), temporal dates (future issue dates, stale invoices,
+due date ordering), duplicate line items, duplicate invoice numbers, purchase-order
+authorization ceilings, and vendor registry compliance. However, it previously lacked
+any check ensuring that the invoice total payable is strictly positive.
+
+In accounts payable and invoice processing:
+
+1. **Commercial invoices demand positive payment** — A commercial invoice
+   (`document_type="invoice"`) is a demand for payment for goods or services delivered.
+   Under standard accounting rules (GAAP, IFRS) and tax regulations, an invoice
+   must specify a strictly positive payable total (`total > 0`).
+2. **Zero-total invoices (`total == 0`)** — An invoice requesting $0.00 is an
+   operational anomaly. It may be an informational delivery slip, pro-forma quote,
+   warranty replacement slip, or sample notice erroneously submitted as an invoice.
+   Alternatively, it is a frequent vision/OCR extraction defect where the monetary total
+   was occluded, blanked, or misparsed as zero. Allowing zero-dollar invoices to clear
+   automatically risks marking unfulfilled purchase-order lines as completed or
+   polluting accounting registers with zero-value vouchers.
+3. **Negative-total invoices (`total < 0`)** — An invoice specifying a negative
+   payable balance represents a credit memo, debit adjustment, or refund claim.
+   Processing a negative amount through a standard invoice pipeline without dedicated
+   credit authorization can corrupt accounts payable balances, generate erroneous
+   payment batches, or facilitate unauthorized debit manipulation.
+
+Previously, an invoice with `total <= 0` whose arithmetic balanced (e.g.
+`-100.00 + 0 - 0 == -100.00` or `0.00 + 0 - 0 == 0.00`) passed arithmetic validation,
+was ignored by staleness checks (`total <= 0`), and was less than any positive
+purchase-order ceiling, thereby receiving an unearned `clear` verdict.
+
+### Decision summary
+
+See [ADR 0031](decisions/0031-non-positive-invoice-total-detection.md). The rule inspects
+`invoice.total`. When `invoice.total <= Decimal(0)`, exactly one `non_positive_invoice_total`
+finding is generated. Severity is differentiated based on financial risk:
+- `high` severity for negative totals (`total < 0`), flagging credit notes and billing
+  reversals requiring immediate human verification;
+- `medium` severity for zero totals (`total == 0`), flagging zero-value vouchers and
+  extraction artifacts for review.
+Absent totals (`total is None`) and strictly positive totals (`total > 0`) produce no
+findings. Comparison source is `"invoice_fields"`, and deterministic rule is
+`"invoice.total > 0"`. No migration or external dependency is required.
+
+### Deliverables
+
+- `non_positive_invoice_total` added to `FindingType` in `veridoc.verification.models`;
+- `check_non_positive_invoice_total()` pure function in `veridoc.verification.invoice_totals`;
+- `VerificationService.verify()` calls `check_non_positive_invoice_total`;
+- `tests/test_verification_invoice_totals.py` covering all paths: absent total, positive
+  totals, minimal positive, zero totals (standard, integer, multi-decimal, Decimal),
+  negative totals (standard, minimal, large), currency preservation, negative zero,
+  PO/date/line-item independence, immutability, service integration, and verdict derivation;
+- `docs/decisions/0031-non-positive-invoice-total-detection.md` (ADR 0031);
+- `docs/testing.md` inventory updated;
+- `AGENTS.md` updated to reflect all 24 complete phases;
+- `CHANGELOG.md` updated.
+
+### Acceptance criteria
+
+- `non_positive_invoice_total` appears in `FindingType` and is accepted by `VerificationFinding`;
+- the pure function returns findings for non-positive totals (high for negative, medium
+  for zero) and an empty list for positive or absent totals;
+- `VerificationService` includes non-positive invoice total findings in its output;
+- all 28 non-positive total tests pass and the full quality gate passes;
+- `test_documentation.py` validates the updated test-module inventory and links;
+- no pre-existing test regressions.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 23 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 24 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
