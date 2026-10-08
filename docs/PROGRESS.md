@@ -16,8 +16,8 @@
 | 3 | Add `non_positive_line_item` to `FindingType` & model unit tests | Done | `db74988` |
 | 4 | Implement `check_non_positive_line_items` in `veridoc.verification.line_item_amounts` | Done | `4650091` |
 | 5 | Integrate `check_non_positive_line_items` into `VerificationService.verify()` | Done | `0ff3960` |
-| 6 | Add comprehensive test suite in `tests/test_verification_line_item_amounts.py` | Done | Pending |
-| 7 | Update `docs/testing.md` test inventory | Not Started | |
+| 6 | Add comprehensive test suite in `tests/test_verification_line_item_amounts.py` | Done | `893b789` |
+| 7 | Update `docs/testing.md` test inventory | Done | Pending |
 | 8 | Update `docs/architecture.md` | Not Started | |
 | 9 | Update `AGENTS.md` | Not Started | |
 | 10 | Update `CHANGELOG.md` | Not Started | |
