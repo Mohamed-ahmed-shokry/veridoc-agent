@@ -83,3 +83,27 @@ def test_verification_finding_accepts_non_positive_invoice_total() -> None:
     )
     assert finding.finding_type == "non_positive_invoice_total"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_non_positive_line_item() -> None:
+    finding = VerificationFinding(
+        finding_type="non_positive_line_item",
+        severity="high",
+        explanation="Line item 0 ('Widget') has a negative total price (-50.00).",
+        comparison_source="invoice_line_items",
+        deterministic_rule="line_item.quantity > 0 and line_item.unit_price > 0 and line_item.total_price > 0",
+        observed_value="total_price=-50.00",
+        expected_value="> 0.00",
+        details={
+            "line_item_index": 0,
+            "product_identifier": "SKU-1",
+            "description": "Widget",
+            "field": "total_price",
+            "total_price": "-50.00",
+            "is_zero": False,
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "non_positive_line_item"
+    assert finding.severity == "high"
+

@@ -12,8 +12,8 @@
 | Step | Task | Status | Commit |
 |---|---|---|---|
 | 1 | Update `docs/roadmap.md` and create `docs/PROGRESS.md` | Done | `d72a132` |
-| 2 | Record ADR 0032 (`docs/decisions/0032-non-positive-line-item-detection.md`) & index | Done | Pending |
-| 3 | Add `non_positive_line_item` to `FindingType` & model unit tests | Not Started | |
+| 2 | Record ADR 0032 (`docs/decisions/0032-non-positive-line-item-detection.md`) & index | Done | `3e40443` |
+| 3 | Add `non_positive_line_item` to `FindingType` & model unit tests | Done | Pending |
 | 4 | Implement `check_non_positive_line_items` in `veridoc.verification.line_item_amounts` | Not Started | |
 | 5 | Integrate `check_non_positive_line_items` into `VerificationService.verify()` | Not Started | |
 | 6 | Add comprehensive test suite in `tests/test_verification_line_item_amounts.py` | Not Started | |
@@ -27,7 +27,7 @@
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `non_positive_line_item` in `FindingType` union and accepted by `VerificationFinding` | Pending | |
+| 1 | `non_positive_line_item` in `FindingType` union and accepted by `VerificationFinding` | Verified | `test_verification_models.py::test_verification_finding_accepts_non_positive_line_item` |
 | 2 | Pure function returns findings for non-positive line items (high for negative, medium for zero) and empty for positive or absent values | Pending | |
 | 3 | `VerificationService` includes non-positive line item findings in output | Pending | |
 | 4 | Non-positive line item findings drive processing verdict to `review_required` | Pending | |
