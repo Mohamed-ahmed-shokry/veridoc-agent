@@ -106,4 +106,3 @@ def test_verification_finding_accepts_non_positive_line_item() -> None:
     )
     assert finding.finding_type == "non_positive_line_item"
     assert finding.severity == "high"
-
