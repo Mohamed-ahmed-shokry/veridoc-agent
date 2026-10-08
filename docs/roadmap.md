@@ -1112,7 +1112,7 @@ unearned `clear` processing verdict.
 
 ### Decision summary
 
-See ADR 0032 (`decisions/0032-non-positive-line-item-detection.md`). The rule inspects
+See [ADR 0032](decisions/0032-non-positive-line-item-detection.md). The rule inspects
 each line item in `invoice.line_items`. When observed, non-null values for
 `quantity`, `unit_price`, or `total_price` are less than or equal to `Decimal(0)`,
 a `non_positive_line_item` finding is generated for that line item. Severity is

@@ -11,8 +11,8 @@
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Update `docs/roadmap.md` and create `docs/PROGRESS.md` | In Progress | Pending |
-| 2 | Record ADR 0032 (`docs/decisions/0032-non-positive-line-item-detection.md`) & index | Not Started | |
+| 1 | Update `docs/roadmap.md` and create `docs/PROGRESS.md` | Done | `d72a132` |
+| 2 | Record ADR 0032 (`docs/decisions/0032-non-positive-line-item-detection.md`) & index | Done | Pending |
 | 3 | Add `non_positive_line_item` to `FindingType` & model unit tests | Not Started | |
 | 4 | Implement `check_non_positive_line_items` in `veridoc.verification.line_item_amounts` | Not Started | |
 | 5 | Integrate `check_non_positive_line_items` into `VerificationService.verify()` | Not Started | |
