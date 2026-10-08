@@ -18,8 +18,8 @@
 | 5 | Integrate `check_non_positive_line_items` into `VerificationService.verify()` | Done | `0ff3960` |
 | 6 | Add comprehensive test suite in `tests/test_verification_line_item_amounts.py` | Done | `893b789` |
 | 7 | Update `docs/testing.md` test inventory | Done | `4c589bc` |
-| 8 | Update `docs/architecture.md` | Done | Pending |
-| 9 | Update `AGENTS.md` | Not Started | |
+| 8 | Update `docs/architecture.md` | Done | `11ccfc0` |
+| 9 | Update `AGENTS.md` | Done | Pending |
 | 10 | Update `CHANGELOG.md` | Not Started | |
 | 11 | Update `docs/release-evidence.md` completion snapshot & roadmap links | Not Started | |
 

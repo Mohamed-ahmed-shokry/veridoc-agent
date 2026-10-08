@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 24 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 25 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -247,6 +247,12 @@ implementation remains deliberately small:
   positive), triggering paths (zero totals across representations, negative totals across
   scales, currency preservation, negative zero, PO/date/line-item independence,
   immutability, service integration, and verdict derivation).
+- `tests/test_verification_line_item_amounts.py` covers Phase 25 deterministic non-positive
+  line item amount and quantity detection: non-triggering paths (empty lines, positive lines,
+  missing optional fields, minimal positive), triggering paths (negative total price, zero total
+  price, negative quantity, zero quantity, negative unit price, zero unit price, multiple
+  non-positive fields, mixed signs, multiple line items), structured details, immutability,
+  service integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -302,7 +308,11 @@ OCR table extraction artifacts. Phase 24 adds a deterministic
 `non_positive_invoice_total` verification rule (ADR 0031) detecting invoices
 with zero or negative total amounts to prevent zero-dollar vouchers, pro-forma
 documents, credit notes misclassified as invoices, and negative billing fraud
-from receiving an unearned clear verdict.
+from receiving an unearned clear verdict. Phase 25 adds a deterministic
+`non_positive_line_item` verification rule (ADR 0032) detecting line items with
+zero or negative amounts, quantities, or unit prices to prevent unauthorized
+credit lines, rebate deductions, returns, zero-dollar vouchers, and OCR
+negative-sign artifacts from receiving an unearned clear verdict.
 
 The current and planned workflow is:
 
@@ -811,8 +821,10 @@ following documentation commit.
   verification rule for repeated line items within an invoice (ADR 0030). **Complete.**
 - Phase 24: non-positive invoice total detection — deterministic `non_positive_invoice_total`
   verification rule for zero and negative invoice totals (ADR 0031). **Complete.**
+- Phase 25: non-positive line item detection — deterministic `non_positive_line_item`
+  verification rule for zero and negative line item amounts, quantities, and unit prices (ADR 0032). **Complete.**
 
-Phases 0 through 13 and Phases 15 through 24 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 25 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
