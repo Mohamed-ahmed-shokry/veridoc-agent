@@ -1063,9 +1063,127 @@ findings. Comparison source is `"invoice_fields"`, and deterministic rule is
 - `test_documentation.py` validates the updated test-module inventory and links;
 - no pre-existing test regressions.
 
+## Phase 25: non-positive line item detection
+
+### Objective
+
+Add a deterministic `non_positive_line_item` verification rule to detect invoice
+line items with zero or negative amounts, unit prices, or quantities, preventing
+unauthorized credit lines, rebate deductions, returns, zero-dollar vouchers, and
+OCR negative-sign artifacts from receiving an unearned `clear` processing verdict.
+
+### Problem
+
+The verification layer validates arithmetic consistency (subtotals, tax, discounts,
+line-item math, totals), temporal dates (future issue dates, stale invoices, due
+date ordering), intra-invoice duplicate line items, duplicate invoice numbers,
+purchase-order authorization ceilings, vendor registry compliance, and overall
+invoice total positivity (`total > 0`, Phase 24). However, it previously lacked
+any constraint on the positivity of individual line items within an invoice.
+
+In accounts payable, enterprise ERPs, and auditing standards:
+
+1. **Commercial invoices demand positive line items** — Invoices are instruments
+   demanding payment for goods or services delivered. Every commercial line item
+   must specify strictly positive values for quantity (`quantity > 0`), unit
+   price (`unit_price > 0`), and line amount (`total_price > 0`).
+2. **Negative line items (`total_price < 0`, `unit_price < 0`, `quantity < 0`)** —
+   Represent unauthorized credit lines, debit deductions, returns, trade-ins, or
+   rebate offsets embedded into an invoice without dedicated credit-note
+   authorization. Netting negative line items inside standard invoices distorts
+   sales tax and VAT calculations (such as when standard-rated and zero-rated items
+   are netted), evades purchase-order spend authorization limits, and violates AP
+   internal controls requiring separate credit notes. Negative line items also
+   frequently arise from OCR vision artifacts where hyphens, bullets, dashes, or
+   glyphs are erroneously transcribed as negative signs.
+3. **Zero line items (`total_price == 0`, `unit_price == 0`, `quantity == 0`)** —
+   Zero-quantity lines (`quantity == 0`) indicate unperformed services or
+   placeholder rows billed for payment. Zero unit price or zero line totals
+   (`unit_price == 0` or `total_price == 0`) represent promotional free samples,
+   zero-dollar warranty inclusions, or vision price dropouts. These require human
+   review to verify contractual validity or OCR completeness.
+
+Currently, if an invoice has a positive total (`total > 0`), but contains line
+items with negative or zero values whose internal multiplication balances
+(for example, `quantity = -2, unit_price = 50.00, total_price = -100.00`, netted
+against a positive line item), `check_arithmetic` passes, `check_line_items_subtotal`
+passes, `check_non_positive_invoice_total` passes, and the invoice receives an
+unearned `clear` processing verdict.
+
+### Decision summary
+
+See ADR 0032 (`decisions/0032-non-positive-line-item-detection.md`). The rule inspects
+each line item in `invoice.line_items`. When observed, non-null values for
+`quantity`, `unit_price`, or `total_price` are less than or equal to `Decimal(0)`,
+a `non_positive_line_item` finding is generated for that line item. Severity is
+differentiated based on financial risk:
+- `high` severity if any observed non-positive field is negative (`< 0`), flagging
+  credit lines, returns, and billing adjustments requiring human review;
+- `medium` severity if all observed non-positive fields are zero (`== 0`), flagging
+  zero-value promotional items, placeholder lines, or extraction dropouts.
+Absent fields (`None`) are ignored to avoid penalizing unextracted optional fields.
+Comparison source is `"invoice_line_items"`, and deterministic rule is
+`"line_item.quantity > 0 and line_item.unit_price > 0 and line_item.total_price > 0"`.
+No database migration, new repository method, or external dependency is required.
+
+### Deliverables
+
+- `non_positive_line_item` added to `FindingType` in `veridoc.verification.models`;
+- `check_non_positive_line_items()` pure function in `veridoc.verification.line_item_amounts`;
+- `VerificationService.verify()` calls `check_non_positive_line_items`;
+- `tests/test_verification_line_item_amounts.py` covering all paths: empty lines, positive
+  lines, missing optional fields, negative total price, zero total price, negative quantity,
+  zero quantity, negative unit price, zero unit price, multiple non-positive fields,
+  multiple line items, structured details, immutability, service integration, and verdict derivation;
+- `docs/decisions/0032-non-positive-line-item-detection.md` (ADR 0032);
+- `docs/testing.md` inventory updated;
+- `docs/architecture.md` updated;
+- `AGENTS.md` updated to reflect all 25 complete phases;
+- `CHANGELOG.md` updated;
+- `docs/release-evidence.md` completion snapshot.
+
+### Acceptance criteria
+
+1. `non_positive_line_item` appears in `FindingType` and is accepted by `VerificationFinding`.
+2. The pure function returns findings for non-positive line items (high for negative, medium
+   for zero) and an empty list for positive or absent values.
+3. `VerificationService` includes non-positive line item findings in its output.
+4. Non-positive line item findings drive the processing verdict to `review_required`.
+5. All non-positive line item tests pass and the full quality gate passes without regressions.
+6. `test_documentation.py` validates the updated test-module inventory and links.
+
+### Validation plan
+
+- Run focused unit tests for `non_positive_line_item` schema and pure function.
+- Run `tests/test_verification_line_item_amounts.py` with comprehensive test cases.
+- Run full pytest test suite (1224+ tests).
+- Run type check (`uv run mypy`), linter (`uv run ruff check .`), and formatter (`uv run ruff format --check .`).
+- Run documentation and link validation (`uv run pytest tests/test_documentation.py`).
+
+### Exclusions
+
+- Modifying `InvoiceLineItem` schema or database tables (domain and storage schemas remain unchanged).
+- Modifying extraction prompt or OCR logic (verification operates purely on deterministic extraction outputs).
+- Modifying evaluation benchmark thresholds or frozen metrics.
+- CLI or API route alterations (existing processing endpoints automatically surface verification findings).
+
+### Task list
+
+1. Update `docs/roadmap.md` with Phase 25 scope and create `docs/PROGRESS.md`.
+2. Record Phase 25 Architecture Decision Record (ADR 0032) and update decisions index.
+3. Add `non_positive_line_item` to `FindingType` union in `veridoc.verification.models` and add model test.
+4. Implement pure deterministic function `check_non_positive_line_items` in `veridoc.verification.line_item_amounts`.
+5. Integrate `check_non_positive_line_items` into `VerificationService.verify()`.
+6. Add comprehensive test suite in `tests/test_verification_line_item_amounts.py`.
+7. Update `docs/testing.md` test inventory.
+8. Update `docs/architecture.md`.
+9. Update `AGENTS.md`.
+10. Update `CHANGELOG.md`.
+11. Update `docs/roadmap.md` active links and record completion snapshot in `docs/release-evidence.md`.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 24 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 25 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
