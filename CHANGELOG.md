@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 25 non-positive line item detection:
+  - Architecture Decision Record 0032 documenting non-positive line item risks, unauthorized credit lines and rebates embedded in invoices, tax calculation distortions, zero-dollar promotional vouchers, and OCR minus-sign extraction artifacts.
+  - `non_positive_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - `check_non_positive_line_items()` pure function in `veridoc.verification.line_item_amounts` identifying zero and negative line item quantities, unit prices, and total amounts, producing `high`-severity findings if any observed field is negative (`< 0`) and `medium`-severity findings if all observed fields are zero (`== 0`), with structured details including line item index, product identifier, description, and offending field values.
+  - `VerificationService.verify()` calls `check_non_positive_line_items`, adding non-positive line item findings to verification results and driving the processing verdict to `review_required`.
+  - 27 focused tests in `tests/test_verification_line_item_amounts.py` covering empty line item lists, strictly positive line items, missing optional fields (None), negative total prices, zero total prices, negative quantities, zero quantities, negative unit prices, zero unit prices, multiple non-positive fields, mixed negative and zero values, label construction fallbacks, multiple line items with mixed signs, decimal zero representations, input invoice immutability, service integration, and verdict derivation.
+
 - Phase 24 non-positive invoice total detection:
   - Architecture Decision Record 0031 documenting non-positive invoice total risks, credit notes misclassified as invoices, zero-dollar voucher anomalies, debit manipulation, and OCR extraction failures.
   - `non_positive_invoice_total` added to the `FindingType` literal union in `veridoc.verification.models`.
