@@ -224,8 +224,9 @@ The service also enforces deterministic temporal checks for stale invoices
 ([ADR 0028](decisions/0028-stale-invoice-detection.md)) and post-dated future
 invoices ([ADR 0029](decisions/0029-future-invoice-date-detection.md)),
 intra-invoice duplicate line item detection
-([ADR 0030](decisions/0030-duplicate-line-item-detection.md)), and non-positive
-payable total detection ([ADR 0031](decisions/0031-non-positive-invoice-total-detection.md)).
+([ADR 0030](decisions/0030-duplicate-line-item-detection.md)), non-positive
+payable total detection ([ADR 0031](decisions/0031-non-positive-invoice-total-detection.md)),
+and non-positive line item amount and quantity detection ([ADR 0032](decisions/0032-non-positive-line-item-detection.md)).
 
 ## Typed explanation flow
 
@@ -424,7 +425,7 @@ current boundaries rather than bypass them:
   verification-rule coverage and end-to-end operational performance.
 
 Phase 9 is implemented as described above. Phases 10 through 13 and Phases 15
-through 24 are complete; Phase 14 is planned but blocked on a Tesseract-equipped
+through 25 are complete; Phase 14 is planned but blocked on a Tesseract-equipped
 operator environment. See the [project roadmap](roadmap.md) for the current
 phase status.
 
