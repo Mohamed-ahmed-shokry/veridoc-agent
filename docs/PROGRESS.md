@@ -4,7 +4,7 @@
 
 - **Phase:** Phase 25
 - **Goal:** Implement deterministic `non_positive_line_item` verification rule to detect line items with zero or negative amounts, quantities, or unit prices.
-- **Status:** In Progress
+- **Status:** Complete
 - **Branch:** `phase/non-positive-line-items`
 
 ## Task Status
@@ -20,8 +20,8 @@
 | 7 | Update `docs/testing.md` test inventory | Done | `4c589bc` |
 | 8 | Update `docs/architecture.md` | Done | `11ccfc0` |
 | 9 | Update `AGENTS.md` | Done | `f816d58` |
-| 10 | Update `CHANGELOG.md` | Done | Pending |
-| 11 | Update `docs/release-evidence.md` completion snapshot & roadmap links | Not Started | |
+| 10 | Update `CHANGELOG.md` | Done | `18192d3` |
+| 11 | Update `docs/release-evidence.md` completion snapshot & roadmap links | Done | Pending |
 
 ## Acceptance Criteria
 
@@ -31,8 +31,8 @@
 | 2 | Pure function returns findings for non-positive line items (high for negative, medium for zero) and empty for positive or absent values | Verified | `test_verification_line_item_amounts.py` (27 unit tests) |
 | 3 | `VerificationService` includes non-positive line item findings in output | Verified | `test_verification_line_item_amounts.py::test_verification_service_includes_negative_line_item_finding`, `test_verification_service_includes_zero_line_item_finding` |
 | 4 | Non-positive line item findings drive processing verdict to `review_required` | Verified | `test_verification_line_item_amounts.py::test_verdict_derivation_drives_review_required_for_negative_line_item`, `test_verdict_derivation_drives_review_required_for_zero_line_item` |
-| 5 | All non-positive line item tests pass and full quality gate passes without regression | Pending | |
-| 6 | `test_documentation.py` validates updated test-module inventory and links | Pending | |
+| 5 | All non-positive line item tests pass and full quality gate passes without regression | Verified | 1252 pytest tests passed (31.31s), 93.76% branch coverage, ruff clean, mypy clean |
+| 6 | `test_documentation.py` validates updated test-module inventory and links | Verified | `tests/test_documentation.py` passed (2/2) |
 
 ## Decision Log
 
@@ -47,8 +47,20 @@
 ## Validation Results
 
 - Baseline suite: 1224 tests passing.
-- Focused checks: Pending.
-- Linter/Typecheck: Clean at baseline.
+- Focused checks: 27 unit tests passing in `tests/test_verification_line_item_amounts.py`.
+- Documentation tests: 2 tests passing in `tests/test_documentation.py`.
+- Complete test suite: 1252 tests passing (31.31s).
+- Branch coverage: 93.76% (minimum floor: 90.0%).
+- Linter (`ruff check .`): All checks passed.
+- Formatter (`ruff format --check .`): 288 files already formatted.
+- Type checker (`mypy`): Success (0 issues in 112 source files).
+- Lockfile (`uv lock --check`): Resolved and verified.
+- Distribution build: Wheel and sdist built cleanly with `uv build --clear`.
+- Twine metadata check: Both distributions PASSED metadata check.
+- Distribution contents check: Validated archive contents and paths.
+- Smoke tests: Isolated wheel and sdist both passed `scripts/smoke_distribution.py`.
+- CLI help smoke: All 5 maintenance CLIs loaded cleanly.
+- Git whitespace: `git diff --check` clean.
 
 ## Blockers
 
