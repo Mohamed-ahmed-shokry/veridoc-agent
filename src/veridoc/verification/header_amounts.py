@@ -91,3 +91,51 @@ def check_non_positive_subtotal(
             details=details,
         )
     ]
+
+
+def check_negative_tax(
+    invoice: InvoiceExtraction,
+) -> list[VerificationFinding]:
+    """Return a finding when the invoice tax amount is strictly negative.
+
+    Args:
+        invoice: The structured invoice extraction to check.
+
+    Returns:
+        A list containing one ``high``-severity ``negative_tax`` finding if
+        ``invoice.tax`` is present and strictly negative (< 0), or an empty
+        list otherwise. Zero tax (0.00) is valid for tax-exempt, zero-rated,
+        reverse-charge, or export invoices.
+    """
+    if invoice.tax is None:
+        return []
+
+    if invoice.tax >= Decimal(0):
+        return []
+
+    explanation = (
+        f"The invoice tax amount is negative ({invoice.tax}). Negative tax "
+        "amounts indicate unauthorized tax credits, withholding-tax "
+        "misclassifications, or extraction errors requiring review."
+    )
+
+    details: dict[str, str | int | float | bool | None] = {
+        "field": "tax",
+        "tax": str(invoice.tax),
+        "is_negative": True,
+    }
+    if invoice.currency is not None:
+        details["currency"] = invoice.currency
+
+    return [
+        VerificationFinding(
+            finding_type="negative_tax",
+            severity="high",
+            explanation=explanation,
+            comparison_source="invoice_fields",
+            deterministic_rule="invoice.tax >= 0",
+            observed_value=str(invoice.tax),
+            expected_value=">= 0.00",
+            details=details,
+        )
+    ]
