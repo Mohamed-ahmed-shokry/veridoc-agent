@@ -106,3 +106,23 @@ def test_verification_finding_accepts_non_positive_line_item() -> None:
     )
     assert finding.finding_type == "non_positive_line_item"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_non_positive_subtotal() -> None:
+    finding = VerificationFinding(
+        finding_type="non_positive_subtotal",
+        severity="high",
+        explanation="The invoice subtotal is negative (-50.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.subtotal > 0",
+        observed_value="-50.00",
+        expected_value="> 0.00",
+        details={
+            "field": "subtotal",
+            "subtotal": "-50.00",
+            "is_zero": False,
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "non_positive_subtotal"
+    assert finding.severity == "high"
