@@ -30,6 +30,8 @@ boundaries only and require separate approval before implementation.
 | 22 | Future invoice date detection rule (ADR 0029) | Complete |
 | 23 | Duplicate line item detection rule (ADR 0030) | Complete |
 | 24 | Non-positive invoice total detection rule (ADR 0031) | Complete |
+| 25 | Non-positive line item detection rule (ADR 0032) | Complete |
+| 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | In progress |
 
 ## Phase 7: release engineering
 
@@ -1181,9 +1183,138 @@ No database migration, new repository method, or external dependency is required
 10. Update `CHANGELOG.md`.
 11. Update `docs/roadmap.md` active links and record completion snapshot in `docs/release-evidence.md`.
 
+## Phase 26: invoice header monetary bounds
+
+### Objective
+
+Add deterministic invoice header monetary bound verification rules (`non_positive_subtotal`,
+`negative_tax`, and `invalid_discount`) to catch zero or negative subtotals, negative tax
+amounts, negative discounts, and discounts exceeding the invoice subtotal, preventing
+unauthorized tax/credit deductions, hidden surcharges, and OCR sign/column extraction
+defects from receiving an unearned `clear` processing verdict.
+
+### Problem
+
+Phases 24 and 25 enforced positivity on `invoice.total` (`total > 0`, ADR 0031) and
+individual `invoice.line_items` (`quantity > 0`, `unit_price > 0`, `total_price > 0`,
+ADR 0032), while `arithmetic.py` validates `subtotal + tax - discount == total` only when
+all four header monetary fields are simultaneously non-null. However, the three header
+component fields (`subtotal`, `tax`, and `discount`) remained unconstrained individually:
+
+1. **Non-positive subtotals (`subtotal <= 0`)** — Under GAAP/IFRS and commercial invoicing
+   rules, the pre-tax, pre-discount invoice subtotal (`subtotal`) must be strictly positive
+   (`subtotal > 0`). When `line_items` is empty or line-item totals are omitted, or when
+   `tax` or `discount` is `None` (causing `_check_invoice_total` to be skipped), an invoice
+   with `subtotal <= 0` and `total > 0` (or `subtotal = 0.00, tax = 50.00, discount = 0.00,
+   total = 50.00`) passes every existing check and receives an unearned `clear` verdict.
+2. **Negative tax amounts (`tax < 0`)** — While `tax == 0` is valid for tax-exempt,
+   zero-rated, export, or reverse-charge supplies, a commercial invoice cannot specify a
+   negative sales tax, VAT, or GST liability (`tax < 0`). Negative tax amounts represent
+   unauthorized tax credits embedded in standard invoices, withholding-tax misclassifications,
+   or OCR hyphen/minus-sign extraction artifacts (`Tax - 15.00` extracted as `-15.00`).
+   Previously, `subtotal = 100.00, tax = -15.00, discount = 0.00, total = 85.00` satisfied
+   `subtotal + tax - discount == total` and `total > 0`, yielding an unearned `clear` verdict.
+3. **Invalid discount amounts (`discount < 0` or `discount > subtotal`)** — In Veridoc's
+   canonical formula (`subtotal + tax - discount == total`), `discount` is a non-negative
+   deduction magnitude (`discount >= 0`). While `discount == 0` is valid, a negative
+   `discount` (`discount < 0`) mathematically adds to the payable total (`subtotal + tax - (-d)`),
+   acting as an unauthorized hidden surcharge disguised as a discount or an unnormalized sign
+   from a printed `-10.00` discount row. Furthermore, when both `subtotal > 0` and
+   `discount > 0` are present, a commercial discount cannot exceed 100% of the pre-tax
+   subtotal (`discount > subtotal`), which produces a negative net pre-tax base
+   (`subtotal - discount < 0`) and indicates an embedded rebate offset or OCR column
+   transposition.
+
+### Decision summary
+
+See ADR 0033. Phase 26 adds three focused `FindingType` literals (`non_positive_subtotal`,
+`negative_tax`, and `invalid_discount`) and pure deterministic functions in
+`veridoc.verification.header_amounts`:
+
+- `check_non_positive_subtotal(invoice)`: fires when `invoice.subtotal is not None` and
+  `invoice.subtotal <= Decimal(0)`, with `high` severity for `subtotal < 0` and `medium`
+  severity for `subtotal == 0` (`deterministic_rule="invoice.subtotal > 0"`).
+- `check_negative_tax(invoice)`: fires when `invoice.tax is not None` and
+  `invoice.tax < Decimal(0)`, with `high` severity (`deterministic_rule="invoice.tax >= 0"`).
+  Zero tax (`tax == 0`) is permitted.
+- `check_invalid_discount(invoice)`: fires with `high` severity when
+  `invoice.discount is not None` and either `invoice.discount < Decimal(0)`
+  (`deterministic_rule="invoice.discount >= 0"`, `reason="negative_discount"`) or
+  `invoice.subtotal is not None and invoice.subtotal > Decimal(0) and invoice.discount > invoice.subtotal`
+  (`deterministic_rule="invoice.discount <= invoice.subtotal"`,
+  `reason="discount_exceeds_subtotal"`). Zero discount (`discount == 0`) and discounts up to
+  100% of `subtotal` (`discount == subtotal`) are permitted.
+- `check_header_amounts(invoice)` composes all three checks in deterministic order and is
+  wired into `VerificationService.verify()`.
+
+### Deliverables
+
+- `non_positive_subtotal`, `negative_tax`, and `invalid_discount` added to `FindingType` in
+  `veridoc.verification.models`;
+- `check_non_positive_subtotal()`, `check_negative_tax()`, `check_invalid_discount()`, and
+  `check_header_amounts()` pure functions in `veridoc.verification.header_amounts`;
+- `VerificationService.verify()` calls `check_header_amounts`;
+- `tests/test_verification_header_amounts.py` covering all non-triggering, boundary, and
+  triggering paths, currency preservation, immutability, multi-finding composition, service
+  integration, explanation rendering, and verdict derivation;
+- `docs/decisions/0033-invoice-header-monetary-bounds.md` (ADR 0033) and index update;
+- `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`,
+  `docs/release-evidence.md`, and `docs/PROGRESS.md` synchronized.
+
+### Acceptance criteria
+
+1. `non_positive_subtotal`, `negative_tax`, and `invalid_discount` appear in `FindingType`
+   and are accepted by `VerificationFinding` (verified by `tests/test_verification_models.py`).
+2. `check_non_positive_subtotal` returns `high` severity for `subtotal < 0`, `medium`
+   severity for `subtotal == 0`, and `[]` for `subtotal > 0` or `None` (verified by
+   `tests/test_verification_header_amounts.py`).
+3. `check_negative_tax` returns `high` severity for `tax < 0` and `[]` for `tax >= 0` or
+   `None` (verified by `tests/test_verification_header_amounts.py`).
+4. `check_invalid_discount` returns `high` severity for `discount < 0` and for
+   `discount > subtotal` (when `subtotal > 0`), and `[]` for `0 <= discount <= subtotal` or
+   `None` (verified by `tests/test_verification_header_amounts.py`).
+5. `VerificationService.verify()` includes header amount findings and drives the processing
+   verdict to `review_required` (verified by `tests/test_verification_header_amounts.py`).
+6. Full quality gate (`pytest --cov=veridoc`, `mypy`, `ruff`, `pip-audit`, distribution build,
+   twine, `check_distribution.py`, `smoke_distribution.py`, and `test_documentation.py`)
+   passes with zero regressions.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and
+  `uv run pytest tests/test_verification_header_amounts.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `InvoiceExtraction` field types or SQLite database schemas (persistence remains
+  unchanged).
+- Enforcing tax-rate percentage caps (jurisdictional tax rates vary globally and belong to
+  tax-jurisdiction rules rather than universal sign/bound invariants).
+- Modifying evaluation corpus manifests or preregistered thresholds.
+
+### Task list
+
+1. Add Phase 26 specification to `docs/roadmap.md` and initialize `docs/PROGRESS.md`.
+2. Record ADR 0033 (`docs/decisions/0033-invoice-header-monetary-bounds.md`) and register it
+   in `docs/decisions/README.md` and `docs/roadmap.md`.
+3. Add `non_positive_subtotal`, `negative_tax`, and `invalid_discount` to `FindingType` in
+   `src/veridoc/verification/models.py` with unit tests in `tests/test_verification_models.py`.
+4. Implement `check_non_positive_subtotal`, `check_negative_tax`, `check_invalid_discount`,
+   and `check_header_amounts` in `src/veridoc/verification/header_amounts.py` with unit tests
+   in `tests/test_verification_header_amounts.py`.
+5. Integrate `check_header_amounts` into `VerificationService.verify()` with service,
+   explanation, and verdict integration tests.
+6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`,
+   `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 25 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 25 are complete; Phase 26 is in progress. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
