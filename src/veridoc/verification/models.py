@@ -44,6 +44,7 @@ FindingType = Literal[
     "non_positive_line_item",
     "non_positive_subtotal",
     "negative_tax",
+    "invalid_discount",
 ]
 
 
