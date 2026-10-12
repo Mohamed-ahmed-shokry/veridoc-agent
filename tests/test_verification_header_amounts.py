@@ -11,7 +11,10 @@ from __future__ import annotations
 from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
-from veridoc.verification.header_amounts import check_non_positive_subtotal
+from veridoc.verification.header_amounts import (
+    check_negative_tax,
+    check_non_positive_subtotal,
+)
 
 
 def _invoice(**kwargs: object) -> InvoiceExtraction:
@@ -138,3 +141,62 @@ def test_subtotal_negative_includes_currency_when_present() -> None:
 
     assert len(findings) == 1
     assert findings[0].details["currency"] == "EUR"
+
+
+# ---------------------------------------------------------------------------
+# check_negative_tax: non-triggering and triggering paths
+# ---------------------------------------------------------------------------
+
+
+def test_tax_no_finding_when_absent() -> None:
+    invoice = _invoice(tax=None)
+    assert check_negative_tax(invoice) == []
+
+
+def test_tax_no_finding_when_zero() -> None:
+    for raw in ("0", "0.00", "0.000000", Decimal(0), Decimal("-0.00")):
+        invoice = _invoice(tax=raw)
+        assert check_negative_tax(invoice) == []
+
+
+def test_tax_no_finding_when_positive() -> None:
+    for raw in ("0.01", "0.000001", "15.00", "999999.99"):
+        invoice = _invoice(tax=raw)
+        assert check_negative_tax(invoice) == []
+
+
+def test_tax_finding_when_negative() -> None:
+    invoice = _invoice(tax="-15.00")
+    findings = check_negative_tax(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "negative_tax"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "invoice_fields"
+    assert finding.deterministic_rule == "invoice.tax >= 0"
+    assert finding.observed_value == "-15.00"
+    assert finding.expected_value == ">= 0.00"
+    assert "negative" in finding.explanation.lower()
+    assert finding.details == {
+        "field": "tax",
+        "tax": "-15.00",
+        "is_negative": True,
+    }
+
+
+def test_tax_finding_when_minimal_and_micro_negative() -> None:
+    for raw in ("-0.01", "-0.000001", "-50000.00"):
+        invoice = _invoice(tax=raw)
+        findings = check_negative_tax(invoice)
+        assert len(findings) == 1
+        assert findings[0].finding_type == "negative_tax"
+        assert findings[0].severity == "high"
+
+
+def test_tax_negative_includes_currency_when_present() -> None:
+    invoice = _invoice(tax="-12.50", currency="GBP")
+    findings = check_negative_tax(invoice)
+
+    assert len(findings) == 1
+    assert findings[0].details["currency"] == "GBP"
