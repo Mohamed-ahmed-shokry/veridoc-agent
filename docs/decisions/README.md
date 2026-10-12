@@ -49,3 +49,4 @@ Accepted decisions:
 - [0030: Detect duplicate line items within an invoice](0030-duplicate-line-item-detection.md)
 - [0031: Detect non-positive invoice totals](0031-non-positive-invoice-total-detection.md)
 - [0032: Detect non-positive line item amounts and quantities](0032-non-positive-line-item-detection.md)
+- [0033: Enforce invoice header monetary bounds for subtotal, tax, and discount](0033-invoice-header-monetary-bounds.md)

@@ -1227,7 +1227,7 @@ component fields (`subtotal`, `tax`, and `discount`) remained unconstrained indi
 
 ### Decision summary
 
-See ADR 0033. Phase 26 adds three focused `FindingType` literals (`non_positive_subtotal`,
+See [ADR 0033](decisions/0033-invoice-header-monetary-bounds.md). Phase 26 adds three focused `FindingType` literals (`non_positive_subtotal`,
 `negative_tax`, and `invalid_discount`) and pure deterministic functions in
 `veridoc.verification.header_amounts`:
 
