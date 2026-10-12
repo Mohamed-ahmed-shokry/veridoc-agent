@@ -145,3 +145,23 @@ def test_verification_finding_accepts_negative_tax() -> None:
     )
     assert finding.finding_type == "negative_tax"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_invalid_discount() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_discount",
+        severity="high",
+        explanation="The invoice discount amount is negative (-10.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.discount >= 0",
+        observed_value="-10.00",
+        expected_value=">= 0.00",
+        details={
+            "field": "discount",
+            "discount": "-10.00",
+            "reason": "negative_discount",
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "invalid_discount"
+    assert finding.severity == "high"
