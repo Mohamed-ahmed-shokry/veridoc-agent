@@ -139,3 +139,51 @@ def check_negative_tax(
             details=details,
         )
     ]
+
+
+def check_invalid_discount(
+    invoice: InvoiceExtraction,
+) -> list[VerificationFinding]:
+    """Return a finding when the invoice discount is negative.
+
+    Args:
+        invoice: The structured invoice extraction to check.
+
+    Returns:
+        A list containing one ``high``-severity ``invalid_discount`` finding if
+        ``invoice.discount`` is present and strictly negative (< 0), or an empty
+        list otherwise. Zero discount (0.00) is valid.
+    """
+    if invoice.discount is None:
+        return []
+
+    if invoice.discount < Decimal(0):
+        explanation = (
+            f"The invoice discount amount is negative ({invoice.discount}). "
+            "In the canonical invoice equation (subtotal + tax - discount == total), "
+            "a negative discount increases the payable total as an unauthorized "
+            "surcharge or indicates a sign extraction error requiring review."
+        )
+        details: dict[str, str | int | float | bool | None] = {
+            "field": "discount",
+            "discount": str(invoice.discount),
+            "reason": "negative_discount",
+            "is_negative": True,
+        }
+        if invoice.currency is not None:
+            details["currency"] = invoice.currency
+
+        return [
+            VerificationFinding(
+                finding_type="invalid_discount",
+                severity="high",
+                explanation=explanation,
+                comparison_source="invoice_fields",
+                deterministic_rule="invoice.discount >= 0",
+                observed_value=str(invoice.discount),
+                expected_value=">= 0.00",
+                details=details,
+            )
+        ]
+
+    return []
