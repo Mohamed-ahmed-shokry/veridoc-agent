@@ -4,7 +4,7 @@
 
 - **Phase:** Phase 26
 - **Goal:** Implement deterministic `non_positive_subtotal`, `negative_tax`, and `invalid_discount` verification rules in `veridoc.verification.header_amounts` to catch non-positive subtotals, negative taxes, negative discounts, and discounts exceeding the invoice subtotal.
-- **Status:** In Progress
+- **Status:** Complete
 - **Branch:** `phase/header-monetary-bounds`
 
 ## Task Status
@@ -12,44 +12,44 @@
 | Step | Task | Status | Commit |
 |---|---|---|---|
 | 1 | Define Phase 26 invoice header monetary bounds in `docs/roadmap.md` | Done | `9a8bd7f` |
-| 2 | Initialize Phase 26 progress record and decision log in `docs/PROGRESS.md` | In Progress | Pending |
-| 3 | Record ADR 0033 (`docs/decisions/0033-invoice-header-monetary-bounds.md`) | Pending | - |
-| 4 | Register ADR 0033 in `docs/decisions/README.md` and link in `docs/roadmap.md` | Pending | - |
-| 5 | Add `non_positive_subtotal` to `FindingType` in `src/veridoc/verification/models.py` | Pending | - |
-| 6 | Add `non_positive_subtotal` model test in `tests/test_verification_models.py` | Pending | - |
-| 7 | Add `negative_tax` to `FindingType` in `src/veridoc/verification/models.py` | Pending | - |
-| 8 | Add `negative_tax` model test in `tests/test_verification_models.py` | Pending | - |
-| 9 | Add `invalid_discount` to `FindingType` in `src/veridoc/verification/models.py` | Pending | - |
-| 10 | Add `invalid_discount` model test in `tests/test_verification_models.py` | Pending | - |
-| 11 | Implement `check_non_positive_subtotal` in `src/veridoc/verification/header_amounts.py` | Pending | - |
-| 12 | Add unit tests for `check_non_positive_subtotal` in `tests/test_verification_header_amounts.py` and register in `docs/testing.md` | Pending | - |
-| 13 | Implement `check_negative_tax` in `src/veridoc/verification/header_amounts.py` | Pending | - |
-| 14 | Add unit tests for `check_negative_tax` in `tests/test_verification_header_amounts.py` | Pending | - |
-| 15 | Implement `check_invalid_discount` (negative discount check) in `src/veridoc/verification/header_amounts.py` | Pending | - |
-| 16 | Add unit tests for negative discount detection in `tests/test_verification_header_amounts.py` | Pending | - |
-| 17 | Extend `check_invalid_discount` to detect discounts exceeding positive subtotal | Pending | - |
-| 18 | Add unit tests for discount exceeding subtotal in `tests/test_verification_header_amounts.py` | Pending | - |
-| 19 | Implement `check_header_amounts` composition function in `src/veridoc/verification/header_amounts.py` | Pending | - |
-| 20 | Add composition, multi-finding, and immutability tests in `tests/test_verification_header_amounts.py` | Pending | - |
-| 21 | Integrate `check_header_amounts` into `VerificationService.verify()` | Pending | - |
-| 22 | Add `VerificationService`, `ExplanationService`, and `derive_verdict` integration tests in `tests/test_verification_header_amounts.py` | Pending | - |
-| 23 | Update `docs/architecture.md` to document Phase 26 header monetary rules | Pending | - |
-| 24 | Update `AGENTS.md` to reflect Phase 26 completion and test inventory | Pending | - |
-| 25 | Update `README.md` phase status and verification summary for Phase 26 | Pending | - |
-| 26 | Update `CHANGELOG.md` with Phase 26 deliverables | Pending | - |
-| 27 | Record Phase 26 verified completion snapshot in `docs/release-evidence.md` and `docs/roadmap.md` | Pending | - |
-| 28 | Finalize `docs/PROGRESS.md` with complete commit hashes and validation results | Pending | - |
+| 2 | Initialize Phase 26 progress record and decision log in `docs/PROGRESS.md` | Done | `84e48ce` |
+| 3 | Record ADR 0033 (`docs/decisions/0033-invoice-header-monetary-bounds.md`) | Done | `8f93b82` |
+| 4 | Register ADR 0033 in `docs/decisions/README.md` and link in `docs/roadmap.md` | Done | `468dda3` |
+| 5 | Add `non_positive_subtotal` to `FindingType` in `src/veridoc/verification/models.py` | Done | `f9ed790` |
+| 6 | Add `non_positive_subtotal` model test in `tests/test_verification_models.py` | Done | `5535ed7` |
+| 7 | Add `negative_tax` to `FindingType` in `src/veridoc/verification/models.py` | Done | `f2cbe68` |
+| 8 | Add `negative_tax` model test in `tests/test_verification_models.py` | Done | `b9df942` |
+| 9 | Add `invalid_discount` to `FindingType` in `src/veridoc/verification/models.py` | Done | `07c8445` |
+| 10 | Add `invalid_discount` model test in `tests/test_verification_models.py` | Done | `2a1314b` |
+| 11 | Implement `check_non_positive_subtotal` in `src/veridoc/verification/header_amounts.py` | Done | `e70a706` |
+| 12 | Add unit tests for `check_non_positive_subtotal` in `tests/test_verification_header_amounts.py` and register in `docs/testing.md` | Done | `66eecb2` |
+| 13 | Implement `check_negative_tax` in `src/veridoc/verification/header_amounts.py` | Done | `5974da4` |
+| 14 | Add unit tests for `check_negative_tax` in `tests/test_verification_header_amounts.py` | Done | `8d42452` |
+| 15 | Implement `check_invalid_discount` (negative discount check) in `src/veridoc/verification/header_amounts.py` | Done | `2736966` |
+| 16 | Add unit tests for negative discount detection in `tests/test_verification_header_amounts.py` | Done | `ddc5684` |
+| 17 | Extend `check_invalid_discount` to detect discounts exceeding positive subtotal | Done | `392473a` |
+| 18 | Add unit tests for discount exceeding subtotal in `tests/test_verification_header_amounts.py` | Done | `986e2b3` |
+| 19 | Implement `check_header_amounts` composition function in `src/veridoc/verification/header_amounts.py` | Done | `63ab22e` |
+| 20 | Add composition, multi-finding, and immutability tests in `tests/test_verification_header_amounts.py` | Done | `c5e34bd` |
+| 21 | Integrate `check_header_amounts` into `VerificationService.verify()` | Done | `5c18d4b` |
+| 22 | Add `VerificationService`, `ExplanationService`, and `derive_verdict` integration tests in `tests/test_verification_header_amounts.py` | Done | `11d4988` |
+| 23 | Update `docs/architecture.md` to document Phase 26 header monetary rules | Done | `b29d51c` |
+| 24 | Update `AGENTS.md` to reflect Phase 26 completion and test inventory | Done | `4a39e59` |
+| 25 | Update `README.md` phase status and verification summary for Phase 26 | Done | `df32fce` |
+| 26 | Update `CHANGELOG.md` with Phase 26 deliverables | Done | `b5160dc` |
+| 27 | Record Phase 26 verified completion snapshot in `docs/release-evidence.md` and `docs/roadmap.md` | Done | `8c7723c` |
+| 28 | Finalize `docs/PROGRESS.md` with complete commit hashes and validation results | Done | This commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `non_positive_subtotal`, `negative_tax`, and `invalid_discount` in `FindingType` union and accepted by `VerificationFinding` | Pending | - |
-| 2 | `check_non_positive_subtotal` returns `high` severity for `subtotal < 0`, `medium` for `subtotal == 0`, and `[]` for `subtotal > 0` or `None` | Pending | - |
-| 3 | `check_negative_tax` returns `high` severity for `tax < 0` and `[]` for `tax >= 0` or `None` | Pending | - |
-| 4 | `check_invalid_discount` returns `high` severity for `discount < 0` and for `discount > subtotal` (when `subtotal > 0`), and `[]` for `0 <= discount <= subtotal` or `None` | Pending | - |
-| 5 | `VerificationService.verify()` includes header amount findings and drives processing verdict to `review_required` | Pending | - |
-| 6 | Full quality gate (`pytest --cov=veridoc`, `mypy`, `ruff`, `pip-audit`, distribution checks, smoke tests, `test_documentation.py`) passes without regression | Pending | - |
+| 1 | `non_positive_subtotal`, `negative_tax`, and `invalid_discount` in `FindingType` union and accepted by `VerificationFinding` | Verified | Tested in `tests/test_verification_models.py` |
+| 2 | `check_non_positive_subtotal` returns `high` severity for `subtotal < 0`, `medium` for `subtotal == 0`, and `[]` for `subtotal > 0` or `None` | Verified | Tested in `tests/test_verification_header_amounts.py` |
+| 3 | `check_negative_tax` returns `high` severity for `tax < 0` and `[]` for `tax >= 0` or `None` | Verified | Tested in `tests/test_verification_header_amounts.py` |
+| 4 | `check_invalid_discount` returns `high` severity for `discount < 0` and for `discount > subtotal` (when `subtotal > 0`), and `[]` for `0 <= discount <= subtotal` or `None` | Verified | Tested in `tests/test_verification_header_amounts.py` |
+| 5 | `VerificationService.verify()` includes header amount findings and drives processing verdict to `review_required` | Verified | Tested in `tests/test_verification_header_amounts.py` |
+| 6 | Full quality gate (`pytest --cov=veridoc`, `mypy`, `ruff`, `pip-audit`, distribution checks, smoke tests, `test_documentation.py`) passes without regression | Verified | Complete release gate executed clean |
 
 ## Decision Log
 
@@ -67,8 +67,16 @@
 ## Validation Results
 
 - Baseline suite: 1252 tests passing (`ruff check .`, `ruff format --check .`, `mypy` all clean).
-- Phase 26 final validation: Pending completion.
+- Phase 26 test suite: 41 focused tests passing in `tests/test_verification_header_amounts.py`.
+- Total suite: 1293 tests passing (`--cov=veridoc` branch coverage exceeds 90% floor).
+- Linter: `uv run ruff check .` passed (all checks passed).
+- Formatter: `uv run ruff format --check .` passed (290 files already formatted).
+- Type Checker: `uv run mypy` passed (113 source files checked).
+- Security Audit: `uv run pip-audit` passed (zero vulnerabilities).
+- Distributions: `uv build --clear` and `twine check dist/*` passed; `check_distribution.py` and `smoke_distribution.py` passed.
+- Documentation: `tests/test_documentation.py` passed (all links and test module inventory in sync).
 
 ## Blockers
 
 None.
+
