@@ -278,7 +278,9 @@ def test_discount_no_finding_when_subtotal_is_absent() -> None:
     assert check_invalid_discount(invoice) == []
 
 
-def test_discount_exceeding_subtotal_ignored_when_subtotal_is_zero_or_negative() -> None:
+def test_discount_exceeding_subtotal_ignored_when_subtotal_is_zero_or_negative() -> (
+    None
+):
     for raw_subtotal in ("0.00", "-50.00"):
         invoice = _invoice(subtotal=raw_subtotal, discount="10.00")
         assert check_invalid_discount(invoice) == []
