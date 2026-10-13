@@ -10,13 +10,19 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from veridoc.explanation.fallback import render_deterministic_explanations
 from veridoc.extraction.models import InvoiceExtraction
+from veridoc.persistence.protocol import InvoiceRepository
+from veridoc.processing.verdict import derive_verdict
 from veridoc.verification.header_amounts import (
     check_header_amounts,
     check_invalid_discount,
     check_negative_tax,
     check_non_positive_subtotal,
 )
+from veridoc.verification.models import VerificationResult
+from veridoc.verification.references import HistoricalInvoice, PurchaseOrder
+from veridoc.verification.service import VerificationService
 
 
 def _invoice(**kwargs: object) -> InvoiceExtraction:
@@ -404,3 +410,95 @@ def test_header_amounts_input_immutability() -> None:
     check_header_amounts(invoice)
 
     assert invoice.model_dump() == original_dict
+
+
+# ---------------------------------------------------------------------------
+# VerificationService, verdict derivation, and explanation integration tests
+# ---------------------------------------------------------------------------
+
+
+class _StubRepository(InvoiceRepository):
+    """Minimal repository stub for verification service tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
+        return []
+
+    def get_purchase_order(
+        self, vendor_key: str, purchase_order_number: str
+    ) -> PurchaseOrder | None:
+        return None
+
+
+def test_verification_service_integrates_header_amount_findings() -> None:
+    invoice = _invoice(
+        vendor_name="Acme Corp",
+        invoice_number="INV-HDR-1",
+        subtotal="-100.00",
+        tax="-20.00",
+        discount="-5.00",
+        total="0.00",
+    )
+    service = VerificationService(repository=_StubRepository())
+    result = service.verify(invoice)
+
+    finding_types = [f.finding_type for f in result.findings]
+    assert "non_positive_subtotal" in finding_types
+    assert "negative_tax" in finding_types
+    assert "invalid_discount" in finding_types
+
+
+def test_verdict_derivation_drives_review_required_for_negative_subtotal() -> None:
+    findings = check_non_positive_subtotal(_invoice(subtotal="-100.00"))
+    assert len(findings) == 1
+    verdict = derive_verdict(VerificationResult(findings=findings))
+
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+    assert verdict.finding_count == 1
+    assert "1 deterministic verification finding requires review" in verdict.summary
+
+
+def test_verdict_derivation_drives_review_required_for_zero_subtotal() -> None:
+    findings = check_non_positive_subtotal(_invoice(subtotal="0.00"))
+    assert len(findings) == 1
+    verdict = derive_verdict(VerificationResult(findings=findings))
+
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "medium"
+    assert verdict.finding_count == 1
+
+
+def test_verdict_derivation_drives_review_required_for_negative_tax() -> None:
+    findings = check_negative_tax(_invoice(tax="-15.00"))
+    assert len(findings) == 1
+    verdict = derive_verdict(VerificationResult(findings=findings))
+
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+    assert verdict.finding_count == 1
+
+
+def test_verdict_derivation_drives_review_required_for_invalid_discount() -> None:
+    findings = check_invalid_discount(_invoice(subtotal="100.00", discount="150.00"))
+    assert len(findings) == 1
+    verdict = derive_verdict(VerificationResult(findings=findings))
+
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+    assert verdict.finding_count == 1
+
+
+def test_deterministic_explanation_rendering_for_header_amount_findings() -> None:
+    findings = check_header_amounts(
+        _invoice(subtotal="-50.00", tax="-10.00", discount="-5.00")
+    )
+    explanation_result = render_deterministic_explanations(
+        VerificationResult(findings=findings)
+    )
+
+    assert len(explanation_result.explanations) == 3
+    narratives = [e.narrative for e in explanation_result.explanations]
+    assert any("invoice.subtotal > 0" in n for n in narratives)
+    assert any("invoice.tax >= 0" in n for n in narratives)
+    assert any("invoice.discount >= 0" in n for n in narratives)
+    assert all(e.source == "deterministic" for e in explanation_result.explanations)
