@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.header_amounts import (
+    check_header_amounts,
     check_invalid_discount,
     check_negative_tax,
     check_non_positive_subtotal,
@@ -326,3 +327,80 @@ def test_discount_finding_when_massively_exceeds_subtotal() -> None:
     assert findings[0].details["currency"] == "EUR"
     assert findings[0].details["subtotal"] == "50.00"
     assert findings[0].details["discount"] == "5000.00"
+
+
+# ---------------------------------------------------------------------------
+# check_header_amounts: composition and immutability tests
+# ---------------------------------------------------------------------------
+
+
+def test_header_amounts_clean_invoice_produces_no_findings() -> None:
+    invoice = _invoice(
+        subtotal="200.00",
+        tax="40.00",
+        discount="20.00",
+        total="220.00",
+    )
+    assert check_header_amounts(invoice) == []
+
+
+def test_header_amounts_clean_with_zero_tax_and_zero_discount() -> None:
+    invoice = _invoice(
+        subtotal="100.00",
+        tax="0.00",
+        discount="0.00",
+        total="100.00",
+    )
+    assert check_header_amounts(invoice) == []
+
+
+def test_header_amounts_clean_with_all_none() -> None:
+    invoice = _invoice(subtotal=None, tax=None, discount=None, total=None)
+    assert check_header_amounts(invoice) == []
+
+
+def test_header_amounts_composes_multiple_violations_in_deterministic_order() -> None:
+    invoice = _invoice(
+        subtotal="-100.00",
+        tax="-20.00",
+        discount="-10.00",
+        total="0.00",
+    )
+    findings = check_header_amounts(invoice)
+
+    assert len(findings) == 3
+    assert [f.finding_type for f in findings] == [
+        "non_positive_subtotal",
+        "negative_tax",
+        "invalid_discount",
+    ]
+    assert all(f.severity == "high" for f in findings)
+
+
+def test_header_amounts_composes_zero_subtotal_and_exceeding_discount() -> None:
+    invoice = _invoice(
+        subtotal="0.00",
+        tax="10.00",
+        discount="-5.00",
+    )
+    findings = check_header_amounts(invoice)
+
+    assert len(findings) == 2
+    assert findings[0].finding_type == "non_positive_subtotal"
+    assert findings[0].severity == "medium"
+    assert findings[1].finding_type == "invalid_discount"
+    assert findings[1].severity == "high"
+
+
+def test_header_amounts_input_immutability() -> None:
+    invoice = _invoice(
+        subtotal="-50.00",
+        tax="-10.00",
+        discount="75.00",
+        currency="USD",
+    )
+    original_dict = invoice.model_dump()
+
+    check_header_amounts(invoice)
+
+    assert invoice.model_dump() == original_dict
