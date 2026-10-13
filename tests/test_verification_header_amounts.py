@@ -12,6 +12,7 @@ from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.header_amounts import (
+    check_invalid_discount,
     check_negative_tax,
     check_non_positive_subtotal,
 )
@@ -200,3 +201,58 @@ def test_tax_negative_includes_currency_when_present() -> None:
 
     assert len(findings) == 1
     assert findings[0].details["currency"] == "GBP"
+
+
+# ---------------------------------------------------------------------------
+# check_invalid_discount: negative discount tests
+# ---------------------------------------------------------------------------
+
+
+def test_discount_no_finding_when_absent() -> None:
+    invoice = _invoice(discount=None)
+    assert check_invalid_discount(invoice) == []
+
+
+def test_discount_no_finding_when_zero() -> None:
+    for raw in ("0", "0.00", "0.000000", Decimal(0), Decimal("-0.00")):
+        invoice = _invoice(discount=raw)
+        assert check_invalid_discount(invoice) == []
+
+
+def test_discount_finding_when_negative() -> None:
+    invoice = _invoice(discount="-10.00")
+    findings = check_invalid_discount(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "invalid_discount"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "invoice_fields"
+    assert finding.deterministic_rule == "invoice.discount >= 0"
+    assert finding.observed_value == "-10.00"
+    assert finding.expected_value == ">= 0.00"
+    assert "negative" in finding.explanation.lower()
+    assert finding.details == {
+        "field": "discount",
+        "discount": "-10.00",
+        "reason": "negative_discount",
+        "is_negative": True,
+    }
+
+
+def test_discount_finding_when_minimal_and_micro_negative() -> None:
+    for raw in ("-0.01", "-0.000001", "-25000.00"):
+        invoice = _invoice(discount=raw)
+        findings = check_invalid_discount(invoice)
+        assert len(findings) == 1
+        assert findings[0].finding_type == "invalid_discount"
+        assert findings[0].severity == "high"
+        assert findings[0].details["reason"] == "negative_discount"
+
+
+def test_discount_negative_includes_currency_when_present() -> None:
+    invoice = _invoice(discount="-5.00", currency="USD")
+    findings = check_invalid_discount(invoice)
+
+    assert len(findings) == 1
+    assert findings[0].details["currency"] == "USD"
