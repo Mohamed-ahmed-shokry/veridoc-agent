@@ -186,4 +186,39 @@ def check_invalid_discount(
             )
         ]
 
+    if (
+        invoice.discount > Decimal(0)
+        and invoice.subtotal is not None
+        and invoice.subtotal > Decimal(0)
+        and invoice.discount > invoice.subtotal
+    ):
+        explanation = (
+            f"The invoice discount ({invoice.discount}) exceeds the pre-tax "
+            f"subtotal ({invoice.subtotal}). A discount greater than 100% of "
+            "the subtotal indicates an unauthorized rebate offset or column "
+            "transposition error requiring review."
+        )
+        details = {
+            "field": "discount",
+            "discount": str(invoice.discount),
+            "subtotal": str(invoice.subtotal),
+            "reason": "discount_exceeds_subtotal",
+            "is_negative": False,
+        }
+        if invoice.currency is not None:
+            details["currency"] = invoice.currency
+
+        return [
+            VerificationFinding(
+                finding_type="invalid_discount",
+                severity="high",
+                explanation=explanation,
+                comparison_source="invoice_fields",
+                deterministic_rule="invoice.discount <= invoice.subtotal",
+                observed_value=str(invoice.discount),
+                expected_value=f"<= {invoice.subtotal}",
+                details=details,
+            )
+        ]
+
     return []
