@@ -256,3 +256,71 @@ def test_discount_negative_includes_currency_when_present() -> None:
 
     assert len(findings) == 1
     assert findings[0].details["currency"] == "USD"
+
+
+# ---------------------------------------------------------------------------
+# check_invalid_discount: discount exceeding subtotal tests
+# ---------------------------------------------------------------------------
+
+
+def test_discount_no_finding_when_less_than_subtotal() -> None:
+    invoice = _invoice(subtotal="100.00", discount="20.00")
+    assert check_invalid_discount(invoice) == []
+
+
+def test_discount_no_finding_when_equal_to_subtotal() -> None:
+    invoice = _invoice(subtotal="100.00", discount="100.00")
+    assert check_invalid_discount(invoice) == []
+
+
+def test_discount_no_finding_when_subtotal_is_absent() -> None:
+    invoice = _invoice(subtotal=None, discount="50.00")
+    assert check_invalid_discount(invoice) == []
+
+
+def test_discount_exceeding_subtotal_ignored_when_subtotal_is_zero_or_negative() -> None:
+    for raw_subtotal in ("0.00", "-50.00"):
+        invoice = _invoice(subtotal=raw_subtotal, discount="10.00")
+        assert check_invalid_discount(invoice) == []
+
+
+def test_discount_finding_when_exceeds_subtotal() -> None:
+    invoice = _invoice(subtotal="100.00", discount="125.00")
+    findings = check_invalid_discount(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "invalid_discount"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "invoice_fields"
+    assert finding.deterministic_rule == "invoice.discount <= invoice.subtotal"
+    assert finding.observed_value == "125.00"
+    assert finding.expected_value == "<= 100.00"
+    assert "exceeds" in finding.explanation.lower()
+    assert finding.details == {
+        "field": "discount",
+        "discount": "125.00",
+        "subtotal": "100.00",
+        "reason": "discount_exceeds_subtotal",
+        "is_negative": False,
+    }
+
+
+def test_discount_finding_when_slightly_exceeds_subtotal() -> None:
+    invoice = _invoice(subtotal="100.00", discount="100.01")
+    findings = check_invalid_discount(invoice)
+
+    assert len(findings) == 1
+    assert findings[0].finding_type == "invalid_discount"
+    assert findings[0].severity == "high"
+    assert findings[0].details["reason"] == "discount_exceeds_subtotal"
+
+
+def test_discount_finding_when_massively_exceeds_subtotal() -> None:
+    invoice = _invoice(subtotal="50.00", discount="5000.00", currency="EUR")
+    findings = check_invalid_discount(invoice)
+
+    assert len(findings) == 1
+    assert findings[0].details["currency"] == "EUR"
+    assert findings[0].details["subtotal"] == "50.00"
+    assert findings[0].details["discount"] == "5000.00"
