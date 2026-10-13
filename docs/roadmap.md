@@ -1314,7 +1314,7 @@ See [ADR 0033](decisions/0033-invoice-header-monetary-bounds.md). Phase 26 adds 
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 25 are complete; Phase 26 is in progress. Phase 14 is
+Phases 0 through 13 and Phases 15 through 26 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
