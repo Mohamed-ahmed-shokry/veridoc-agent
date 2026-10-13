@@ -222,3 +222,25 @@ def check_invalid_discount(
         ]
 
     return []
+
+
+def check_header_amounts(
+    invoice: InvoiceExtraction,
+) -> list[VerificationFinding]:
+    """Return all applicable header monetary bound findings for an invoice.
+
+    Composes ``check_non_positive_subtotal``, ``check_negative_tax``, and
+    ``check_invalid_discount`` in deterministic order.
+
+    Args:
+        invoice: The structured invoice extraction to check.
+
+    Returns:
+        Ordered list of findings for any non-positive subtotal, negative tax,
+        or invalid discount amounts.
+    """
+    findings: list[VerificationFinding] = []
+    findings.extend(check_non_positive_subtotal(invoice))
+    findings.extend(check_negative_tax(invoice))
+    findings.extend(check_invalid_discount(invoice))
+    return findings
