@@ -31,7 +31,7 @@ boundaries only and require separate approval before implementation.
 | 23 | Duplicate line item detection rule (ADR 0030) | Complete |
 | 24 | Non-positive invoice total detection rule (ADR 0031) | Complete |
 | 25 | Non-positive line item detection rule (ADR 0032) | Complete |
-| 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | In progress |
+| 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | Complete |
 
 ## Phase 7: release engineering
 
