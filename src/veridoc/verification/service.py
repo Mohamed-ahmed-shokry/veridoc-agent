@@ -12,6 +12,7 @@ from veridoc.verification.arithmetic import check_arithmetic
 from veridoc.verification.duplicate_line_items import check_duplicate_line_items
 from veridoc.verification.field_history import check_payment_terms
 from veridoc.verification.future_dates import check_future_invoice_date
+from veridoc.verification.header_amounts import check_header_amounts
 from veridoc.verification.history import check_historical_total
 from veridoc.verification.invoice_totals import check_non_positive_invoice_total
 from veridoc.verification.line_item_amounts import check_non_positive_line_items
@@ -58,6 +59,7 @@ class VerificationService:
         findings = check_arithmetic(invoice)
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))
+        findings.extend(check_header_amounts(invoice))
         findings.extend(check_duplicate_line_items(invoice))
         findings.extend(check_invoice_staleness(invoice, reference_date=reference_date))
         findings.extend(
