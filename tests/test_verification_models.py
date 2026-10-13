@@ -106,3 +106,62 @@ def test_verification_finding_accepts_non_positive_line_item() -> None:
     )
     assert finding.finding_type == "non_positive_line_item"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_non_positive_subtotal() -> None:
+    finding = VerificationFinding(
+        finding_type="non_positive_subtotal",
+        severity="high",
+        explanation="The invoice subtotal is negative (-50.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.subtotal > 0",
+        observed_value="-50.00",
+        expected_value="> 0.00",
+        details={
+            "field": "subtotal",
+            "subtotal": "-50.00",
+            "is_zero": False,
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "non_positive_subtotal"
+    assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_negative_tax() -> None:
+    finding = VerificationFinding(
+        finding_type="negative_tax",
+        severity="high",
+        explanation="The invoice tax amount is negative (-15.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.tax >= 0",
+        observed_value="-15.00",
+        expected_value=">= 0.00",
+        details={
+            "field": "tax",
+            "tax": "-15.00",
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "negative_tax"
+    assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_invalid_discount() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_discount",
+        severity="high",
+        explanation="The invoice discount amount is negative (-10.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.discount >= 0",
+        observed_value="-10.00",
+        expected_value=">= 0.00",
+        details={
+            "field": "discount",
+            "discount": "-10.00",
+            "reason": "negative_discount",
+            "is_negative": True,
+        },
+    )
+    assert finding.finding_type == "invalid_discount"
+    assert finding.severity == "high"

@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 25 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 26 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -253,6 +253,12 @@ implementation remains deliberately small:
   price, negative quantity, zero quantity, negative unit price, zero unit price, multiple
   non-positive fields, mixed signs, multiple line items), structured details, immutability,
   service integration, and verdict derivation.
+- `tests/test_verification_header_amounts.py` covers Phase 26 deterministic invoice header
+  monetary bounds (`non_positive_subtotal`, `negative_tax`, and `invalid_discount`):
+  non-triggering paths (absent fields, positive subtotals, non-negative taxes including zero-rated,
+  valid non-negative discounts within subtotal), triggering paths (negative subtotal, zero subtotal,
+  negative tax, negative discount, discount exceeding subtotal), structured details, immutability,
+  service integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -312,7 +318,12 @@ from receiving an unearned clear verdict. Phase 25 adds a deterministic
 `non_positive_line_item` verification rule (ADR 0032) detecting line items with
 zero or negative amounts, quantities, or unit prices to prevent unauthorized
 credit lines, rebate deductions, returns, zero-dollar vouchers, and OCR
-negative-sign artifacts from receiving an unearned clear verdict.
+negative-sign artifacts from receiving an unearned clear verdict. Phase 26 adds
+deterministic invoice header monetary bound verification rules (ADR 0033)
+detecting non-positive subtotals (`non_positive_subtotal`), negative tax amounts
+(`negative_tax`), and invalid discounts (`invalid_discount`, negative or exceeding
+subtotal) to prevent inverted billing offsets and extraction sign artifacts
+from receiving an unearned clear verdict.
 
 The current and planned workflow is:
 

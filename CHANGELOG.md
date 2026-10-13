@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 26 invoice header monetary bounds (`non_positive_subtotal`, `negative_tax`, and `invalid_discount`):
+  - Architecture Decision Record 0033 documenting invoice header monetary risks, subtotal extraction anomalies and credit offsets, negative tax deductions, negative discount surcharges, and discounts exceeding the pre-tax subtotal.
+  - `non_positive_subtotal`, `negative_tax`, and `invalid_discount` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - `check_non_positive_subtotal()`, `check_negative_tax()`, `check_invalid_discount()`, and composite `check_header_amounts()` pure functions in `veridoc.verification.header_amounts`. Negative subtotals produce `high`-severity findings (`subtotal < 0`), zero subtotals produce `medium`-severity findings (`subtotal == 0`), negative taxes produce `high`-severity findings (`tax < 0`), negative discounts produce `high`-severity findings (`discount < 0`), and discounts exceeding positive subtotals produce `high`-severity findings (`discount > subtotal`).
+  - `VerificationService.verify()` calls `check_header_amounts`, adding header amount findings to verification results and routing violating invoices to `review_required`.
+  - 41 focused tests in `tests/test_verification_header_amounts.py` covering absent fields, positive subtotals, zero subtotals, negative subtotals across scales and zero representations, zero taxes, positive taxes, negative taxes, zero discounts, positive discounts, negative discounts, discounts exceeding subtotals, multiple simultaneous header violations, input immutability, `VerificationService` integration, verdict derivation, and deterministic explanation rendering.
+
 - Phase 25 non-positive line item detection:
   - Architecture Decision Record 0032 documenting non-positive line item risks, unauthorized credit lines and rebates embedded in invoices, tax calculation distortions, zero-dollar promotional vouchers, and OCR minus-sign extraction artifacts.
   - `non_positive_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.

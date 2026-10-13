@@ -47,7 +47,12 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console.
+assignee filtering in the review console. Phase 21 through 26 expand deterministic
+fraud and validation rules: stale invoice detection (ADR 0028), future invoice date
+detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
+total detection (ADR 0031), non-positive line item amount detection (ADR 0032), and
+header monetary bounds for non-positive subtotals, negative tax, and invalid
+discounts (ADR 0033).
 
 ## Implemented capabilities
 
@@ -116,7 +121,8 @@ assignee filtering in the review console.
 - loopback-isolated, Bearer-authenticated vendor master data administration API (`/admin/reference-data/vendors`) and bulk JSON import support;
 - `veridoc-reference vendors` CLI subcommands (`list`, `get`, `add`, `update`, `delete`), `invoices` and `purchase-orders` record commands (`add`, `update`, `delete`), and `audit-log` inspection;
 - `veridoc-review cases` (`list`, `get`) and `sessions` (`list`, `revoke`, `prune`) administrative CLI subcommands;
-- automated review session pruning in `veridoc-backup` via `--session-retention-days`; and
+- automated review session pruning in `veridoc-backup` via `--session-retention-days`;
+- deterministic header monetary bounds checking non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](docs/decisions/0033-invoice-header-monetary-bounds.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start

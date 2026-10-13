@@ -144,6 +144,7 @@ tests/
 ├── test_verification_duplicate_line_items.py Phase 23 duplicate line item detection rule and paths
 ├── test_verification_invoice_totals.py  Phase 24 non-positive invoice total detection rule and paths
 ├── test_verification_line_item_amounts.py Phase 25 non-positive line item detection rule and paths
+├── test_verification_header_amounts.py  Phase 26 invoice header monetary bound rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
