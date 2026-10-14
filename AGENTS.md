@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 26 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 27 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -259,6 +259,13 @@ implementation remains deliberately small:
   valid non-negative discounts within subtotal), triggering paths (negative subtotal, zero subtotal,
   negative tax, negative discount, discount exceeding subtotal), structured details, immutability,
   service integration, and verdict derivation.
+- `tests/test_verification_arithmetic.py` covers Phase 27 deterministic arithmetic rounding tolerances
+  and fractional rounding bounds (ADR 0034): non-triggering paths (exact equality, omitted discount/tax
+  defaults), fractional rounding discrepancies within tolerance (`rounding_discrepancy` with `severity="low"`),
+  boundary conditions at exact tolerance (`0.02`), material mismatches exceeding tolerance
+  (`invoice_total_mismatch`, `line_item_amount_mismatch`, `line_items_subtotal_mismatch`), custom tolerance
+  parameters, omitted-field safe handling, multiple simultaneous rounding discrepancies, input immutability,
+  `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -323,7 +330,12 @@ deterministic invoice header monetary bound verification rules (ADR 0033)
 detecting non-positive subtotals (`non_positive_subtotal`), negative tax amounts
 (`negative_tax`), and invalid discounts (`invalid_discount`, negative or exceeding
 subtotal) to prevent inverted billing offsets and extraction sign artifacts
-from receiving an unearned clear verdict.
+from receiving an unearned clear verdict. Phase 27 adds deterministic commercial
+rounding tolerances and fractional rounding bounds (ADR 0034) establishing
+`DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")` to distinguish low-severity
+`rounding_discrepancy` from high-severity material calculation errors across
+header totals, line item amounts, and subtotal sums, while normalizing omitted
+discount and tax fields on standard commercial invoices.
 
 The current and planned workflow is:
 

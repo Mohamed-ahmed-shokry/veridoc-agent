@@ -47,12 +47,12 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console. Phase 21 through 26 expand deterministic
-fraud and validation rules: stale invoice detection (ADR 0028), future invoice date
+assignee filtering in the review console. Phase 21 through 27 expand deterministic
+fraud, validation, and arithmetic rules: stale invoice detection (ADR 0028), future invoice date
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
-total detection (ADR 0031), non-positive line item amount detection (ADR 0032), and
-header monetary bounds for non-positive subtotals, negative tax, and invalid
-discounts (ADR 0033).
+total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
+header monetary bounds (ADR 0033), and fractional rounding bounds with omitted-field
+handling (ADR 0034).
 
 ## Implemented capabilities
 
@@ -576,7 +576,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 19 scope, Phase 14 blocked, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 27 scope, Phase 14 blocked, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,
