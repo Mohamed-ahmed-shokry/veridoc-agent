@@ -21,6 +21,7 @@ from veridoc.verification.line_items import (
     check_line_item_statistics,
 )
 from veridoc.verification.models import VerificationFinding, VerificationResult
+from veridoc.verification.payment_terms import check_payment_terms_due_date
 from veridoc.verification.purchase_orders import (
     check_purchase_order,
     check_purchase_order_ceiling,
@@ -65,6 +66,7 @@ class VerificationService:
         findings.extend(
             check_future_invoice_date(invoice, reference_date=reference_date)
         )
+        findings.extend(check_payment_terms_due_date(invoice))
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)

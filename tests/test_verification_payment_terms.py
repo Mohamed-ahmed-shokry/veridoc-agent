@@ -7,6 +7,14 @@ from veridoc.verification.payment_terms import (
     check_payment_terms_due_date,
     parse_payment_terms_days,
 )
+from veridoc.verification.service import VerificationService
+
+
+def _invoice(**kwargs: object) -> InvoiceExtraction:
+    """Build a minimal InvoiceExtraction with overridable keyword arguments."""
+    defaults: dict[str, object] = {"document_type": "invoice"}
+    defaults.update(kwargs)
+    return InvoiceExtraction(**defaults)  # type: ignore[arg-type]
 
 
 def test_parse_payment_terms_days_handles_empty_and_none() -> None:
@@ -60,7 +68,7 @@ def test_check_payment_terms_due_date_missing_fields_returns_empty() -> None:
     # Missing invoice_date
     assert (
         check_payment_terms_due_date(
-            InvoiceExtraction(
+            _invoice(
                 document_type="invoice",
                 due_date="2026-08-31",
                 payment_terms="Net 30",
@@ -72,7 +80,7 @@ def test_check_payment_terms_due_date_missing_fields_returns_empty() -> None:
     # Missing due_date
     assert (
         check_payment_terms_due_date(
-            InvoiceExtraction(
+            _invoice(
                 document_type="invoice",
                 invoice_date="2026-08-01",
                 payment_terms="Net 30",
@@ -84,7 +92,7 @@ def test_check_payment_terms_due_date_missing_fields_returns_empty() -> None:
     # Missing payment_terms
     assert (
         check_payment_terms_due_date(
-            InvoiceExtraction(
+            _invoice(
                 document_type="invoice",
                 invoice_date="2026-08-01",
                 due_date="2026-08-31",
@@ -96,7 +104,7 @@ def test_check_payment_terms_due_date_missing_fields_returns_empty() -> None:
     # Unparseable payment_terms
     assert (
         check_payment_terms_due_date(
-            InvoiceExtraction(
+            _invoice(
                 document_type="invoice",
                 invoice_date="2026-08-01",
                 due_date="2026-08-31",
@@ -109,7 +117,7 @@ def test_check_payment_terms_due_date_missing_fields_returns_empty() -> None:
 
 def test_check_payment_terms_due_date_accepts_exact_match() -> None:
     # Net 30: 2026-08-01 + 30 days = 2026-08-31
-    invoice_net30 = InvoiceExtraction(
+    invoice_net30 = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-31",
@@ -118,7 +126,7 @@ def test_check_payment_terms_due_date_accepts_exact_match() -> None:
     assert check_payment_terms_due_date(invoice_net30) == []
 
     # Net 15: 2026-08-01 + 15 days = 2026-08-16
-    invoice_net15 = InvoiceExtraction(
+    invoice_net15 = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-16",
@@ -127,7 +135,7 @@ def test_check_payment_terms_due_date_accepts_exact_match() -> None:
     assert check_payment_terms_due_date(invoice_net15) == []
 
     # Due on receipt: 2026-08-01 + 0 days = 2026-08-01
-    invoice_immediate = InvoiceExtraction(
+    invoice_immediate = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-01",
@@ -136,7 +144,7 @@ def test_check_payment_terms_due_date_accepts_exact_match() -> None:
     assert check_payment_terms_due_date(invoice_immediate) == []
 
     # Cash discount 2/10 Net 30
-    invoice_discount = InvoiceExtraction(
+    invoice_discount = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-31",
@@ -150,7 +158,7 @@ def test_check_payment_terms_due_date_accepts_weekend_business_day_rolls() -> No
     # Rolled to 2026-11-02 (Mon, +2 days)
     assert date(2026, 10, 31).weekday() == 5  # Saturday
     assert date(2026, 11, 2).weekday() == 0  # Monday
-    invoice_sat = InvoiceExtraction(
+    invoice_sat = _invoice(
         document_type="invoice",
         invoice_date="2026-10-01",
         due_date="2026-11-02",
@@ -162,7 +170,7 @@ def test_check_payment_terms_due_date_accepts_weekend_business_day_rolls() -> No
     # Rolled to 2026-08-31 (Mon, +1 day)
     assert date(2026, 8, 30).weekday() == 6  # Sunday
     assert date(2026, 8, 31).weekday() == 0  # Monday
-    invoice_sun = InvoiceExtraction(
+    invoice_sun = _invoice(
         document_type="invoice",
         invoice_date="2026-08-15",
         due_date="2026-08-31",
@@ -173,7 +181,7 @@ def test_check_payment_terms_due_date_accepts_weekend_business_day_rolls() -> No
 
 def test_check_payment_terms_due_date_flags_accelerated_due_date() -> None:
     # Net 30: 2026-08-01 + 30 days = expected 2026-08-31, but due_date is 2026-08-10 (21 days early)
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-10",
@@ -206,7 +214,7 @@ def test_check_payment_terms_due_date_flags_accelerated_due_date() -> None:
 
 def test_check_payment_terms_due_date_flags_one_day_accelerated_due_date() -> None:
     # Net 30: 2026-08-01 + 30 days = expected 2026-08-31, but due_date is 2026-08-30 (1 day early)
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-30",
@@ -223,7 +231,7 @@ def test_check_payment_terms_due_date_flags_one_day_accelerated_due_date() -> No
 
 def test_check_payment_terms_due_date_flags_accelerated_immediate_terms() -> None:
     # Due on receipt: invoice_date is 2026-08-10, but due_date is 2026-08-05 (earlier than invoice_date)
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-10",
         due_date="2026-08-05",
@@ -242,7 +250,7 @@ def test_check_payment_terms_due_date_flags_accelerated_immediate_terms() -> Non
 
 def test_check_payment_terms_due_date_flags_extended_due_date() -> None:
     # Net 30: 2026-08-01 + 30 days = expected 2026-08-31, but due_date is 2026-09-15 (15 days late)
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-09-15",
@@ -274,7 +282,7 @@ def test_check_payment_terms_due_date_flags_extended_due_date() -> None:
 def test_check_payment_terms_due_date_flags_one_day_extended_due_date() -> None:
     # Net 30: 2026-08-01 + 30 days = expected 2026-08-31 (Monday), but due_date is 2026-09-01 (1 day late)
     assert date(2026, 8, 31).weekday() == 0  # Monday, so no weekend roll
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-09-01",
@@ -291,7 +299,7 @@ def test_check_payment_terms_due_date_flags_one_day_extended_due_date() -> None:
 
 def test_check_payment_terms_due_date_flags_extended_immediate_terms() -> None:
     # Due on receipt: invoice_date is 2026-08-01, but due_date is 2026-08-31 (30 days late)
-    invoice = InvoiceExtraction(
+    invoice = _invoice(
         document_type="invoice",
         invoice_date="2026-08-01",
         due_date="2026-08-31",
@@ -306,3 +314,94 @@ def test_check_payment_terms_due_date_flags_extended_immediate_terms() -> None:
         in finding.explanation
     )
     assert finding.details["is_accelerated"] is False
+
+
+def test_check_payment_terms_due_date_immutability() -> None:
+    invoice = _invoice(
+        document_type="invoice",
+        invoice_date="2026-08-01",
+        due_date="2026-08-15",
+        payment_terms="Net 30",
+    )
+    original_dump = invoice.model_dump()
+    _ = check_payment_terms_due_date(invoice)
+    assert invoice.model_dump() == original_dump
+
+
+# ---------------------------------------------------------------------------
+# Integration with VerificationService and Processing Verdict
+# ---------------------------------------------------------------------------
+
+
+class _StubRepository:
+    def list_vendor_invoices(self, vendor_key: str):  # type: ignore[no-untyped-def]
+        return []
+
+    def get_purchase_order(self, vendor_key: str, purchase_order_number: str) -> None:
+        return None
+
+
+def test_verification_service_integrates_payment_terms_due_date() -> None:
+    service = VerificationService(_StubRepository())  # type: ignore[arg-type]
+    invoice = _invoice(
+        document_type="invoice",
+        invoice_number="INV-2026-001",
+        vendor_name="Acme Corp",
+        invoice_date="2026-08-01",
+        due_date="2026-08-10",
+        payment_terms="Net 30",
+        currency="USD",
+        total="100.00",
+    )
+    result = service.verify(invoice)
+    finding_types = [f.finding_type for f in result.findings]
+    assert "payment_terms_due_date_mismatch" in finding_types
+    finding = next(
+        f
+        for f in result.findings
+        if f.finding_type == "payment_terms_due_date_mismatch"
+    )
+    assert finding.severity == "high"
+    assert finding.details["is_accelerated"] is True
+
+
+def test_payment_terms_verdict_derivation_accelerated_high_severity() -> None:
+    from veridoc.processing.verdict import derive_verdict
+
+    service = VerificationService(_StubRepository())  # type: ignore[arg-type]
+    invoice = _invoice(
+        document_type="invoice",
+        invoice_number="INV-2026-001",
+        vendor_name="Acme Corp",
+        invoice_date="2026-08-01",
+        due_date="2026-08-10",
+        payment_terms="Net 30",
+        currency="USD",
+        total="100.00",
+    )
+    result = service.verify(invoice)
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+    assert verdict.finding_count >= 1
+
+
+def test_payment_terms_verdict_derivation_extended_medium_severity() -> None:
+    from veridoc.processing.verdict import derive_verdict
+
+    service = VerificationService(_StubRepository())  # type: ignore[arg-type]
+    invoice = _invoice(
+        document_type="invoice",
+        invoice_number="INV-2026-002",
+        vendor_name="Acme Corp",
+        invoice_date="2026-08-01",
+        due_date="2026-09-15",
+        payment_terms="Net 30",
+        currency="USD",
+        total="100.00",
+    )
+    result = service.verify(invoice)
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity in ("medium", "high")
+    assert verdict.finding_count >= 1
