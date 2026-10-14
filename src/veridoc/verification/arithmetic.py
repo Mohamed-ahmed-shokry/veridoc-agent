@@ -3,31 +3,72 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Final
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
 
+DEFAULT_ROUNDING_TOLERANCE: Final[Decimal] = Decimal("0.02")
 
-def check_arithmetic(invoice: InvoiceExtraction) -> list[VerificationFinding]:
+
+def check_arithmetic(
+    invoice: InvoiceExtraction,
+    rounding_tolerance: Decimal = DEFAULT_ROUNDING_TOLERANCE,
+) -> list[VerificationFinding]:
     """Return findings for internally inconsistent invoice facts."""
-    findings = _check_invoice_total(invoice)
+    findings = check_invoice_total(invoice, rounding_tolerance=rounding_tolerance)
     findings.extend(_check_line_item_amounts(invoice))
     findings.extend(_check_line_items_subtotal(invoice))
     findings.extend(_check_invoice_dates(invoice))
     return findings
 
 
-def _check_invoice_total(invoice: InvoiceExtraction) -> list[VerificationFinding]:
+def check_invoice_total(
+    invoice: InvoiceExtraction,
+    rounding_tolerance: Decimal = DEFAULT_ROUNDING_TOLERANCE,
+) -> list[VerificationFinding]:
     subtotal = invoice.subtotal
     tax = invoice.tax
     discount = invoice.discount
     total = invoice.total
-    if subtotal is None or tax is None or discount is None or total is None:
+    if subtotal is None or total is None:
         return []
 
-    expected_total = subtotal + tax - discount
+    if tax is None and discount is None:
+        if subtotal == total:
+            return []
+        return []
+
+    tax_val = tax if tax is not None else Decimal(0)
+    discount_val = discount if discount is not None else Decimal(0)
+    expected_total = subtotal + tax_val - discount_val
+
     if total == expected_total:
         return []
+
+    discrepancy = abs(total - expected_total)
+    if discrepancy <= rounding_tolerance:
+        return [
+            VerificationFinding(
+                finding_type="rounding_discrepancy",
+                severity="low",
+                explanation=(
+                    f"The invoice total has a fractional rounding discrepancy of {discrepancy} "
+                    f"within the tolerance of {rounding_tolerance}."
+                ),
+                comparison_source="invoice_fields",
+                deterministic_rule=f"abs(subtotal + tax - discount - total) <= {rounding_tolerance}",
+                observed_value=str(total),
+                expected_value=str(expected_total),
+                details={
+                    "currency": invoice.currency,
+                    "discrepancy": str(discrepancy),
+                    "tolerance": str(rounding_tolerance),
+                    "component": "invoice_total",
+                },
+            )
+        ]
+
     return [
         VerificationFinding(
             finding_type="invoice_total_mismatch",
@@ -37,9 +78,16 @@ def _check_invoice_total(invoice: InvoiceExtraction) -> list[VerificationFinding
             deterministic_rule="subtotal + tax - discount == total",
             observed_value=str(total),
             expected_value=str(expected_total),
-            details={"currency": invoice.currency},
+            details={
+                "currency": invoice.currency,
+                "discrepancy": str(discrepancy),
+                "tolerance": str(rounding_tolerance),
+            },
         )
     ]
+
+
+_check_invoice_total = check_invoice_total
 
 
 def _check_line_item_amounts(
