@@ -32,6 +32,7 @@ boundaries only and require separate approval before implementation.
 | 24 | Non-positive invoice total detection rule (ADR 0031) | Complete |
 | 25 | Non-positive line item detection rule (ADR 0032) | Complete |
 | 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | Complete |
+| 27 | Invoice arithmetic tolerances and fractional rounding bounds (ADR 0034) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1312,9 +1313,103 @@ See [ADR 0033](decisions/0033-invoice-header-monetary-bounds.md). Phase 26 adds 
 6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`,
    `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
 
+## Phase 27: invoice arithmetic tolerances and fractional rounding bounds
+
+Phase 27 refines Veridoc's deterministic arithmetic verification rules (`veridoc.verification.arithmetic`)
+by distinguishing between fractional penny/cent rounding variances and material calculation errors,
+and by properly evaluating header arithmetic when optional discount or tax fields are omitted.
+
+### Motivation and context
+
+Under international commercial invoicing and VAT/sales tax standards (such as Peppol BIS Billing 3.0 /
+EN 16931 rules BR-CO-10/15 and HMRC/IRS guidelines), minor rounding differences between item-level
+accumulations and document-level tax or subtotal calculations naturally arise due to independent half-up
+rounding across line items (e.g. fractional tax rates like 8.25% or 7.7%, or fractional unit prices
+like $33.3333 rounded to $33.33).
+
+Previously in Veridoc:
+1. `_check_invoice_total`, `_check_line_item_amounts`, and `_check_line_items_subtotal` enforced strict,
+   zero-tolerance decimal equality. Any discrepancy—even a single cent ($0.01)—immediately triggered
+   a `high`-severity finding (`invoice_total_mismatch`, `line_item_amount_mismatch`, or
+   `line_items_subtotal_mismatch`), falsely equating an ordinary 1-cent penny rounding difference with
+   systemic financial fraud or severe extraction failure.
+2. `_check_invoice_total` checked `subtotal + tax - discount == total` only when all four header monetary
+   fields (`subtotal`, `tax`, `discount`, and `total`) were simultaneously non-null. In standard commercial
+   practice, discounts are absent (`None`) on over 90% of invoices. Skipping arithmetic checks whenever
+   `discount` was `None` allowed massive total discrepancies on standard undiscounted invoices to evade
+   detection completely.
+
+### Decision summary
+
+See [ADR 0034](decisions/0034-invoice-arithmetic-tolerances-and-fractional-rounding-bounds.md). Phase 27:
+- Establishes a standard commercial rounding tolerance constant `DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")`
+  (2 minor currency units, e.g. 2 cents).
+- Adds `rounding_discrepancy` to `FindingType` in `veridoc.verification.models` with `severity="low"`,
+  capturing fractional rounding differences `<= 0.02` with structured details (`discrepancy`, `tolerance`,
+  `component`, and `currency`).
+- Retains `high`-severity findings (`invoice_total_mismatch`, `line_item_amount_mismatch`,
+  `line_items_subtotal_mismatch`) for material discrepancies exceeding `0.02`.
+- Normalizes omitted `discount` to `Decimal(0)` in header arithmetic whenever `subtotal`, `tax`, and `total`
+  are present, and normalizes omitted `tax` to `Decimal(0)` when `discount` is present, while safely skipping
+  indeterminate cases where both `tax` and `discount` are missing and `subtotal != total`.
+- Exposes `check_invoice_total`, `check_line_item_amounts`, `check_line_items_subtotal`, and `check_invoice_dates`
+  as public deterministic functions in `veridoc.verification.arithmetic`.
+
+### Deliverables
+
+- `rounding_discrepancy` added to `FindingType` in `veridoc.verification.models`;
+- `DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")` in `veridoc.verification.arithmetic`;
+- Parameterized tolerance support across `check_invoice_total`, `check_line_item_amounts`,
+  `check_line_items_subtotal`, and `check_arithmetic`;
+- Omitted discount and tax normalization in `check_invoice_total`;
+- Unit, boundary, and multi-finding tests in `tests/test_verification_arithmetic.py`;
+- `docs/decisions/0034-invoice-arithmetic-tolerances-and-fractional-rounding-bounds.md` (ADR 0034) and index update;
+- `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`,
+  `docs/release-evidence.md`, and `docs/PROGRESS.md` synchronized.
+
+### Acceptance criteria
+
+1. `rounding_discrepancy` appears in `FindingType` and is accepted by `VerificationFinding`
+   (verified by `tests/test_verification_models.py`).
+2. When discrepancy is between `0` and `0.02` inclusive, arithmetic checks emit `rounding_discrepancy`
+   with `severity="low"` and structured details including `discrepancy` and `tolerance`
+   (verified by `tests/test_verification_arithmetic.py`).
+3. When discrepancy strictly exceeds `0.02`, arithmetic checks emit material mismatch findings
+   (`invoice_total_mismatch`, `line_item_amount_mismatch`, `line_items_subtotal_mismatch`) with `severity="high"`
+   (verified by `tests/test_verification_arithmetic.py`).
+4. When `discount` is omitted (`None`) but `subtotal`, `tax`, and `total` are present, `check_invoice_total`
+   correctly evaluates `subtotal + tax == total` rather than skipping (verified by `tests/test_verification_arithmetic.py`).
+5. Full quality gate (`pytest --cov=veridoc`, `mypy`, `ruff`, `pip-audit`, distribution build, twine,
+   `check_distribution.py`, `smoke_distribution.py`, and `test_documentation.py`) passes with zero regressions.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and `uv run pytest tests/test_verification_arithmetic.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `InvoiceExtraction` field types or persistence schemas.
+- Modifying evaluation corpus ground truth manifests or preregistered evaluation thresholds.
+- Arbitrary floating-point fuzzy matching (all arithmetic uses exact `Decimal` operations).
+
+### Task list
+
+1. Add Phase 27 specification to `docs/roadmap.md` and initialize `docs/PROGRESS.md`.
+2. Record ADR 0034 (`docs/decisions/0034-invoice-arithmetic-tolerances-and-fractional-rounding-bounds.md`) and register it in `docs/decisions/README.md` and `docs/roadmap.md`.
+3. Add `rounding_discrepancy` to `FindingType` in `src/veridoc/verification/models.py` with unit tests in `tests/test_verification_models.py`.
+4. Update `_check_invoice_total` in `src/veridoc/verification/arithmetic.py` to support `DEFAULT_ROUNDING_TOLERANCE`, omitted discount/tax handling, and `rounding_discrepancy` findings, with tests in `tests/test_verification_arithmetic.py`.
+5. Update `_check_line_item_amounts` and `_check_line_items_subtotal` in `src/veridoc/verification/arithmetic.py` with rounding tolerance and discrepancy classification, with tests in `tests/test_verification_arithmetic.py`.
+6. Add integration, immutability, and verdict tests in `tests/test_verification_arithmetic.py`.
+7. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 26 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 27 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The
