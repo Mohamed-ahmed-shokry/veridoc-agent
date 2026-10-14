@@ -62,7 +62,7 @@ tests/
 ├── test_verification_references.py reference invoice and PO facts
 ├── test_verification_vendors.py    canonical vendor-key resolution
 ├── test_verification_repository_checks.py  duplicate repository lookups
-├── test_verification_arithmetic.py deterministic arithmetic and date rules
+├── test_verification_arithmetic.py deterministic arithmetic, rounding tolerance, and date rules
 ├── test_verification_history.py    total statistics and insufficient history
 ├── test_verification_line_items.py occurrence, price, and quantity comparison
 ├── test_verification_field_history.py  payment-term consistency checks
