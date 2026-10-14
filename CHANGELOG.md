@@ -8,6 +8,16 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 27 invoice arithmetic tolerances and fractional rounding bounds (`rounding_discrepancy`):
+  - Architecture Decision Record 0034 documenting commercial rounding variance risks, line-item half-up rounding accumulation, fractional unit prices, fractional sales taxes, and omitted discount/tax handling.
+  - `rounding_discrepancy` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="low"`.
+  - Established `DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")` in `veridoc.verification.arithmetic`.
+  - Updated `check_invoice_total()` to support `rounding_tolerance`, classifying variances `<= 0.02` as `rounding_discrepancy` with structured details (`discrepancy`, `tolerance`, `component`, `currency`) while retaining `high`-severity `invoice_total_mismatch` for material errors `> 0.02`. Normalized omitted `discount` to `Decimal(0)` when `tax` is present and omitted `tax` to `Decimal(0)` when `discount` is present, avoiding false passes on undiscounted invoices.
+  - Updated `check_line_item_amounts()` to evaluate `abs(quantity * unit_price - total_price) <= rounding_tolerance`, emitting `low`-severity `rounding_discrepancy` for penny rounding differences and `high`-severity `line_item_amount_mismatch` for material calculation errors.
+  - Updated `check_line_items_subtotal()` to evaluate `abs(sum(line_item.total_price) - subtotal) <= rounding_tolerance`, emitting `low`-severity `rounding_discrepancy` for rounding variances and `high`-severity `line_items_subtotal_mismatch` for material calculation errors.
+  - Exported `DEFAULT_ROUNDING_TOLERANCE`, `check_arithmetic`, `check_invoice_dates`, `check_invoice_total`, `check_line_item_amounts`, and `check_line_items_subtotal` as public deterministic functions with full backward-compatible private aliases.
+  - 19 new tests in `tests/test_verification_arithmetic.py` (22 total) covering exact equality, fractional rounding discrepancies at tolerance boundaries, material calculation errors, custom tolerance parameters, omitted field defaults, multiple simultaneous rounding discrepancies, input immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 26 invoice header monetary bounds (`non_positive_subtotal`, `negative_tax`, and `invalid_discount`):
   - Architecture Decision Record 0033 documenting invoice header monetary risks, subtotal extraction anomalies and credit offsets, negative tax deductions, negative discount surcharges, and discounts exceeding the pre-tax subtotal.
   - `non_positive_subtotal`, `negative_tax`, and `invalid_discount` added to the `FindingType` literal union in `veridoc.verification.models`.
