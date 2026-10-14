@@ -46,6 +46,7 @@ FindingType = Literal[
     "negative_tax",
     "invalid_discount",
     "rounding_discrepancy",
+    "payment_terms_due_date_mismatch",
 ]
 
 
