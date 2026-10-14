@@ -227,7 +227,8 @@ intra-invoice duplicate line item detection
 ([ADR 0030](decisions/0030-duplicate-line-item-detection.md)), non-positive
 payable total detection ([ADR 0031](decisions/0031-non-positive-invoice-total-detection.md)),
 non-positive line item amount and quantity detection ([ADR 0032](decisions/0032-non-positive-line-item-detection.md)),
-and invoice header monetary bounds for non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](decisions/0033-invoice-header-monetary-bounds.md)).
+invoice header monetary bounds for non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](decisions/0033-invoice-header-monetary-bounds.md)),
+and fractional rounding bounds with omitted-field normalization ([ADR 0034](decisions/0034-invoice-arithmetic-tolerances-and-fractional-rounding-bounds.md)).
 
 ## Typed explanation flow
 
