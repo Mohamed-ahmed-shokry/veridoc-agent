@@ -1131,6 +1131,48 @@ updated AGENTS.md, updated architecture.md, updated roadmap, and updated CHANGEL
 and documented. No API, schema migration, new dependency, route, or threshold change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 27 completion snapshot
+
+The local Phase 27 completion gate was verified on 2026-10-14 on branch
+`phase/header-arithmetic-tolerances`.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | 290 files already formatted |
+| `uv run mypy` | No issues in 113 production source files |
+| `uv run pytest --cov=veridoc` | 1315 passed; branch coverage exceeds 90% floor |
+| `uv run pytest tests/test_verification_arithmetic.py` | 22 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help`, `veridoc-review --help`, `veridoc-backup --help`, `veridoc-quarantine --help`, and `veridoc-evaluate --help` |
+| `git diff --check` | Clean (zero whitespace errors) |
+| `git status --short` | Clean worktree |
+
+The Phase 27 deliverables (`rounding_discrepancy` finding type in `veridoc.verification.models`,
+`DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")` in `veridoc.verification.arithmetic`,
+calibrated `check_invoice_total`, `check_line_item_amounts`, and `check_line_items_subtotal`
+distinguishing low-severity rounding discrepancies from high-severity material mismatches,
+omitted discount and tax normalization in header arithmetic, exported public functions
+`check_invoice_total`, `check_line_item_amounts`, `check_line_items_subtotal`, and `check_invoice_dates`,
+22 tests in `tests/test_verification_arithmetic.py`, ADR 0034, updated AGENTS.md, updated
+architecture.md, updated roadmap, and updated CHANGELOG) are fully verified and documented.
+No database schema migration, new dependency, route, or threshold change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
