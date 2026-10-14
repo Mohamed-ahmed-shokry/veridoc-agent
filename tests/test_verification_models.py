@@ -165,3 +165,26 @@ def test_verification_finding_accepts_invalid_discount() -> None:
     )
     assert finding.finding_type == "invalid_discount"
     assert finding.severity == "high"
+
+
+def test_verification_finding_accepts_rounding_discrepancy() -> None:
+    finding = VerificationFinding(
+        finding_type="rounding_discrepancy",
+        severity="low",
+        explanation="The invoice total has a fractional rounding discrepancy of 0.01 within the tolerance of 0.02.",
+        comparison_source="invoice_fields",
+        deterministic_rule="abs(subtotal + tax - discount - total) <= 0.02",
+        observed_value="100.01",
+        expected_value="100.00",
+        details={
+            "currency": "USD",
+            "discrepancy": "0.01",
+            "tolerance": "0.02",
+            "component": "invoice_total",
+        },
+    )
+    assert finding.finding_type == "rounding_discrepancy"
+    assert finding.severity == "low"
+    assert finding.details["discrepancy"] == "0.01"
+    assert finding.details["tolerance"] == "0.02"
+    assert finding.details["component"] == "invoice_total"
