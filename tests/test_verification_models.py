@@ -188,3 +188,27 @@ def test_verification_finding_accepts_rounding_discrepancy() -> None:
     assert finding.details["discrepancy"] == "0.01"
     assert finding.details["tolerance"] == "0.02"
     assert finding.details["component"] == "invoice_total"
+
+
+def test_verification_finding_accepts_payment_terms_due_date_mismatch() -> None:
+    finding = VerificationFinding(
+        finding_type="payment_terms_due_date_mismatch",
+        severity="high",
+        explanation="The invoice due date (2026-08-10) is 21 days earlier than the 30-day payment terms specify (expected 2026-08-31).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.due_date == invoice.invoice_date + payment_terms_days",
+        observed_value="2026-08-10",
+        expected_value="2026-08-31",
+        details={
+            "payment_terms": "Net 30",
+            "terms_days": 30,
+            "expected_due_date": "2026-08-31",
+            "observed_due_date": "2026-08-10",
+            "discrepancy_days": -21,
+            "is_accelerated": True,
+        },
+    )
+    assert finding.finding_type == "payment_terms_due_date_mismatch"
+    assert finding.severity == "high"
+    assert finding.details["discrepancy_days"] == -21
+    assert finding.details["is_accelerated"] is True
