@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 27 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 28 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -266,6 +266,11 @@ implementation remains deliberately small:
   (`invoice_total_mismatch`, `line_item_amount_mismatch`, `line_items_subtotal_mismatch`), custom tolerance
   parameters, omitted-field safe handling, multiple simultaneous rounding discrepancies, input immutability,
   `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_payment_terms.py` covers Phase 28 deterministic payment terms and due date
+  consistency verification (ADR 0035): non-triggering paths (absent/unrecognized terms or dates, exact
+  calendar matches, weekend business-day rolls to Monday), triggering paths (accelerated due dates with
+  high severity, extended due dates with medium severity, immediate payment violations), structured details,
+  input immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -335,7 +340,11 @@ rounding tolerances and fractional rounding bounds (ADR 0034) establishing
 `DEFAULT_ROUNDING_TOLERANCE = Decimal("0.02")` to distinguish low-severity
 `rounding_discrepancy` from high-severity material calculation errors across
 header totals, line item amounts, and subtotal sums, while normalizing omitted
-discount and tax fields on standard commercial invoices.
+discount and tax fields on standard commercial invoices. Phase 28 adds
+deterministic payment terms and due date consistency verification (ADR 0035)
+detecting accelerated due dates (`severity="high"`) and extended due dates
+(`severity="medium"`) across standard net, cash discount, and immediate payment
+terms with weekend business-day roll normalization.
 
 The current and planned workflow is:
 
