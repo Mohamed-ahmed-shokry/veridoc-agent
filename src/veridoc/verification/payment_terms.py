@@ -7,7 +7,7 @@ from datetime import timedelta
 from typing import Final
 
 from veridoc.extraction.models import InvoiceExtraction
-from veridoc.verification.models import VerificationFinding
+from veridoc.verification.models import FindingSeverity, VerificationFinding
 
 # Regex for "Net <N>", "<N> net", "<N> days net", "N/<N>", etc.
 _NET_DAYS_RE: Final[re.Pattern[str]] = re.compile(
@@ -108,6 +108,7 @@ def check_payment_terms_due_date(
 
     discrepancy_days = (due_date - expected_due_date).days
     is_accelerated = discrepancy_days < 0
+    severity: FindingSeverity
 
     if is_accelerated:
         abs_days = abs(discrepancy_days)
