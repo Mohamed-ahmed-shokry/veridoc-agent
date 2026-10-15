@@ -4,38 +4,38 @@
 
 - **Phase:** Phase 28
 - **Goal:** Implement deterministic payment terms and due date consistency verification (`payment_terms_due_date_mismatch` in `veridoc.verification.payment_terms`) to detect predatory term acceleration and due date calculation or extraction errors.
-- **Status:** In Progress
+- **Status:** Complete
 - **Branch:** `phase/payment-terms-due-date`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 28 in `docs/roadmap.md` | In Progress | Pending |
-| 2 | Record ADR 0035 in `docs/decisions/` and register in `docs/decisions/README.md` | In Progress | Pending |
-| 3 | Initialize Phase 28 progress record and decision log in `docs/PROGRESS.md` | In Progress | Pending |
-| 4 | Add `payment_terms_due_date_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Pending | Pending |
-| 5 | Add `payment_terms_due_date_mismatch` model test in `tests/test_verification_models.py` | Pending | Pending |
-| 6 | Implement `parse_payment_terms_days` in `src/veridoc/verification/payment_terms.py` | Pending | Pending |
-| 7 | Add unit tests for `parse_payment_terms_days` in `tests/test_verification_payment_terms.py` | Pending | Pending |
-| 8 | Implement `check_payment_terms_due_date` in `src/veridoc/verification/payment_terms.py` | Pending | Pending |
-| 9 | Add unit tests for `check_payment_terms_due_date` in `tests/test_verification_payment_terms.py` | Pending | Pending |
-| 10 | Integrate `check_payment_terms_due_date` into `VerificationService.verify()` | Pending | Pending |
-| 11 | Add `VerificationService`, immutability, and verdict tests in `tests/test_verification_payment_terms.py` | Pending | Pending |
-| 12 | Update `docs/architecture.md` and `docs/testing.md` for Phase 28 | Pending | Pending |
-| 13 | Update `AGENTS.md`, `README.md`, and `CHANGELOG.md` for Phase 28 | Pending | Pending |
-| 14 | Record release evidence in `docs/release-evidence.md` and finalize `docs/PROGRESS.md` | Pending | Pending |
+| 1 | Define Phase 28 in `docs/roadmap.md` | Completed | `f453706` |
+| 2 | Record ADR 0035 in `docs/decisions/` and register in `docs/decisions/README.md` | Completed | `f12077d` |
+| 3 | Initialize Phase 28 progress record and decision log in `docs/PROGRESS.md` | Completed | `a2fa0f3` |
+| 4 | Add `payment_terms_due_date_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `5931bb8` |
+| 5 | Add `payment_terms_due_date_mismatch` model test in `tests/test_verification_models.py` | Completed | `c419739` |
+| 6 | Implement `parse_payment_terms_days` in `src/veridoc/verification/payment_terms.py` | Completed | `d27a7be` |
+| 7 | Add unit tests for `parse_payment_terms_days` in `tests/test_verification_payment_terms.py` | Completed | `d27a7be` |
+| 8 | Implement `check_payment_terms_due_date` in `src/veridoc/verification/payment_terms.py` | Completed | `d27a7be` |
+| 9 | Add unit tests for `check_payment_terms_due_date` in `tests/test_verification_payment_terms.py` | Completed | `d27a7be` |
+| 10 | Integrate `check_payment_terms_due_date` into `VerificationService.verify()` | Completed | `15b2490` |
+| 11 | Add `VerificationService`, immutability, and verdict tests in `tests/test_verification_payment_terms.py` | Completed | `15b2490` |
+| 12 | Update `docs/architecture.md` and `docs/testing.md` for Phase 28 | Completed | `84c4e76` |
+| 13 | Update `AGENTS.md`, `README.md`, and `CHANGELOG.md` for Phase 28 | Completed | `47f7dc8`, `18f0ad1` |
+| 14 | Record release evidence in `docs/release-evidence.md` and finalize `docs/PROGRESS.md` | Completed | `current` |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `payment_terms_due_date_mismatch` appears in `FindingType` and is accepted by `VerificationFinding` | Pending | Target: `tests/test_verification_models.py` |
-| 2 | `parse_payment_terms_days` correctly parses Net terms, cash discount net terms, and immediate terms, returning `None` for unparseable terms | Pending | Target: `tests/test_verification_payment_terms.py` |
-| 3 | `check_payment_terms_due_date` returns `[]` when fields are missing, unparseable, matching, or have valid weekend rolls | Pending | Target: `tests/test_verification_payment_terms.py` |
-| 4 | `check_payment_terms_due_date` returns `high` severity for accelerated due dates and `medium` severity for extended due dates | Pending | Target: `tests/test_verification_payment_terms.py` |
-| 5 | `VerificationService.verify()` includes payment terms due date findings and routes non-conforming invoices to `review_required` | Pending | Target: `tests/test_verification_payment_terms.py` |
-| 6 | Full quality gate passes without regression | Pending | Release gate |
+| 1 | `payment_terms_due_date_mismatch` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
+| 2 | `parse_payment_terms_days` correctly parses Net terms, cash discount net terms, and immediate terms, returning `None` for unparseable terms | Verified | `tests/test_verification_payment_terms.py` passed (18/18) |
+| 3 | `check_payment_terms_due_date` returns `[]` when fields are missing, unparseable, matching, or have valid weekend rolls | Verified | `tests/test_verification_payment_terms.py` passed |
+| 4 | `check_payment_terms_due_date` returns `high` severity for accelerated due dates and `medium` severity for extended due dates | Verified | `tests/test_verification_payment_terms.py` passed |
+| 5 | `VerificationService.verify()` includes payment terms due date findings and routes non-conforming invoices to `review_required` | Verified | `tests/test_verification_payment_terms.py` passed |
+| 6 | Full quality gate passes without regression | Verified | 1335 passed, 93.92% coverage, all gates passed |
 
 ## Decision Log
 
@@ -53,7 +53,9 @@
 ## Validation Results
 
 - Baseline suite: 1316 tests passing.
+- Phase 28 final suite: 1335 tests passing, 0 failures, 93.92% branch coverage. All 18 payment terms consistency tests passing.
 
 ## Blockers
 
 None.
+

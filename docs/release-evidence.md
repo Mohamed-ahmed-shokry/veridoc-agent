@@ -1173,6 +1173,46 @@ architecture.md, updated roadmap, and updated CHANGELOG) are fully verified and 
 No database schema migration, new dependency, route, or threshold change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 28 completion snapshot
+
+The local Phase 28 completion gate was recorded on 2026-10-15 against commit
+`18f0ad1` before this evidence section and progress updates were committed.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All files formatted |
+| `uv run mypy` | No issues found across all source files |
+| `uv run pytest --cov=veridoc` | 1335 passed; 93.92% branch coverage against a 90% floor |
+| `uv run pytest tests/test_verification_payment_terms.py` | 18 passed |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links and the documented test-module inventory passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| Maintenance CLI smoke | Loaded `veridoc-reference --help`, `veridoc-review --help`, `veridoc-backup --help`, `veridoc-quarantine --help`, and `veridoc-evaluate --help` |
+| `git diff --check` | Clean (zero whitespace errors) |
+| `git status --short` | Clean worktree |
+
+The Phase 28 deliverables (`payment_terms_due_date_mismatch` finding type in `veridoc.verification.models`,
+`parse_payment_terms_days` and `check_payment_terms_due_date` in `veridoc.verification.payment_terms`,
+weekend business-day roll normalization, accelerated due date high-severity detection, extended due date
+medium-severity detection, `VerificationService.verify()` integration, 18 tests in
+`tests/test_verification_payment_terms.py`, ADR 0035, updated AGENTS.md, updated architecture.md, updated
+roadmap, and updated CHANGELOG) are fully verified and documented. No database schema migration, new dependency,
+route, or threshold change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
