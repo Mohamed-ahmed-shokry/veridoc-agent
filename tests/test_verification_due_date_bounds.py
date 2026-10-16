@@ -131,3 +131,20 @@ def test_excessive_due_date_window_flags_two_year_window() -> None:
     assert len(findings) == 1
     assert findings[0].finding_type == "excessive_due_date_window"
     assert findings[0].details["credit_window_days"] == 730
+
+
+def test_check_excessive_due_date_window_preserves_invoice_immutability() -> None:
+    """The pure check must never mutate invoice fields."""
+    invoice_date = date(2026, 1, 1)
+    due_date = date(2028, 1, 1)
+    invoice = _invoice(
+        invoice_date=invoice_date,
+        due_date=due_date,
+        total="1000.00",
+        currency="USD",
+    )
+    copy_invoice = invoice.model_copy(deep=True)
+
+    check_excessive_due_date_window(invoice)
+
+    assert invoice == copy_invoice
