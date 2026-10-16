@@ -33,6 +33,7 @@ boundaries only and require separate approval before implementation.
 | 25 | Non-positive line item detection rule (ADR 0032) | Complete |
 | 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | Complete |
 | 27 | Invoice arithmetic tolerances and fractional rounding bounds (ADR 0034) | Complete |
+| 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1407,9 +1408,109 @@ See [ADR 0034](decisions/0034-invoice-arithmetic-tolerances-and-fractional-round
 6. Add integration, immutability, and verdict tests in `tests/test_verification_arithmetic.py`.
 7. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
 
+## Phase 28: payment terms and due date consistency verification
+
+Phase 28 implements deterministic payment terms and payable due date cross-field
+verification (`veridoc.verification.payment_terms`) to detect predatory term acceleration
+(shortened credit windows), calculation errors, and date extraction anomalies.
+
+### Motivation and context
+
+Under standard commercial contracts, payment terms (e.g. "Net 30", "Net 15", "Net 60",
+"Due on receipt") establish the binding credit window between an invoice's issue date
+(`invoice_date`) and when payment is legally due (`due_date`):
+`expected_due_date = invoice_date + timedelta(days=terms_days)`.
+
+Previously in Veridoc:
+1. `check_invoice_dates` in `veridoc.verification.arithmetic` only checked that
+   `invoice_date <= due_date`. An invoice specifying 30-day credit terms ("Net 30") with a
+   due date only 3 days after issue cleared verification without review.
+2. `check_payment_terms` in `veridoc.verification.field_history` only verified whether
+   `invoice.payment_terms` matched *historical* invoices from the vendor. It never validated
+   whether the invoice's own extracted `due_date` was consistent with its stated terms.
+
+This gap allowed two major operational risks:
+- **Predatory term acceleration**: Invoices stating standard credit terms ("Net 30") where the
+  vendor artificially accelerates the due date (e.g. 5 or 10 days after issue), pressuring buyers
+  into early cash disbursements or attempting to trigger unfair late fees.
+- **Due date calculation errors & extraction mismatches**: Vendor ERP calendar math errors or
+  OCR extraction errors (e.g. extracting a discount cutoff date or statement date instead of the
+  net due date).
+
+### Decision summary
+
+See [ADR 0035](decisions/0035-payment-terms-due-date-consistency.md). Phase 28 adds:
+- `payment_terms_due_date_mismatch` to `FindingType` in `veridoc.verification.models`.
+- `parse_payment_terms_days(terms: str | None) -> int | None` pure parser supporting standard
+  terms (`Net <N>`, cash discount `<D>/<T> Net <N>`, and immediate/`Due on receipt` terms) while
+  safely returning `None` for unparseable or non-standard terms.
+- Deterministic weekend business-day adjustment: accepting Monday due dates when the calculated
+  due date lands on Saturday (+2 days) or Sunday (+1 day).
+- `check_payment_terms_due_date(invoice: InvoiceExtraction) -> list[VerificationFinding]` pure function
+  in `veridoc.verification.payment_terms`.
+- Severity model: `high` severity for accelerated due dates (`due_date < expected_due_date`), protecting
+  buyer working capital, and `medium` severity for extended due dates (`due_date > expected_due_date`).
+- Integrated into `VerificationService.verify()`, routing non-conforming invoices to `review_required`.
+
+### Deliverables
+
+- `payment_terms_due_date_mismatch` added to `FindingType` in `veridoc.verification.models`;
+- `parse_payment_terms_days()` and `check_payment_terms_due_date()` pure functions in
+  `veridoc.verification.payment_terms`;
+- `VerificationService.verify()` calls `check_payment_terms_due_date`;
+- Focused unit and integration tests in `tests/test_verification_payment_terms.py` covering standard
+  net terms, immediate terms, cash discounts, weekend adjustments, accelerated due dates, extended
+  due dates, missing fields, immutability, service integration, and verdict derivation;
+- `docs/decisions/0035-payment-terms-due-date-consistency.md` (ADR 0035) and index update;
+- `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`,
+  `docs/release-evidence.md`, and `docs/PROGRESS.md` synchronized.
+
+### Acceptance criteria
+
+1. `payment_terms_due_date_mismatch` appears in `FindingType` and is accepted by `VerificationFinding`
+   (verified by `tests/test_verification_models.py`).
+2. `parse_payment_terms_days` correctly parses standard Net terms (`Net 10`, `Net 15`, `Net 30`, `Net 45`,
+   `Net 60`, `Net 90`, `Net 120`), cash discount net terms (`2/10 Net 30`), and immediate terms (`Due on receipt`,
+   `Immediate`, `COD`), returning `None` for unparseable or non-standard terms
+   (verified by `tests/test_verification_payment_terms.py`).
+3. `check_payment_terms_due_date` returns `[]` when `invoice_date`, `due_date`, or `payment_terms` is missing,
+   when terms are unparseable, when `due_date == expected_due_date`, or when `due_date` incorporates a valid
+   weekend business-day roll (verified by `tests/test_verification_payment_terms.py`).
+4. `check_payment_terms_due_date` returns `high` severity when `due_date < expected_due_date` (accelerated)
+   and `medium` severity when `due_date > expected_due_date` (extended), with structured details
+   (verified by `tests/test_verification_payment_terms.py`).
+5. `VerificationService.verify()` includes payment terms due date findings and routes non-conforming invoices
+   to `review_required` (verified by `tests/test_verification_payment_terms.py`).
+6. Full quality gate (`pytest --cov=veridoc`, `mypy`, `ruff`, `pip-audit`, distribution build, twine,
+   `check_distribution.py`, `smoke_distribution.py`, and `test_documentation.py`) passes with zero regressions.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and `uv run pytest tests/test_verification_payment_terms.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `InvoiceExtraction` field types or database schemas.
+- Modifying evaluation corpus ground truth manifests or preregistered evaluation thresholds.
+- Speculative parsing of complex non-standard contractual conditions (e.g. multi-stage milestones).
+
+### Task list
+
+1. Add Phase 28 specification to `docs/roadmap.md` and record ADR 0035 in `docs/decisions/`.
+2. Register ADR 0035 in `docs/decisions/README.md` and initialize `docs/PROGRESS.md`.
+3. Add `payment_terms_due_date_mismatch` to `FindingType` in `src/veridoc/verification/models.py` with unit tests in `tests/test_verification_models.py`.
+4. Implement `parse_payment_terms_days` and `check_payment_terms_due_date` in `src/veridoc/verification/payment_terms.py` with unit tests in `tests/test_verification_payment_terms.py`.
+5. Integrate `check_payment_terms_due_date` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_payment_terms.py`.
+6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 27 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 28 are complete. Phase 14 is
 planned but environment-blocked. Before any later phase, inspect the
 repository, run the existing suite, present the implementation and commit
 plan, identify documentation changes, and wait for explicit approval. The

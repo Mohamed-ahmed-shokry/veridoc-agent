@@ -427,7 +427,7 @@ current boundaries rather than bypass them:
   verification-rule coverage and end-to-end operational performance.
 
 Phase 9 is implemented as described above. Phases 10 through 13 and Phases 15
-through 25 are complete; Phase 14 is planned but blocked on a Tesseract-equipped
+through 28 are complete; Phase 14 is planned but blocked on a Tesseract-equipped
 operator environment. See the [project roadmap](roadmap.md) for the current
 phase status.
 

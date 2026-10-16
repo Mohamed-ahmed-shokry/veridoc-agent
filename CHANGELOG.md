@@ -8,6 +8,14 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 28 payment terms and due date consistency verification (`payment_terms_due_date_mismatch`):
+  - Architecture Decision Record 0035 documenting payment term acceleration risks, unauthorized cash flow demands, due date calculation errors, extraction artifacts, weekend business-day roll normalization, and deterministic cross-field verification invariants.
+  - `payment_terms_due_date_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `parse_payment_terms_days()` in `veridoc.verification.payment_terms` supporting standard net terms (`Net 30`, `30 days net`, `N/30`), cash discount net maturity terms (`2/10 Net 30`, `1/10, net 30`), and immediate terms (`Due on receipt`, `COD`, `Net 0`), returning integer credit days or `None` for unrecognized text.
+  - Implemented `check_payment_terms_due_date()` in `veridoc.verification.payment_terms` evaluating `due_date` against `invoice_date + timedelta(days=terms_days)`. Normalizes Saturday and Sunday maturity dates that roll to Monday (+2 and +1 day respectively). Accelerated due dates (`due_date < expected_due_date`) emit `high`-severity findings to intercept premature payment demands; extended due dates (`due_date > expected_due_date`) emit `medium`-severity findings for calendar or extraction discrepancies. Structured details capture `payment_terms`, `terms_days`, `expected_due_date`, `observed_due_date`, `discrepancy_days`, and `is_accelerated`.
+  - `VerificationService.verify()` calls `check_payment_terms_due_date(invoice)`, automatically incorporating payment terms consistency findings into verification results and routing violating invoices to `review_required`.
+  - 18 focused tests in `tests/test_verification_payment_terms.py` covering absent and unparseable fields, standard net terms, cash discount terms, immediate terms, Saturday and Sunday business-day rolls, 1-day and multi-day accelerated terms, 1-day and multi-day extended terms, immediate term violations, input invoice immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 27 invoice arithmetic tolerances and fractional rounding bounds (`rounding_discrepancy`):
   - Architecture Decision Record 0034 documenting commercial rounding variance risks, line-item half-up rounding accumulation, fractional unit prices, fractional sales taxes, and omitted discount/tax handling.
   - `rounding_discrepancy` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="low"`.
