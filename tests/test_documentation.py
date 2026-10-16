@@ -163,3 +163,19 @@ def test_test_module_inventory_matches_testing_guide() -> None:
         f"Missing from docs/testing.md: {missing}; "
         f"stale entries in docs/testing.md: {stale}"
     )
+
+
+def test_tracked_files_have_no_whitespace_errors() -> None:
+    """Tracked files must satisfy git diff-check whitespace hygiene."""
+    import subprocess
+
+    result = subprocess.run(
+        ["git", "diff", "--check", "4b825dc642cb6eb9a060e54bf8d69288fbee4904", "HEAD"],
+        cwd=_REPOSITORY_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        f"git diff --check detected tracked whitespace violations:\n{result.stdout}\n{result.stderr}"
+    )
