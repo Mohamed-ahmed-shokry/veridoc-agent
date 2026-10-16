@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 28 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 29 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -344,7 +344,9 @@ discount and tax fields on standard commercial invoices. Phase 28 adds
 deterministic payment terms and due date consistency verification (ADR 0035)
 detecting accelerated due dates (`severity="high"`) and extended due dates
 (`severity="medium"`) across standard net, cash discount, and immediate payment
-terms with weekend business-day roll normalization.
+terms with weekend business-day roll normalization. Phase 29 restores GitHub Actions
+CI workflow to 100% green status by eliminating trailing whitespace defects, enforcing
+tracked file whitespace hygiene via test gates, and verifying end-to-end CI parity.
 
 The current and planned workflow is:
 
