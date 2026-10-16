@@ -1,7 +1,6 @@
 """Deterministic excessive credit window and due date bound verification tests."""
 
 from datetime import date, timedelta
-from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.due_date_bounds import (
@@ -24,7 +23,9 @@ def _invoice(**kwargs: object) -> InvoiceExtraction:
 
 def test_no_finding_when_dates_are_absent() -> None:
     assert check_excessive_due_date_window(_invoice()) == []
-    assert check_excessive_due_date_window(_invoice(invoice_date=date(2026, 8, 1))) == []
+    assert (
+        check_excessive_due_date_window(_invoice(invoice_date=date(2026, 8, 1))) == []
+    )
     assert check_excessive_due_date_window(_invoice(due_date=date(2026, 8, 31))) == []
 
 
@@ -89,9 +90,15 @@ def test_excessive_due_date_window_flags_one_day_past_maximum() -> None:
     assert finding.finding_type == "excessive_due_date_window"
     assert finding.severity == "medium"
     assert finding.comparison_source == "invoice_fields"
-    assert finding.deterministic_rule == f"due_date - invoice_date <= {MAXIMUM_CREDIT_WINDOW_DAYS} days"
+    assert (
+        finding.deterministic_rule
+        == f"due_date - invoice_date <= {MAXIMUM_CREDIT_WINDOW_DAYS} days"
+    )
     assert finding.observed_value == due_date.isoformat()
-    assert finding.expected_value == (invoice_date + timedelta(days=MAXIMUM_CREDIT_WINDOW_DAYS)).isoformat()
+    assert (
+        finding.expected_value
+        == (invoice_date + timedelta(days=MAXIMUM_CREDIT_WINDOW_DAYS)).isoformat()
+    )
     assert finding.details == {
         "credit_window_days": 366,
         "max_allowed_days": MAXIMUM_CREDIT_WINDOW_DAYS,
@@ -113,7 +120,10 @@ def test_excessive_due_date_window_flags_multi_year_ocr_hallucination() -> None:
     finding = findings[0]
     assert finding.finding_type == "excessive_due_date_window"
     assert finding.severity == "medium"
-    assert finding.details["credit_window_days"] == (date(2036, 5, 10) - date(2026, 5, 10)).days
+    assert (
+        finding.details["credit_window_days"]
+        == (date(2036, 5, 10) - date(2026, 5, 10)).days
+    )
     assert "OCR year hallucination" in finding.explanation
 
 
