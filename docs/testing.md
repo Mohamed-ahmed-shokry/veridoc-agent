@@ -146,6 +146,7 @@ tests/
 ├── test_verification_line_item_amounts.py Phase 25 non-positive line item detection rule and paths
 ├── test_verification_header_amounts.py  Phase 26 invoice header monetary bound rules and paths
 ├── test_verification_payment_terms.py   Phase 28 payment terms and due date consistency rules and paths
+├── test_verification_due_date_bounds.py  Phase 30 excessive credit window and due date bound rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
