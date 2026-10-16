@@ -124,7 +124,8 @@ quality gate restoration, and excessive credit window bounds (ADR 0036).
 - `veridoc-review cases` (`list`, `get`) and `sessions` (`list`, `revoke`, `prune`) administrative CLI subcommands;
 - automated review session pruning in `veridoc-backup` via `--session-retention-days`;
 - deterministic header monetary bounds checking non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](docs/decisions/0033-invoice-header-monetary-bounds.md));
-- deterministic payment terms and due date consistency verification detecting accelerated and extended payment terms ([ADR 0035](docs/decisions/0035-payment-terms-due-date-consistency.md)); and
+- deterministic payment terms and due date consistency verification detecting accelerated and extended payment terms ([ADR 0035](docs/decisions/0035-payment-terms-due-date-consistency.md));
+- deterministic excessive credit window and due date bound verification detecting OCR year hallucinations and multi-year deferred liabilities ([ADR 0036](docs/decisions/0036-excessive-due-date-window.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
