@@ -148,3 +148,36 @@ def test_check_excessive_due_date_window_preserves_invoice_immutability() -> Non
     check_excessive_due_date_window(invoice)
 
     assert invoice == copy_invoice
+
+
+class _FakeInvoiceRepository:
+    """Minimal fake repository for VerificationService integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_includes_excessive_due_date_window() -> None:
+    """VerificationService.verify must execute check_excessive_due_date_window."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _invoice(
+        invoice_date=date(2026, 1, 1),
+        due_date=date(2028, 1, 1),
+        total="500.00",
+        currency="USD",
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    types = [finding.finding_type for finding in result.findings]
+    assert "excessive_due_date_window" in types
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "medium"
