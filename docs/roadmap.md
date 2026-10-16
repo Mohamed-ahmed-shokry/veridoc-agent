@@ -1508,7 +1508,7 @@ See [ADR 0035](decisions/0035-payment-terms-due-date-consistency.md). Phase 28 a
 4. Implement `parse_payment_terms_days` and `check_payment_terms_due_date` in `src/veridoc/verification/payment_terms.py` with unit tests in `tests/test_verification_payment_terms.py`.
 5. Integrate `check_payment_terms_due_date` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_payment_terms.py`.
 6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
- 
+
 ## Phase 29: CI quality gate restoration & tracked whitespace hygiene
 
 Phase 29 restores GitHub Actions CI workflow to 100% green status by remediating
