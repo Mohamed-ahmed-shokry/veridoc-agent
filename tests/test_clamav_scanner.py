@@ -48,28 +48,33 @@ class FakeClamd:
         self._server.close()
 
     def _read_stream(self, connection: socket.socket) -> None:
-        command = b""
-        while not command.endswith(b"\0"):
+        buffer = bytearray()
+
+        def recv_exact(count: int) -> bytes:
+            while len(buffer) < count:
+                chunk = connection.recv(4096)
+                if not chunk:
+                    raise OSError("connection closed mid-stream")
+                buffer.extend(chunk)
+            data = buffer[:count]
+            del buffer[:count]
+            return bytes(data)
+
+        while b"\0" not in buffer:
             chunk = connection.recv(64)
             if not chunk:
                 return
-            command += chunk
+            buffer.extend(chunk)
+
+        null_pos = buffer.index(b"\0")
+        del buffer[: null_pos + 1]
+
         while True:
-            header = self._recv_exact(connection, 4)
+            header = recv_exact(4)
             (length,) = struct.unpack(">I", header)
             if length == 0:
                 return
-            self.received.extend(self._recv_exact(connection, length))
-
-    @staticmethod
-    def _recv_exact(connection: socket.socket, count: int) -> bytes:
-        data = bytearray()
-        while len(data) < count:
-            chunk = connection.recv(count - len(data))
-            if not chunk:
-                raise OSError("connection closed mid-stream")
-            data.extend(chunk)
-        return bytes(data)
+            self.received.extend(recv_exact(length))
 
     def settings(self, tmp_path, **overrides) -> ScanningSettings:
         values: dict[str, str] = {

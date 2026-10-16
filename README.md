@@ -52,7 +52,8 @@ fraud, validation, arithmetic, and payment rules: stale invoice detection (ADR 0
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
 total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
 header monetary bounds (ADR 0033), fractional rounding bounds with omitted-field
-handling (ADR 0034), and payment terms due date consistency (ADR 0035).
+handling (ADR 0034), payment terms due date consistency (ADR 0035), and Phase 29 CI
+quality gate restoration.
 
 ## Implemented capabilities
 

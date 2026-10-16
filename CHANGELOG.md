@@ -8,6 +8,11 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 29 CI quality gate restoration & tracked whitespace hygiene:
+  - Remediated trailing blank line whitespace violations in tracked Markdown documentation (`docs/PROGRESS.md`) to resolve failures in the `git diff --check` CI workflow step.
+  - Added `test_tracked_files_have_no_whitespace_errors` to `tests/test_documentation.py` executing `git diff --check` on the empty-tree boundary, preventing whitespace regressions from passing local test runs.
+  - Verified 100% green CI parity locally across all formatting, linting, type-checking, test coverage, package builds, twine validation, and isolated wheel/sdist smoke installations.
+
 - Phase 28 payment terms and due date consistency verification (`payment_terms_due_date_mismatch`):
   - Architecture Decision Record 0035 documenting payment term acceleration risks, unauthorized cash flow demands, due date calculation errors, extraction artifacts, weekend business-day roll normalization, and deterministic cross-field verification invariants.
   - `payment_terms_due_date_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
