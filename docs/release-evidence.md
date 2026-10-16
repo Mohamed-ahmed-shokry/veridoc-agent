@@ -1211,6 +1211,42 @@ medium-severity detection, `VerificationService.verify()` integration, 18 tests 
 `tests/test_verification_payment_terms.py`, ADR 0035, updated AGENTS.md, updated architecture.md, updated
 roadmap, and updated CHANGELOG) are fully verified and documented. No database schema migration, new dependency,
 route, or threshold change was made.
+## Phase 29 completion snapshot
+
+The Phase 29 completion gate was recorded on 2026-10-17 against commit
+`c7f44fc`.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner (CI run `38978109737`); and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed (0 known vulnerabilities) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All files formatted |
+| `uv run mypy` | No issues found across all source files |
+| `uv run pytest --cov=veridoc` | 1336 passed; 93.92% branch coverage against a 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| GitHub Actions CI (`ci.yml`) | 100% green on run `38978109737` |
+| `git status --short` | Clean worktree |
+
+The Phase 29 deliverables (remediated trailing blank lines in tracked documentation,
+pre-commit regression test `test_tracked_files_have_no_whitespace_errors` in `tests/test_documentation.py`,
+stabilized `FakeClamd` socket streaming in `tests/test_clamav_scanner.py`, updated AGENTS.md,
+README.md, CHANGELOG.md, and verified 100% green GitHub Actions CI run `38978109737`) are fully verified.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
 ## Evidence boundaries
