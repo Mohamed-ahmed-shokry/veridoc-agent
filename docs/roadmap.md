@@ -34,6 +34,7 @@ boundaries only and require separate approval before implementation.
 | 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | Complete |
 | 27 | Invoice arithmetic tolerances and fractional rounding bounds (ADR 0034) | Complete |
 | 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
+| 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | In Progress |
 
 ## Phase 7: release engineering
 
@@ -1507,11 +1508,37 @@ See [ADR 0035](decisions/0035-payment-terms-due-date-consistency.md). Phase 28 a
 4. Implement `parse_payment_terms_days` and `check_payment_terms_due_date` in `src/veridoc/verification/payment_terms.py` with unit tests in `tests/test_verification_payment_terms.py`.
 5. Integrate `check_payment_terms_due_date` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_payment_terms.py`.
 6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+ 
+## Phase 29: CI quality gate restoration & tracked whitespace hygiene
+
+Phase 29 restores GitHub Actions CI workflow to 100% green status by remediating
+the trailing blank line whitespace violations causing git diff-check step failure
+in `.github/workflows/ci.yml`.
+
+### Motivation and context
+
+The repository's CI pipeline executes `git diff --check "$(git hash-object -t tree /dev/null)" HEAD`
+as its first quality gate step to enforce strict whitespace cleanliness across all tracked files.
+Trailing blank lines at end of file in tracked documents caused remote CI runs to fail.
+Per the autonomous engineering contract (§3 Priority 1), broken CI is top priority.
+
+### Scope and deliverables
+
+- Remediate trailing newline formatting in `docs/PROGRESS.md` to satisfy `git diff --check`.
+- Add a local pre-commit verification command/test enforcing `git diff --check` so whitespace regressions are caught immediately.
+- Verify full local CI parity (whitespace check, ruff check, ruff format, mypy, pytest coverage, pip-audit, twine, distribution smoke).
+- Push phase branch, monitor GitHub Actions CI, and verify 100% green build.
+
+### Acceptance criteria
+
+1. `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` exits 0 locally and in CI.
+2. All local CI-parity checks and remote CI workflow runs pass 100%.
+3. Full quality gate passes with zero regressions.
 
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 28 are complete. Phase 14 is
-planned but environment-blocked. Before any later phase, inspect the
-repository, run the existing suite, present the implementation and commit
-plan, identify documentation changes, and wait for explicit approval. The
-same rule applies to any future phase's approval.
+planned but environment-blocked. Phase 29 fixes the broken CI baseline.
+Before any later phase, inspect the repository, run the existing suite,
+present the implementation and commit plan, identify documentation changes,
+and wait for explicit approval. The same rule applies to any future phase's approval.
