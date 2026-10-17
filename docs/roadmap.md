@@ -36,6 +36,7 @@ boundaries only and require separate approval before implementation.
 | 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
 | 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
+| 31 | Document type verification (ADR 0037) | In progress |
 
 ## Phase 7: release engineering
 
@@ -1614,10 +1615,92 @@ credit window is routed to `review_required`.
 5. Integrate `check_excessive_due_date_window` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_due_date_bounds.py`.
 6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
 
+## Phase 31: document type verification
+
+Phase 31 introduces deterministic document type verification (ADR 0037) detecting
+non-invoice documents (`document_type != "invoice"`, including `"purchase_order"` and
+`"unknown"`) to prevent unearned `clear` verdicts on non-invoice instruments.
+
+### Motivation and context
+
+Veridoc's version 1 reconciliation pipeline is engineered specifically for invoice and
+purchase-order reconciliation. Document extraction produces a structured `document_type`
+field (`Literal["invoice", "purchase_order", "unknown"]`). However, prior to Phase 31,
+`VerificationService` did not inspect `invoice.document_type`.
+
+When upstream workflows or operators upload an internal purchase order, a vendor's
+copy of a purchase order, or an unclassified document (e.g., quotes, packing slips,
+receipts, or terms pages extracted as `unknown`), `VerificationService` previously
+evaluated the document against invoice rules. If the line items and arithmetic balanced
+and reference data produced no conflicts, non-invoice documents could receive an unearned
+`clear` processing verdict.
+
+Allowing purchase orders to clear invoice verification risks duplicate payment or
+unauthorized disbursement. Allowing unknown documents to clear pollutes accounts payable
+ledgers with invalid records. Establishing an explicit deterministic check ensures that only
+genuine invoices (`document_type == "invoice"`) can clear processing, while non-invoice
+documents are immediately flagged with `severity="high"` for mandatory human review.
+
+### Scope and deliverables
+
+- `unsupported_document_type` finding type added to `FindingType` in `veridoc.verification.models`.
+- Pure deterministic check `check_document_type(invoice: InvoiceExtraction) -> list[VerificationFinding]`
+  in `veridoc.verification.document_type`.
+- Exclusion paths: returns `[]` when `invoice.document_type == "invoice"`.
+- Triggering paths: returns one `unsupported_document_type` finding (`severity="high"`) when
+  `invoice.document_type == "purchase_order"` or `invoice.document_type == "unknown"`, with
+  structured details (`document_type`).
+- Integrated into `VerificationService.verify()`, routing violating non-invoice documents to `review_required`.
+- Unit and integration tests in `tests/test_verification_document_type.py` covering valid invoices,
+  purchase orders, unknown documents, immutability, service integration, and verdict derivation.
+- Documentation and release evidence synchronized across `docs/testing.md`, `docs/architecture.md`,
+  `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `unsupported_document_type` appears in `FindingType` and is accepted by `VerificationFinding`
+   (verified by `tests/test_verification_models.py`).
+2. `check_document_type` returns `[]` when `invoice.document_type == "invoice"`
+   (verified by `tests/test_verification_document_type.py`).
+3. `check_document_type` returns one `unsupported_document_type` finding with `severity="high"`
+   and structured details when `invoice.document_type == "purchase_order"` or `"unknown"`
+   (verified by `tests/test_verification_document_type.py`).
+4. `check_document_type` does not mutate the input invoice extraction
+   (verified by `tests/test_verification_document_type.py`).
+5. `VerificationService.verify()` includes `unsupported_document_type` findings and routes
+   violating documents to `review_required` with `highest_severity="high"`
+   (verified by `tests/test_verification_document_type.py`).
+6. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and `uv run pytest tests/test_verification_document_type.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `DocumentType` literals or `InvoiceExtraction` field types.
+- Rejecting non-invoice documents at the ingestion/extraction boundary before review snapshot creation.
+- Modifying evaluation corpus ground truth manifests or preregistered evaluation thresholds.
+
+### Task list
+
+1. Record ADR 0037 in `docs/decisions/` and register in decisions index.
+2. Define Phase 31 specification in `docs/roadmap.md`.
+3. Initialize `docs/PROGRESS.md` for Phase 31.
+4. Add `unsupported_document_type` to `FindingType` in `src/veridoc/verification/models.py` with unit test in `tests/test_verification_models.py`.
+5. Implement `check_document_type` in `src/veridoc/verification/document_type.py` with unit tests in `tests/test_verification_document_type.py`.
+6. Integrate `check_document_type` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_document_type.py`.
+7. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 30 are complete. Phase 14 is
-planned but environment-blocked.
+Phases 0 through 13 and Phases 15 through 30 are complete. Phase 31 is in
+progress. Phase 14 is planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's approval.
