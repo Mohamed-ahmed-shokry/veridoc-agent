@@ -48,6 +48,7 @@ FindingType = Literal[
     "rounding_discrepancy",
     "payment_terms_due_date_mismatch",
     "excessive_due_date_window",
+    "unsupported_document_type",
 ]
 
 
