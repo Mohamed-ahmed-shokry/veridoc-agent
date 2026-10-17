@@ -1,61 +1,54 @@
-# Phase 30 Progress Record: Excessive Credit Window and Due Date Bound Verification
+# Phase 31 Progress Record: Document Type Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 30
-- **Goal:** Introduce deterministic excessive credit window and due date bound verification (ADR 0036) detecting invoices whose credit window (`due_date - invoice_date`) exceeds 365 calendar days (`MAXIMUM_CREDIT_WINDOW_DAYS = 365`), preventing vision/OCR year hallucinations and multi-year zombie liabilities from evading review.
-- **Status:** Complete
-- **Branch:** `phase/excessive-due-date-window`
+- **Phase:** Phase 31
+- **Goal:** Introduce deterministic document type verification (ADR 0037) detecting non-invoice documents (`document_type != "invoice"`, including `"purchase_order"` and `"unknown"`), preventing unearned `clear` verdicts on non-invoice instruments.
+- **Status:** In Progress
+- **Branch:** `phase/document-type-verification`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Record ADR 0036 in `docs/decisions/` and index | Completed | `7448b65` |
-| 2 | Define Phase 30 specification in `docs/roadmap.md` | Completed | `dd625a7` |
-| 3 | Initialize `docs/PROGRESS.md` for Phase 30 | Completed | `893c489` |
-| 4 | Add `excessive_due_date_window` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `2dddbe2` |
-| 5 | Add unit tests for `excessive_due_date_window` in `tests/test_verification_models.py` | Completed | `b012c6e` |
-| 6 | Implement `MAXIMUM_CREDIT_WINDOW_DAYS` and `check_excessive_due_date_window` in `src/veridoc/verification/due_date_bounds.py` | Completed | `66f2cfa` |
-| 7 | Add unit tests in `tests/test_verification_due_date_bounds.py` covering standard, boundary, and excessive credit windows | Completed | `6d44887` |
-| 8 | Integrate `check_excessive_due_date_window` into `VerificationService.verify()` | Completed | `1a7c097` |
-| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_due_date_bounds.py` | Completed | `53a8970`, `299d078` |
-| 10 | Update `docs/testing.md` test inventory and guide | Completed | `78566de` |
-| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Completed | `b85f0e7`, `fd3a07e`, `3628c4b` |
-| 12 | Update `CHANGELOG.md` for Phase 30 | Completed | `88c5142` |
-| 13 | Fix formatting and style in `tests/test_verification_due_date_bounds.py` | Completed | `ae45e54` |
-| 14 | Record Phase 30 completion snapshot in `docs/release-evidence.md` | Completed | `cc2ae1a` |
-| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | `99259d0` |
+| 1 | Record ADR 0037 in `docs/decisions/` and index | Completed | `fbdf751`, `2bd94d4` |
+| 2 | Define Phase 31 specification in `docs/roadmap.md` | Completed | `7f15f3f` |
+| 3 | Initialize `docs/PROGRESS.md` for Phase 31 | In Progress | Pending |
+| 4 | Add `unsupported_document_type` to `FindingType` in `src/veridoc/verification/models.py` | Pending | Pending |
+| 5 | Add unit tests for `unsupported_document_type` in `tests/test_verification_models.py` | Pending | Pending |
+| 6 | Implement `check_document_type` in `src/veridoc/verification/document_type.py` | Pending | Pending |
+| 7 | Add unit tests in `tests/test_verification_document_type.py` covering invoice, PO, and unknown types | Pending | Pending |
+| 8 | Integrate `check_document_type` into `VerificationService.verify()` | Pending | Pending |
+| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_document_type.py` | Pending | Pending |
+| 10 | Update `docs/testing.md` test inventory and guide | Pending | Pending |
+| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Pending | Pending |
+| 12 | Update `CHANGELOG.md` for Phase 31 | Pending | Pending |
+| 13 | Fix formatting and style across modified modules | Pending | Pending |
+| 14 | Record Phase 31 completion snapshot in `docs/release-evidence.md` | Pending | Pending |
+| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Pending | Pending |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `excessive_due_date_window` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
-| 2 | `check_excessive_due_date_window` returns `[]` when `invoice_date` or `due_date` is None, when `due_date < invoice_date`, or when `(due_date - invoice_date).days <= 365` | Verified | `tests/test_verification_due_date_bounds.py` passed |
-| 3 | `check_excessive_due_date_window` returns one `excessive_due_date_window` finding (`severity="medium"`) when `(due_date - invoice_date).days > 365` | Verified | `tests/test_verification_due_date_bounds.py` passed |
-| 4 | `check_excessive_due_date_window` does not mutate input `InvoiceExtraction` | Verified | `tests/test_verification_due_date_bounds.py` passed |
-| 5 | `VerificationService.verify()` includes findings and routes violating invoices to `review_required` | Verified | `tests/test_verification_due_date_bounds.py` passed |
-| 6 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Ruff, mypy, pytest, pip-audit, twine, smoke tests pass |
+| 1 | `unsupported_document_type` appears in `FindingType` and is accepted by `VerificationFinding` | Pending | Pending |
+| 2 | `check_document_type` returns `[]` when `invoice.document_type == "invoice"` | Pending | Pending |
+| 3 | `check_document_type` returns one `unsupported_document_type` finding (`severity="high"`) when `invoice.document_type == "purchase_order"` or `"unknown"` | Pending | Pending |
+| 4 | `check_document_type` does not mutate input `InvoiceExtraction` | Pending | Pending |
+| 5 | `VerificationService.verify()` includes findings and routes violating documents to `review_required` with `highest_severity="high"` | Pending | Pending |
+| 6 | All local CI-parity checks and remote CI workflow runs pass 100% | Pending | Pending |
 
 ## Decision Log
 
-### Decision 1: Scope of Phase 30 — Excessive Credit Window Verification (ADR 0036)
-- **Context:** Following Phase 28 (payment terms consistency) and Phase 29 (CI gate restoration), invoices without explicit payment terms or with unparseable terms could still carry multi-year due dates (e.g., misreading 2026 as 2036 or confusing due dates with warranty expirations).
-- **Decision:** Establish `MAXIMUM_CREDIT_WINDOW_DAYS = 365` (1 year) as the maximum allowable commercial credit window. Invoices exceeding this threshold are flagged with `excessive_due_date_window` (`severity="medium"`).
-- **Alternatives Considered:** (a) Shorter threshold (e.g. 180 days). Rejected: Complex capital goods, seasonal agricultural trade, and sovereign vendor contracts occasionally use Net 180 or Net 360 terms. 365 days represents an objective bound where any exceeding duration is unequivocally abnormal for trade credit. (b) Flagging in arithmetic `check_invoice_dates`. Rejected: Separation of concerns; `check_invoice_dates` handles only local order (`invoice_date <= due_date`).
+### Decision 1: Scope of Phase 31 — Document Type Verification (ADR 0037)
+- **Context:** `InvoiceExtraction` captures `document_type: Literal["invoice", "purchase_order", "unknown"]`, but `VerificationService` previously did not inspect it. Ingested purchase orders or unclassified documents (e.g. quotes, receipts, terms pages) could pass arithmetic and reference checks and receive an unearned `clear` invoice processing verdict.
+- **Decision:** Establish `check_document_type(invoice)` returning `unsupported_document_type` (`severity="high"`) whenever `invoice.document_type != "invoice"`.
+- **Alternatives Considered:** (a) Reject at ingestion/extraction boundary. Rejected: Breaks review console visibility into rejected or misclassified uploads. (b) Use `severity="medium"` for unknown documents. Rejected: Non-invoice instruments cannot be cleared for payment under any circumstance.
 - **Blast Radius & Reversibility:** Zero breaking changes to existing models; purely additive verification check.
 
 ## Validation Results
 
-- Tracked whitespace check: `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` passed (exit code 0).
-- Linter & Formatter: `ruff check .` and `ruff format --check .` passed cleanly.
-- Type Checker: `mypy` passed with 0 errors across all source files.
-- Test suite: All unit and integration tests passing, branch coverage >= 90% floor.
-- Documentation tests: Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed.
-- Vulnerability Audit: `pip-audit` passed with 0 vulnerabilities found.
-- Distribution Build & Twine: `uv build --clear` and `twine check dist/*` passed.
-- Distribution Smoke Tests: isolated wheel and sdist smoke tests passed.
+Pending.
 
 ## Blockers
 
