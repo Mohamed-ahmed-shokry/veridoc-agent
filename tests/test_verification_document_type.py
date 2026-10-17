@@ -125,3 +125,62 @@ def test_check_document_type_preserves_invoice_immutability() -> None:
     original_dump = invoice.model_dump()
     _ = check_document_type(invoice)
     assert invoice.model_dump() == original_dump
+
+
+# ---------------------------------------------------------------------------
+# VerificationService and Verdict Integration Tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeInvoiceRepository:
+    """Minimal fake repository for VerificationService integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_includes_unsupported_document_type() -> None:
+    """VerificationService.verify must execute check_document_type and include its findings."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _invoice(
+        document_type="purchase_order",
+        total=Decimal("500.00"),
+        currency="USD",
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    types = [finding.finding_type for finding in result.findings]
+    assert "unsupported_document_type" in types
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+
+
+def test_verification_service_routes_unknown_document_to_review_required() -> None:
+    """VerificationService.verify and derive_verdict route unknown documents to review_required with high severity."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _invoice(
+        document_type="unknown",
+        total=Decimal("150.00"),
+        currency="USD",
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    types = [finding.finding_type for finding in result.findings]
+    assert "unsupported_document_type" in types
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
