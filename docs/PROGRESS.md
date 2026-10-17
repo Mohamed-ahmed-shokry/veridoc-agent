@@ -25,7 +25,7 @@
 | 12 | Update `CHANGELOG.md` for Phase 30 | Completed | `88c5142` |
 | 13 | Fix formatting and style in `tests/test_verification_due_date_bounds.py` | Completed | `ae45e54` |
 | 14 | Record Phase 30 completion snapshot in `docs/release-evidence.md` | Completed | `cc2ae1a` |
-| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | `current` |
+| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | `99259d0` |
 
 ## Acceptance Criteria
 
