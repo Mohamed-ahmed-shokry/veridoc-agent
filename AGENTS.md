@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 30 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 31 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -276,6 +276,11 @@ implementation remains deliberately small:
   exact boundary at 365 days, standard commercial windows), triggering paths (one day past threshold,
   two-year windows, OCR multi-year year hallucination), structured details, input immutability,
   `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_document_type.py` covers Phase 31 deterministic document
+  type verification (ADR 0037): non-triggering paths (genuine invoices with `document_type="invoice"`),
+  triggering paths (purchase orders with `severity="high"`, unknown documents with `severity="high"`,
+  unexpected non-invoice strings), structured details, input immutability, `VerificationService`
+  integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -355,6 +360,9 @@ tracked file whitespace hygiene via test gates, and verifying end-to-end CI pari
 Phase 30 adds deterministic excessive credit window and due date bound verification
 (ADR 0036) establishing `MAXIMUM_CREDIT_WINDOW_DAYS = 365` to detect vision/OCR year
 hallucinations, multi-year warranty misextractions, and abnormal trade credit deferrals.
+Phase 31 adds deterministic document type verification (ADR 0037) detecting non-invoice
+documents (`document_type != "invoice"`, including `"purchase_order"` and `"unknown"`)
+to prevent unearned clear verdicts on non-invoice instruments.
 
 The current and planned workflow is:
 
