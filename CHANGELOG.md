@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 31 document type verification (`unsupported_document_type`):
+  - Architecture Decision Record 0037 documenting document classification invariants, purchase order inversion risks, duplicate disbursement prevention, and non-invoice instrument isolation.
+  - `unsupported_document_type` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="high"`.
+  - Implemented `check_document_type()` pure function in `veridoc.verification.document_type` evaluating `invoice.document_type == "invoice"`. Emits a `high`-severity finding with tailored explanations and structured details (`document_type`) for `"purchase_order"` and `"unknown"` classifications, while safely returning `[]` for genuine `"invoice"` documents.
+  - Integrated `check_document_type(invoice)` into `VerificationService.verify()`, routing violating non-invoice documents to `review_required` with `highest_severity="high"`.
+  - 8 focused unit and integration tests in `tests/test_verification_document_type.py` covering valid invoices, fully populated invoices, purchase orders, unknown documents, purchase orders with balanced amounts, input invoice immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 30 excessive credit window and due date bound verification (`excessive_due_date_window`):
   - Architecture Decision Record 0036 documenting commercial credit window boundaries, vision/OCR year hallucination risks, warranty misextractions, and multi-year zombie liability detection.
   - `excessive_due_date_window` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="medium"`.
