@@ -1,0 +1,113 @@
+"""Deterministic document type verification tests."""
+
+from datetime import date
+from decimal import Decimal
+
+from veridoc.extraction.models import InvoiceExtraction, InvoiceLineItem
+from veridoc.verification.document_type import check_document_type
+
+
+def _invoice(**kwargs: object) -> InvoiceExtraction:
+    """Build an InvoiceExtraction with default or overridden keyword arguments."""
+    defaults: dict[str, object] = {"document_type": "invoice"}
+    defaults.update(kwargs)
+    return InvoiceExtraction(**defaults)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# Cases that should NOT produce a finding (valid invoice document type)
+# ---------------------------------------------------------------------------
+
+
+def test_no_finding_when_document_type_is_invoice() -> None:
+    """A valid invoice with document_type='invoice' returns no findings."""
+    invoice = _invoice(document_type="invoice")
+    assert check_document_type(invoice) == []
+
+
+def test_no_finding_for_fully_populated_invoice() -> None:
+    """A fully populated invoice with line items and totals returns no document type findings."""
+    invoice = _invoice(
+        document_type="invoice",
+        vendor_name="Acme Corp",
+        invoice_number="INV-2026-001",
+        invoice_date=date(2026, 8, 1),
+        due_date=date(2026, 8, 31),
+        currency="USD",
+        subtotal=Decimal("100.00"),
+        tax=Decimal("10.00"),
+        total=Decimal("110.00"),
+        line_items=[
+            InvoiceLineItem(
+                description="Consulting",
+                quantity=Decimal(1),
+                unit_price=Decimal("100.00"),
+                total_price=Decimal("100.00"),
+            )
+        ],
+    )
+    assert check_document_type(invoice) == []
+
+
+# ---------------------------------------------------------------------------
+# Cases that SHOULD produce a finding (triggering paths)
+# ---------------------------------------------------------------------------
+
+
+def test_purchase_order_document_type_triggers_finding() -> None:
+    """A document classified as 'purchase_order' returns an unsupported_document_type finding."""
+    invoice = _invoice(document_type="purchase_order")
+    findings = check_document_type(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "unsupported_document_type"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "invoice_fields"
+    assert finding.deterministic_rule == "document_type == 'invoice'"
+    assert finding.observed_value == "purchase_order"
+    assert finding.expected_value == "invoice"
+    assert (
+        finding.explanation
+        == "The extracted document is classified as a purchase order, not an invoice."
+    )
+    assert finding.details == {"document_type": "purchase_order"}
+
+
+def test_unknown_document_type_triggers_finding() -> None:
+    """A document classified as 'unknown' returns an unsupported_document_type finding."""
+    invoice = _invoice(document_type="unknown")
+    findings = check_document_type(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "unsupported_document_type"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "invoice_fields"
+    assert finding.deterministic_rule == "document_type == 'invoice'"
+    assert finding.observed_value == "unknown"
+    assert finding.expected_value == "invoice"
+    assert (
+        finding.explanation
+        == "The extracted document could not be identified as an invoice."
+    )
+    assert finding.details == {"document_type": "unknown"}
+
+
+def test_purchase_order_with_valid_amounts_and_vendor_still_triggers_finding() -> None:
+    """Even if a purchase order has balanced amounts and known vendor, it cannot be cleared as an invoice."""
+    invoice = _invoice(
+        document_type="purchase_order",
+        vendor_name="Acme Corp",
+        purchase_order_number="PO-9999",
+        invoice_date=date(2026, 8, 1),
+        currency="USD",
+        subtotal=Decimal("500.00"),
+        total=Decimal("500.00"),
+    )
+    findings = check_document_type(invoice)
+
+    assert len(findings) == 1
+    assert findings[0].finding_type == "unsupported_document_type"
+    assert findings[0].severity == "high"
+    assert findings[0].observed_value == "purchase_order"
