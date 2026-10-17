@@ -111,3 +111,17 @@ def test_purchase_order_with_valid_amounts_and_vendor_still_triggers_finding() -
     assert findings[0].finding_type == "unsupported_document_type"
     assert findings[0].severity == "high"
     assert findings[0].observed_value == "purchase_order"
+
+
+def test_check_document_type_preserves_invoice_immutability() -> None:
+    """Verifies that check_document_type does not mutate the input InvoiceExtraction object."""
+    invoice = _invoice(
+        document_type="purchase_order",
+        vendor_name="Acme Corp",
+        invoice_number="INV-2026-001",
+        invoice_date=date(2026, 8, 1),
+        total=Decimal("500.00"),
+    )
+    original_dump = invoice.model_dump()
+    _ = check_document_type(invoice)
+    assert invoice.model_dump() == original_dump
