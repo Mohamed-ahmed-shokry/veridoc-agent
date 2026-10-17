@@ -35,7 +35,7 @@ boundaries only and require separate approval before implementation.
 | 27 | Invoice arithmetic tolerances and fractional rounding bounds (ADR 0034) | Complete |
 | 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
 | 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
-| 30 | Excessive credit window and due date bound verification (ADR 0036) | In Progress |
+| 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1616,8 +1616,8 @@ credit window is routed to `review_required`.
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 29 are complete. Phase 14 is
-planned but environment-blocked. Phase 30 introduces excessive due date bounds.
+Phases 0 through 13 and Phases 15 through 30 are complete. Phase 14 is
+planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's approval.
