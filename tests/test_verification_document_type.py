@@ -113,6 +113,23 @@ def test_purchase_order_with_valid_amounts_and_vendor_still_triggers_finding() -
     assert findings[0].observed_value == "purchase_order"
 
 
+def test_unexpected_document_type_triggers_finding() -> None:
+    """An unexpected document type string triggers unsupported_document_type with custom explanation."""
+    invoice = InvoiceExtraction.model_construct(document_type="credit_note")
+    findings = check_document_type(invoice)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "unsupported_document_type"
+    assert finding.severity == "high"
+    assert finding.observed_value == "credit_note"
+    assert (
+        finding.explanation
+        == "The extracted document type 'credit_note' is not supported as an invoice."
+    )
+    assert finding.details == {"document_type": "credit_note"}
+
+
 def test_check_document_type_preserves_invoice_immutability() -> None:
     """Verifies that check_document_type does not mutate the input InvoiceExtraction object."""
     invoice = _invoice(
