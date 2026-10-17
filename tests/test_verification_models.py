@@ -234,3 +234,19 @@ def test_verification_finding_accepts_excessive_due_date_window() -> None:
     assert finding.severity == "medium"
     assert finding.details["credit_window_days"] == 518
     assert finding.details["max_allowed_days"] == 365
+
+
+def test_verification_finding_accepts_unsupported_document_type() -> None:
+    finding = VerificationFinding(
+        finding_type="unsupported_document_type",
+        severity="high",
+        explanation="The extracted document is classified as a purchase order, not an invoice.",
+        comparison_source="invoice_fields",
+        deterministic_rule="document_type == 'invoice'",
+        observed_value="purchase_order",
+        expected_value="invoice",
+        details={"document_type": "purchase_order"},
+    )
+    assert finding.finding_type == "unsupported_document_type"
+    assert finding.severity == "high"
+    assert finding.details["document_type"] == "purchase_order"
