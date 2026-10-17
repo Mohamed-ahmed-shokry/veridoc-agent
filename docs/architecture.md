@@ -230,7 +230,8 @@ non-positive line item amount and quantity detection ([ADR 0032](decisions/0032-
 invoice header monetary bounds for non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](decisions/0033-invoice-header-monetary-bounds.md)),
 fractional rounding bounds with omitted-field normalization ([ADR 0034](decisions/0034-invoice-arithmetic-tolerances-and-fractional-rounding-bounds.md)),
 payment terms and due date consistency ([ADR 0035](decisions/0035-payment-terms-due-date-consistency.md)),
-and excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-window.md)).
+excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-window.md)),
+and document type verification ([ADR 0037](decisions/0037-document-type-verification.md)).
 
 ## Typed explanation flow
 
