@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 29 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 30 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -271,6 +271,11 @@ implementation remains deliberately small:
   calendar matches, weekend business-day rolls to Monday), triggering paths (accelerated due dates with
   high severity, extended due dates with medium severity, immediate payment violations), structured details,
   input immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_due_date_bounds.py` covers Phase 30 deterministic excessive credit window
+  and due date bound verification (ADR 0036): non-triggering paths (absent dates, inverted dates,
+  exact boundary at 365 days, standard commercial windows), triggering paths (one day past threshold,
+  two-year windows, OCR multi-year year hallucination), structured details, input immutability,
+  `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -347,6 +352,9 @@ detecting accelerated due dates (`severity="high"`) and extended due dates
 terms with weekend business-day roll normalization. Phase 29 restores GitHub Actions
 CI workflow to 100% green status by eliminating trailing whitespace defects, enforcing
 tracked file whitespace hygiene via test gates, and verifying end-to-end CI parity.
+Phase 30 adds deterministic excessive credit window and due date bound verification
+(ADR 0036) establishing `MAXIMUM_CREDIT_WINDOW_DAYS = 365` to detect vision/OCR year
+hallucinations, multi-year warranty misextractions, and abnormal trade credit deferrals.
 
 The current and planned workflow is:
 

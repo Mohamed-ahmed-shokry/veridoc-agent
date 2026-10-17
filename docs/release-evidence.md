@@ -1249,6 +1249,43 @@ stabilized `FakeClamd` socket streaming in `tests/test_clamav_scanner.py`, updat
 README.md, CHANGELOG.md, and verified 100% green GitHub Actions CI run `38978109737`) are fully verified.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 30 completion snapshot
+
+The Phase 30 completion gate was recorded on 2026-10-17 against the `phase/excessive-due-date-window` branch.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed (0 known vulnerabilities) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All files formatted |
+| `uv run mypy` | No issues found across all source files |
+| `uv run pytest --cov=veridoc` | 1347 passed; branch coverage >= 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| `git status --short` | Clean worktree |
+
+The Phase 30 deliverables (pure deterministic check `check_excessive_due_date_window()`, constant `MAXIMUM_CREDIT_WINDOW_DAYS = 365`,
+`excessive_due_date_window` finding type, medium-severity detection, `VerificationService.verify()` integration,
+10 tests in `tests/test_verification_due_date_bounds.py`, ADR 0036, updated AGENTS.md, updated architecture.md,
+updated roadmap, updated testing guide, and updated CHANGELOG) are fully verified and documented. No database schema
+migration, new dependency, or route change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,

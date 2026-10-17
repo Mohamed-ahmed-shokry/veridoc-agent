@@ -34,7 +34,8 @@ boundaries only and require separate approval before implementation.
 | 26 | Invoice header monetary bounds: subtotal, tax, and discount rules (ADR 0033) | Complete |
 | 27 | Invoice arithmetic tolerances and fractional rounding bounds (ADR 0034) | Complete |
 | 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
-| 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | In Progress |
+| 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
+| 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1535,10 +1536,88 @@ Per the autonomous engineering contract (§3 Priority 1), broken CI is top prior
 2. All local CI-parity checks and remote CI workflow runs pass 100%.
 3. Full quality gate passes with zero regressions.
 
+## Phase 30: excessive credit window and due date bound verification
+
+Phase 30 introduces deterministic excessive credit window and due date bound verification
+(ADR 0036) detecting invoices whose payable credit window (`due_date - invoice_date`)
+exceeds standard commercial limits (`MAXIMUM_CREDIT_WINDOW_DAYS = 365`).
+
+### Motivation and context
+
+While Phase 28 (ADR 0035) flags payment terms and due date inconsistencies when explicit
+contractual terms (such as "Net 30") are present, many commercial invoices lack an explicit
+payment terms string or use free-form phrasing. When vision/OCR models hallucinate years
+(e.g., misreading 2026 as 2036), confuse due dates with multi-year warranty termination dates,
+or extract dates years into the future, the invoice previously bypassed verification and cleared
+silently if `invoice_date <= due_date`.
+
+Such multi-year due dates distort AP aging schedules, mislead cash forecasting, and indicate
+either severe extraction errors or fictitious zombie liability schemes. Establishing an absolute
+deterministic bound (`MAXIMUM_CREDIT_WINDOW_DAYS = 365`) ensures every invoice with an abnormal
+credit window is routed to `review_required`.
+
+### Scope and deliverables
+
+- Pure constant `MAXIMUM_CREDIT_WINDOW_DAYS: Final[int] = 365` in `veridoc.verification.due_date_bounds`.
+- `excessive_due_date_window` finding type added to `FindingType` in `veridoc.verification.models`.
+- Pure deterministic check `check_excessive_due_date_window(invoice: InvoiceExtraction) -> list[VerificationFinding]`
+  in `veridoc.verification.due_date_bounds`.
+- Exclusion paths: returns `[]` when `invoice_date` is `None`, `due_date` is `None`, `due_date < invoice_date`,
+  or `(due_date - invoice_date).days <= 365`.
+- Triggering paths: returns one `excessive_due_date_window` finding (`severity="medium"`) when
+  `(due_date - invoice_date).days > 365`, with structured details (`credit_window_days`, `max_allowed_days`,
+  `invoice_date`, `due_date`).
+- Integrated into `VerificationService.verify()`, routing violating invoices to `review_required`.
+- Unit and integration tests in `tests/test_verification_due_date_bounds.py` covering standard credit
+  windows, leap years, boundary conditions, excessive windows, missing fields, inverted dates,
+  immutability, service integration, and verdict derivation.
+- Documentation and release evidence synchronized across `docs/testing.md`, `docs/architecture.md`,
+  `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `excessive_due_date_window` appears in `FindingType` and is accepted by `VerificationFinding`
+   (verified by `tests/test_verification_models.py`).
+2. `check_excessive_due_date_window` returns `[]` when `invoice_date` or `due_date` is None,
+   when `due_date < invoice_date`, or when `(due_date - invoice_date).days <= 365`
+   (verified by `tests/test_verification_due_date_bounds.py`).
+3. `check_excessive_due_date_window` returns one `excessive_due_date_window` finding with
+   `severity="medium"` and structured details when `(due_date - invoice_date).days > 365`
+   (verified by `tests/test_verification_due_date_bounds.py`).
+4. `check_excessive_due_date_window` does not mutate the input invoice extraction
+   (verified by `tests/test_verification_due_date_bounds.py`).
+5. `VerificationService.verify()` includes `excessive_due_date_window` findings and routes
+   violating invoices to `review_required` (verified by `tests/test_verification_due_date_bounds.py`).
+6. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and `uv run pytest tests/test_verification_due_date_bounds.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `InvoiceExtraction` field types or persistence schemas.
+- Modifying evaluation corpus ground truth manifests or preregistered evaluation thresholds.
+- Overriding contractual terms shorter than 365 days (owned by Phase 28 `check_payment_terms_due_date`).
+
+### Task list
+
+1. Add Phase 30 specification to `docs/roadmap.md` and record ADR 0036 in `docs/decisions/`.
+2. Register ADR 0036 in `docs/decisions/README.md` and initialize `docs/PROGRESS.md`.
+3. Add `excessive_due_date_window` to `FindingType` in `src/veridoc/verification/models.py` with unit tests in `tests/test_verification_models.py`.
+4. Implement `MAXIMUM_CREDIT_WINDOW_DAYS` and `check_excessive_due_date_window` in `src/veridoc/verification/due_date_bounds.py` with unit tests in `tests/test_verification_due_date_bounds.py`.
+5. Integrate `check_excessive_due_date_window` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_due_date_bounds.py`.
+6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 28 are complete. Phase 14 is
-planned but environment-blocked. Phase 29 fixes the broken CI baseline.
+Phases 0 through 13 and Phases 15 through 30 are complete. Phase 14 is
+planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's approval.
