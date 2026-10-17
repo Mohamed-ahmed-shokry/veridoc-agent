@@ -36,7 +36,7 @@ boundaries only and require separate approval before implementation.
 | 28 | Payment terms and due date consistency verification (ADR 0035) | Complete |
 | 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
-| 31 | Document type verification (ADR 0037) | In progress |
+| 31 | Document type verification (ADR 0037) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1699,8 +1699,8 @@ documents are immediately flagged with `severity="high"` for mandatory human rev
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 30 are complete. Phase 31 is in
-progress. Phase 14 is planned but environment-blocked.
+Phases 0 through 13 and Phases 15 through 31 are complete. Phase 14 is
+planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's approval.
