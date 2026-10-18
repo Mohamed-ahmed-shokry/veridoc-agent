@@ -25,7 +25,7 @@
 | 12 | Update `CHANGELOG.md` for Phase 32 | Completed | `2e5c182` |
 | 13 | Record Phase 32 completion snapshot in `docs/release-evidence.md` | Completed | `ccea9a2` |
 | 14 | Mark Phase 32 complete in `docs/roadmap.md` and update approval rule | Completed | `e24b071` |
-| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | Pending |
+| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | `45a235b` |
 
 ## Acceptance Criteria
 
