@@ -37,7 +37,7 @@ boundaries only and require separate approval before implementation.
 | 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 | 31 | Document type verification (ADR 0037) | Complete |
-| 32 | Extraction uncertainty verification (ADR 0038) | In progress |
+| 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1804,7 +1804,7 @@ routing the document to mandatory human review (`review_required`).
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 31 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 32 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
