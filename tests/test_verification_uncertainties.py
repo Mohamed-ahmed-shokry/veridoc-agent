@@ -154,3 +154,78 @@ def test_check_extraction_uncertainties_preserves_immutability() -> None:
     original_dump = invoice.model_dump()
     _ = check_extraction_uncertainties(invoice)
     assert invoice.model_dump() == original_dump
+
+
+# ---------------------------------------------------------------------------
+# VerificationService and Verdict Integration Tests
+# ---------------------------------------------------------------------------
+
+
+class _FakeInvoiceRepository:
+    """Minimal fake repository for VerificationService integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_includes_extraction_uncertainty() -> None:
+    """VerificationService.verify must execute check_extraction_uncertainties and include its findings."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _invoice(
+        total=Decimal("500.00"),
+        currency="USD",
+        uncertainties=[
+            ExtractionUncertainty(
+                field="total",
+                reason="Watermark partially obscures total amount.",
+            )
+        ],
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    types = [finding.finding_type for finding in result.findings]
+    assert "extraction_uncertainty" in types
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "medium"
+
+
+def test_verification_service_routes_multiple_uncertainties_to_review_required() -> None:
+    """VerificationService.verify and derive_verdict route invoices with multiple uncertainties to review_required."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _invoice(
+        total=Decimal("150.00"),
+        currency="USD",
+        uncertainties=[
+            ExtractionUncertainty(
+                field="due_date",
+                reason="Due date text partially smudged.",
+            ),
+            ExtractionUncertainty(
+                field=None,
+                reason="General document fold across bottom text.",
+            ),
+        ],
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    findings = [
+        f for f in result.findings if f.finding_type == "extraction_uncertainty"
+    ]
+    assert len(findings) == 2
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "medium"
