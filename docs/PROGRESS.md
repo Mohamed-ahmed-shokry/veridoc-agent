@@ -4,7 +4,7 @@
 
 - **Phase:** Phase 32
 - **Goal:** Introduce deterministic extraction uncertainty verification (ADR 0038) detecting declared extraction ambiguities (`len(invoice.uncertainties) > 0`), preventing unearned `clear` verdicts when upstream extraction explicitly declares that extracted fields or the document could not be determined with certainty.
-- **Status:** In progress
+- **Status:** Complete
 - **Branch:** `phase/extraction-uncertainty-verification`
 
 ## Task Status
@@ -13,30 +13,30 @@
 |---|---|---|---|
 | 1 | Record ADR 0038 in `docs/decisions/` and index | Completed | `55a079f`, `b5fe1c9` |
 | 2 | Define Phase 32 specification in `docs/roadmap.md` | Completed | `c0230af` |
-| 3 | Initialize `docs/PROGRESS.md` for Phase 32 | Completed | Pending |
-| 4 | Add `extraction_uncertainty` to `FindingType` in `src/veridoc/verification/models.py` | In progress | Pending |
-| 5 | Add unit tests for `extraction_uncertainty` in `tests/test_verification_models.py` | Pending | Pending |
-| 6 | Implement `check_extraction_uncertainties` in `src/veridoc/verification/uncertainties.py` | Pending | Pending |
-| 7 | Add unit tests for `check_extraction_uncertainties` in `tests/test_verification_uncertainties.py` | Pending | Pending |
-| 8 | Integrate `check_extraction_uncertainties` into `VerificationService.verify()` | Pending | Pending |
-| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_uncertainties.py` | Pending | Pending |
-| 10 | Update `docs/testing.md` test inventory and guide | Pending | Pending |
-| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Pending | Pending |
-| 12 | Update `CHANGELOG.md` for Phase 32 | Pending | Pending |
-| 13 | Record Phase 32 completion snapshot in `docs/release-evidence.md` | Pending | Pending |
-| 14 | Mark Phase 32 complete in `docs/roadmap.md` and update approval rule | Pending | Pending |
-| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Pending | Pending |
+| 3 | Initialize `docs/PROGRESS.md` for Phase 32 | Completed | `49b02f1` |
+| 4 | Add `extraction_uncertainty` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `2c63594` |
+| 5 | Add unit tests for `extraction_uncertainty` in `tests/test_verification_models.py` | Completed | `5ac1ca7` |
+| 6 | Implement `check_extraction_uncertainties` in `src/veridoc/verification/uncertainties.py` | Completed | `c2f9be8` |
+| 7 | Add unit tests for `check_extraction_uncertainties` in `tests/test_verification_uncertainties.py` | Completed | `bc0577b` |
+| 8 | Integrate `check_extraction_uncertainties` into `VerificationService.verify()` | Completed | `3eab5df` |
+| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_uncertainties.py` | Completed | `0898f22` |
+| 10 | Update `docs/testing.md` test inventory and guide | Completed | `65a889c` |
+| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Completed | `de8230d`, `f5bf603`, `9579da2` |
+| 12 | Update `CHANGELOG.md` for Phase 32 | Completed | `2e5c182` |
+| 13 | Record Phase 32 completion snapshot in `docs/release-evidence.md` | Completed | `ccea9a2` |
+| 14 | Mark Phase 32 complete in `docs/roadmap.md` and update approval rule | Completed | `e24b071` |
+| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | Pending |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `extraction_uncertainty` appears in `FindingType` and is accepted by `VerificationFinding` | In progress | Implementation pending |
-| 2 | `check_extraction_uncertainties` returns `[]` when `invoice.uncertainties` is empty | In progress | Implementation pending |
-| 3 | `check_extraction_uncertainties` returns one `extraction_uncertainty` finding (`severity="medium"`) for each declared uncertainty in `invoice.uncertainties` | In progress | Implementation pending |
-| 4 | `check_extraction_uncertainties` does not mutate input `InvoiceExtraction` | In progress | Implementation pending |
-| 5 | `VerificationService.verify()` includes `extraction_uncertainty` findings and routes violating documents to `review_required` | In progress | Implementation pending |
-| 6 | All local CI-parity checks and remote CI workflow runs pass 100% | In progress | Verification pending |
+| 1 | `extraction_uncertainty` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
+| 2 | `check_extraction_uncertainties` returns `[]` when `invoice.uncertainties` is empty | Verified | `tests/test_verification_uncertainties.py` passed |
+| 3 | `check_extraction_uncertainties` returns one `extraction_uncertainty` finding (`severity="medium"`) for each declared uncertainty in `invoice.uncertainties` | Verified | `tests/test_verification_uncertainties.py` passed |
+| 4 | `check_extraction_uncertainties` does not mutate input `InvoiceExtraction` | Verified | `tests/test_verification_uncertainties.py` passed |
+| 5 | `VerificationService.verify()` includes `extraction_uncertainty` findings and routes violating documents to `review_required` | Verified | `tests/test_verification_uncertainties.py` passed |
+| 6 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Ruff, mypy, pytest, pip-audit, twine, smoke tests pass |
 
 ## Decision Log
 
@@ -48,8 +48,14 @@
 
 ## Validation Results
 
-- Tracked whitespace check: verified on initial branch baseline.
-- Full quality gate to be run continuously.
+- Tracked whitespace check: `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` passed (exit code 0).
+- Linter & Formatter: `ruff check .` and `ruff format --check .` passed cleanly.
+- Type Checker: `mypy` passed with 0 errors across all source files.
+- Test suite: All unit and integration tests passing, branch coverage >= 90% floor.
+- Documentation tests: Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed.
+- Vulnerability Audit: `pip-audit` passed with 0 vulnerabilities found.
+- Distribution Build & Twine: `uv build --clear` and `twine check dist/*` passed.
+- Distribution Smoke Tests: isolated wheel and sdist smoke tests passed.
 
 ## Blockers
 
