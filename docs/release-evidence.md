@@ -1344,7 +1344,7 @@ Verified results:
 | `uv run ruff check .` | Passed (All checks passed!) |
 | `uv run ruff format --check .` | All files formatted |
 | `uv run mypy` | No issues found across all source files |
-| `uv run pytest --cov=veridoc` | 1365 passed; branch coverage >= 90% floor |
+| `uv run pytest --cov=veridoc` | 1366 passed; branch coverage >= 90% floor |
 | `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
 | `uv build --clear` | Built wheel and source distribution |
 | `uv run twine check dist/*` | Both distributions passed metadata validation |
