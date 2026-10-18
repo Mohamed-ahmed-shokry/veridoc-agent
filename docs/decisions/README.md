@@ -54,3 +54,4 @@ Accepted decisions:
 - [0035: Payment terms and due date consistency verification](0035-payment-terms-due-date-consistency.md)
 - [0036: Excessive credit window and due date bound verification](0036-excessive-due-date-window.md)
 - [0037: Document type verification](0037-document-type-verification.md)
+- [0038: Extraction uncertainty verification](0038-extraction-uncertainty-verification.md)
