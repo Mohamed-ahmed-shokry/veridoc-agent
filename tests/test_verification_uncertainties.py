@@ -102,10 +102,7 @@ def test_single_uncertainty_without_field_triggers_finding() -> None:
     assert finding.deterministic_rule == "len(invoice.uncertainties) == 0"
     assert finding.observed_value == reason
     assert finding.expected_value is None
-    assert (
-        finding.explanation
-        == f"General extraction uncertainty declared: {reason}"
-    )
+    assert finding.explanation == f"General extraction uncertainty declared: {reason}"
     assert finding.details == {
         "field": None,
         "reason": reason,
@@ -115,12 +112,8 @@ def test_single_uncertainty_without_field_triggers_finding() -> None:
 
 def test_multiple_uncertainties_trigger_multiple_findings() -> None:
     """Multiple declared uncertainties produce one finding per uncertainty preserving order."""
-    u0 = ExtractionUncertainty(
-        field="invoice_date", reason="Date stamp smudged."
-    )
-    u1 = ExtractionUncertainty(
-        field="tax", reason="Tax rate column header illegible."
-    )
+    u0 = ExtractionUncertainty(field="invoice_date", reason="Date stamp smudged.")
+    u1 = ExtractionUncertainty(field="tax", reason="Tax rate column header illegible.")
     u2 = ExtractionUncertainty(
         field=None, reason="Handwritten notes in margin partially illegible."
     )
@@ -198,7 +191,9 @@ def test_verification_service_includes_extraction_uncertainty() -> None:
     assert verdict.highest_severity == "medium"
 
 
-def test_verification_service_routes_multiple_uncertainties_to_review_required() -> None:
+def test_verification_service_routes_multiple_uncertainties_to_review_required() -> (
+    None
+):
     """VerificationService.verify and derive_verdict route invoices with multiple uncertainties to review_required."""
     from veridoc.processing.verdict import derive_verdict
     from veridoc.verification.service import VerificationService
