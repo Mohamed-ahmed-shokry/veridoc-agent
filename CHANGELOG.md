@@ -8,6 +8,21 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 31 document type verification (`unsupported_document_type`):
+  - Architecture Decision Record 0037 documenting document classification invariants, purchase order inversion risks, duplicate disbursement prevention, and non-invoice instrument isolation.
+  - `unsupported_document_type` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="high"`.
+  - Implemented `check_document_type()` pure function in `veridoc.verification.document_type` evaluating `invoice.document_type == "invoice"`. Emits a `high`-severity finding with tailored explanations and structured details (`document_type`) for `"purchase_order"` and `"unknown"` classifications, while safely returning `[]` for genuine `"invoice"` documents.
+  - Integrated `check_document_type(invoice)` into `VerificationService.verify()`, routing violating non-invoice documents to `review_required` with `highest_severity="high"`.
+  - 8 focused unit and integration tests in `tests/test_verification_document_type.py` covering valid invoices, fully populated invoices, purchase orders, unknown documents, purchase orders with balanced amounts, input invoice immutability, `VerificationService` integration, and verdict derivation.
+
+- Phase 30 excessive credit window and due date bound verification (`excessive_due_date_window`):
+  - Architecture Decision Record 0036 documenting commercial credit window boundaries, vision/OCR year hallucination risks, warranty misextractions, and multi-year zombie liability detection.
+  - `excessive_due_date_window` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="medium"`.
+  - Established `MAXIMUM_CREDIT_WINDOW_DAYS: Final[int] = 365` in `veridoc.verification.due_date_bounds`.
+  - Implemented `check_excessive_due_date_window()` in `veridoc.verification.due_date_bounds` evaluating `(due_date - invoice_date).days > 365`. Emits a `medium`-severity finding with structured details (`credit_window_days`, `max_allowed_days`, `invoice_date`, `due_date`) while safely returning `[]` on absent dates, inverted dates, and standard trade credit terms.
+  - Integrated `check_excessive_due_date_window(invoice)` into `VerificationService.verify()`, routing violating invoices to `review_required`.
+  - 10 focused unit and integration tests in `tests/test_verification_due_date_bounds.py` covering absent dates, inverted dates, immediate terms (Net 0), standard credit windows (Net 15 through Net 360), boundary conditions (365 and 366 days), multi-year OCR hallucinations, invoice immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 29 CI quality gate restoration & tracked whitespace hygiene:
   - Remediated trailing blank line whitespace violations in tracked Markdown documentation (`docs/PROGRESS.md`) to resolve failures in the `git diff --check` CI workflow step.
   - Added `test_tracked_files_have_no_whitespace_errors` to `tests/test_documentation.py` executing `git diff --check` on the empty-tree boundary, preventing whitespace regressions from passing local test runs.

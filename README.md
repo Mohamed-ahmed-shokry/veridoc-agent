@@ -47,13 +47,13 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console. Phase 21 through 28 expand deterministic
-fraud, validation, arithmetic, and payment rules: stale invoice detection (ADR 0028), future invoice date
+assignee filtering in the review console. Phase 21 through 31 expand deterministic
+fraud, validation, arithmetic, payment, and credit rules: stale invoice detection (ADR 0028), future invoice date
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
 total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
 header monetary bounds (ADR 0033), fractional rounding bounds with omitted-field
-handling (ADR 0034), payment terms due date consistency (ADR 0035), and Phase 29 CI
-quality gate restoration.
+handling (ADR 0034), payment terms due date consistency (ADR 0035), Phase 29 CI
+quality gate restoration, excessive credit window bounds (ADR 0036), and document type verification (ADR 0037).
 
 ## Implemented capabilities
 
@@ -124,7 +124,9 @@ quality gate restoration.
 - `veridoc-review cases` (`list`, `get`) and `sessions` (`list`, `revoke`, `prune`) administrative CLI subcommands;
 - automated review session pruning in `veridoc-backup` via `--session-retention-days`;
 - deterministic header monetary bounds checking non-positive subtotals, negative taxes, and invalid discounts ([ADR 0033](docs/decisions/0033-invoice-header-monetary-bounds.md));
-- deterministic payment terms and due date consistency verification detecting accelerated and extended payment terms ([ADR 0035](docs/decisions/0035-payment-terms-due-date-consistency.md)); and
+- deterministic payment terms and due date consistency verification detecting accelerated and extended payment terms ([ADR 0035](docs/decisions/0035-payment-terms-due-date-consistency.md));
+- deterministic excessive credit window and due date bound verification detecting OCR year hallucinations and multi-year deferred liabilities ([ADR 0036](docs/decisions/0036-excessive-due-date-window.md));
+- deterministic document type verification detecting non-invoice instruments to prevent unearned clear verdicts ([ADR 0037](docs/decisions/0037-document-type-verification.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start

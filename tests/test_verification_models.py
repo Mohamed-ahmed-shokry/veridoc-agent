@@ -212,3 +212,41 @@ def test_verification_finding_accepts_payment_terms_due_date_mismatch() -> None:
     assert finding.severity == "high"
     assert finding.details["discrepancy_days"] == -21
     assert finding.details["is_accelerated"] is True
+
+
+def test_verification_finding_accepts_excessive_due_date_window() -> None:
+    finding = VerificationFinding(
+        finding_type="excessive_due_date_window",
+        severity="medium",
+        explanation="The invoice due date (2028-01-01) is 518 days after the invoice date (2026-08-01), exceeding the maximum credit window of 365 days.",
+        comparison_source="invoice_fields",
+        deterministic_rule="due_date - invoice_date <= 365 days",
+        observed_value="2028-01-01",
+        expected_value="2027-08-01",
+        details={
+            "credit_window_days": 518,
+            "max_allowed_days": 365,
+            "invoice_date": "2026-08-01",
+            "due_date": "2028-01-01",
+        },
+    )
+    assert finding.finding_type == "excessive_due_date_window"
+    assert finding.severity == "medium"
+    assert finding.details["credit_window_days"] == 518
+    assert finding.details["max_allowed_days"] == 365
+
+
+def test_verification_finding_accepts_unsupported_document_type() -> None:
+    finding = VerificationFinding(
+        finding_type="unsupported_document_type",
+        severity="high",
+        explanation="The extracted document is classified as a purchase order, not an invoice.",
+        comparison_source="invoice_fields",
+        deterministic_rule="document_type == 'invoice'",
+        observed_value="purchase_order",
+        expected_value="invoice",
+        details={"document_type": "purchase_order"},
+    )
+    assert finding.finding_type == "unsupported_document_type"
+    assert finding.severity == "high"
+    assert finding.details["document_type"] == "purchase_order"
