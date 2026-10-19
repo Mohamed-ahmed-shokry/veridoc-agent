@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 31 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 32 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -281,6 +281,11 @@ implementation remains deliberately small:
   triggering paths (purchase orders with `severity="high"`, unknown documents with `severity="high"`,
   unexpected non-invoice strings), structured details, input immutability, `VerificationService`
   integration, and verdict derivation.
+- `tests/test_verification_uncertainties.py` covers Phase 32 deterministic extraction
+  uncertainty verification (ADR 0038): non-triggering paths (empty uncertainties, default
+  invoices), triggering paths (field-specific uncertainties, general document uncertainties,
+  multiple uncertainties), structured details (`field`, `reason`, `uncertainty_index`), input
+  immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -362,7 +367,11 @@ Phase 30 adds deterministic excessive credit window and due date bound verificat
 hallucinations, multi-year warranty misextractions, and abnormal trade credit deferrals.
 Phase 31 adds deterministic document type verification (ADR 0037) detecting non-invoice
 documents (`document_type != "invoice"`, including `"purchase_order"` and `"unknown"`)
-to prevent unearned clear verdicts on non-invoice instruments.
+to prevent unearned clear verdicts on non-invoice instruments. Phase 32 adds
+deterministic extraction uncertainty verification (ADR 0038) detecting declared
+extraction ambiguities (`len(invoice.uncertainties) > 0`) to prevent unearned clear verdicts
+when upstream extraction explicitly declares that extracted fields or the document could not be
+determined with certainty.
 
 The current and planned workflow is:
 

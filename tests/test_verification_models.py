@@ -250,3 +250,24 @@ def test_verification_finding_accepts_unsupported_document_type() -> None:
     assert finding.finding_type == "unsupported_document_type"
     assert finding.severity == "high"
     assert finding.details["document_type"] == "purchase_order"
+
+
+def test_verification_finding_accepts_extraction_uncertainty() -> None:
+    finding = VerificationFinding(
+        finding_type="extraction_uncertainty",
+        severity="medium",
+        explanation="Extraction uncertainty declared for field 'total': Watermark obscures the last digit of the total.",
+        comparison_source="invoice_fields",
+        deterministic_rule="len(invoice.uncertainties) == 0",
+        observed_value="Watermark obscures the last digit of the total.",
+        expected_value=None,
+        details={
+            "field": "total",
+            "reason": "Watermark obscures the last digit of the total.",
+            "uncertainty_index": 0,
+        },
+    )
+    assert finding.finding_type == "extraction_uncertainty"
+    assert finding.severity == "medium"
+    assert finding.details["field"] == "total"
+    assert finding.details["uncertainty_index"] == 0

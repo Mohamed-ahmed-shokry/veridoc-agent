@@ -1323,6 +1323,43 @@ updated roadmap, updated testing guide, and updated CHANGELOG) are fully verifie
 migration, new dependency, or route change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 32 completion snapshot
+
+The Phase 32 completion gate was recorded on 2026-10-18 against the `phase/extraction-uncertainty-verification` branch.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed (0 known vulnerabilities) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All files formatted |
+| `uv run mypy` | No issues found across all source files |
+| `uv run pytest --cov=veridoc` | 1366 passed; branch coverage >= 90% floor |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| `git status --short` | Clean worktree |
+
+The Phase 32 deliverables (pure deterministic check `check_extraction_uncertainties()`, `extraction_uncertainty`
+finding type, medium-severity declared uncertainty detection, `VerificationService.verify()` integration,
+8 tests in `tests/test_verification_uncertainties.py`, ADR 0038, updated AGENTS.md, updated architecture.md,
+updated roadmap, updated testing guide, and updated CHANGELOG) are fully verified and documented. No database schema
+migration, new dependency, or route change was made.
+Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,

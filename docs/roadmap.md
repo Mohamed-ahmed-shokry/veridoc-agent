@@ -37,6 +37,7 @@ boundaries only and require separate approval before implementation.
 | 29 | CI Quality Gate Restoration & Tracked Whitespace Hygiene | Complete |
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 | 31 | Document type verification (ADR 0037) | Complete |
+| 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1697,9 +1698,113 @@ documents are immediately flagged with `severity="high"` for mandatory human rev
 6. Integrate `check_document_type` into `VerificationService.verify()` with service, immutability, and verdict tests in `tests/test_verification_document_type.py`.
 7. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`, and run the full release gate.
 
+## Phase 32: extraction uncertainty verification
+
+Phase 32 introduces deterministic extraction uncertainty verification (ADR 0038)
+detecting declared extraction ambiguities (`len(invoice.uncertainties) > 0`)
+to prevent unearned `clear` processing verdicts when upstream extraction explicitly
+declares that extracted fields or the document could not be determined with certainty.
+
+### Motivation and context
+
+Veridoc's document-intelligence pipeline relies on structured extraction models
+that populate `uncertainties: list[ExtractionUncertainty] = Field(default_factory=list)`.
+Each uncertainty captures an optional `field: str | None` and a required `reason: str`.
+Extraction prompts explicitly instruct models: "If a field is not present or cannot be
+determined with certainty, leave it null or unknown. Record ambiguities in uncertainties."
+
+Prior to Phase 32, `VerificationService` did not inspect `invoice.uncertainties`.
+Consequently, an invoice with explicit perceptual ambiguities (e.g., watermarks obscuring
+the total, torn edges obscuring the invoice date, ambiguous handwriting, or unreadable
+line-item prices) could pass arithmetic and reference checks and receive an unearned
+`clear` processing verdict.
+
+Allowing invoices with declared extraction uncertainties to clear automated reconciliation
+introduces severe financial and operational hazards:
+1. **False Straight-Through Processing**:
+   Accounts payable automation relies on the guarantee that `clear` invoices require no
+   human intervention. Posting data with known perceptual ambiguities directly to ledgers
+   risks undetected accounting discrepancies.
+2. **Breach of the Document-Intelligence Contract**:
+   Veridoc's core mission is deciding whether data extracted from invoices can be trusted.
+   Ignoring explicit uncertainty declarations from the extraction stage contradicts this
+   foundational purpose.
+3. **Audit Trail Blindspot**:
+   Downstream reviewers and auditors cannot easily distinguish between high-confidence
+   extractions and extractions where the model explicitly recorded ambiguities unless
+   those ambiguities are elevated into first-class verification findings.
+
+Establishing a deterministic check over `invoice.uncertainties` ensures that any invoice
+with declared extraction ambiguities is immediately flagged with `severity="medium"`,
+routing the document to mandatory human review (`review_required`).
+
+### Scope and deliverables
+
+- `extraction_uncertainty` finding type added to `FindingType` in `veridoc.verification.models`.
+- Pure deterministic check `check_extraction_uncertainties(invoice: InvoiceExtraction) -> list[VerificationFinding]`
+  in `veridoc.verification.uncertainties`.
+- Exclusion paths: returns `[]` when `not invoice.uncertainties`.
+- Triggering paths: returns one `extraction_uncertainty` finding (`severity="medium"`) for each
+  entry in `invoice.uncertainties`, preserving original list order, with structured details
+  (`field`, `reason`, `uncertainty_index`).
+- Integrated into `VerificationService.verify()`, routing violating invoices to `review_required`.
+- Unit and integration tests in `tests/test_verification_uncertainties.py` covering empty uncertainties,
+  single uncertainty with field, general document uncertainty (`field=None`), multiple uncertainties,
+  input immutability, service integration, and verdict derivation.
+- Documentation and release evidence synchronized across `docs/testing.md`, `docs/architecture.md`,
+  `AGENTS.md`, `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `extraction_uncertainty` appears in `FindingType` and is accepted by `VerificationFinding`
+   (verified by `tests/test_verification_models.py`).
+2. `check_extraction_uncertainties` returns `[]` when `invoice.uncertainties` is empty
+   (verified by `tests/test_verification_uncertainties.py`).
+3. `check_extraction_uncertainties` returns one `extraction_uncertainty` finding with `severity="medium"`
+   and structured details for each declared uncertainty in `invoice.uncertainties`
+   (verified by `tests/test_verification_uncertainties.py`).
+4. `check_extraction_uncertainties` does not mutate the input invoice extraction
+   (verified by `tests/test_verification_uncertainties.py`).
+5. `VerificationService.verify()` includes `extraction_uncertainty` findings and routes
+   violating documents to `review_required` (verified by `tests/test_verification_uncertainties.py`).
+6. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and `uv run pytest tests/test_verification_uncertainties.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`,
+  `uv run python scripts/check_distribution.py`, and `scripts/smoke_distribution.py`.
+
+### Exclusions
+
+- Modifying `ExtractionUncertainty` schema or `InvoiceExtraction.uncertainties` field types.
+- Modifying extraction prompt instructions or mock models.
+- Modifying evaluation corpus ground truth manifests or preregistered evaluation thresholds.
+
+### Micro-task breakdown
+
+1. Record ADR 0038 in `docs/decisions/` and register in decisions index.
+2. Define Phase 32 specification in `docs/ROADMAP.md`.
+3. Initialize `docs/PROGRESS.md` for Phase 32.
+4. Add `extraction_uncertainty` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add unit tests for `extraction_uncertainty` in `tests/test_verification_models.py`.
+6. Implement `check_extraction_uncertainties` in `src/veridoc/verification/uncertainties.py`.
+7. Add unit tests for `check_extraction_uncertainties` in `tests/test_verification_uncertainties.py`.
+8. Integrate `check_extraction_uncertainties` into `VerificationService.verify()`.
+9. Add immutability, service integration, and verdict tests in `tests/test_verification_uncertainties.py`.
+10. Update `docs/testing.md` test inventory and guide.
+11. Update `docs/architecture.md`, `AGENTS.md`, and `README.md`.
+12. Update `CHANGELOG.md` for Phase 32.
+13. Record Phase 32 completion snapshot in `docs/release-evidence.md`.
+14. Mark Phase 32 complete in `docs/ROADMAP.md` and update approval rule.
+15. Finalize `docs/PROGRESS.md` and verify full CI parity.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 31 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 32 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,

@@ -30,6 +30,7 @@ from veridoc.verification.purchase_orders import (
 )
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 from veridoc.verification.staleness import check_invoice_staleness
+from veridoc.verification.uncertainties import check_extraction_uncertainties
 from veridoc.verification.vendor_rules import check_vendor_registry
 from veridoc.verification.vendors import vendor_key_for
 
@@ -71,6 +72,7 @@ class VerificationService:
         findings.extend(check_payment_terms_due_date(invoice))
         findings.extend(check_excessive_due_date_window(invoice))
         findings.extend(check_document_type(invoice))
+        findings.extend(check_extraction_uncertainties(invoice))
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)

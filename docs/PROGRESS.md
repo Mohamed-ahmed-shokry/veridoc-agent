@@ -1,49 +1,49 @@
-# Phase 31 Progress Record: Document Type Verification
+# Phase 32 Progress Record: Extraction Uncertainty Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 31
-- **Goal:** Introduce deterministic document type verification (ADR 0037) detecting non-invoice documents (`document_type != "invoice"`, including `"purchase_order"` and `"unknown"`), preventing unearned `clear` verdicts on non-invoice instruments.
+- **Phase:** Phase 32
+- **Goal:** Introduce deterministic extraction uncertainty verification (ADR 0038) detecting declared extraction ambiguities (`len(invoice.uncertainties) > 0`), preventing unearned `clear` verdicts when upstream extraction explicitly declares that extracted fields or the document could not be determined with certainty.
 - **Status:** Complete
-- **Branch:** `phase/document-type-verification`
+- **Branch:** `phase/extraction-uncertainty-verification`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Record ADR 0037 in `docs/decisions/` and index | Completed | `fbdf751`, `2bd94d4` |
-| 2 | Define Phase 31 specification in `docs/roadmap.md` | Completed | `7f15f3f` |
-| 3 | Initialize `docs/PROGRESS.md` for Phase 31 | Completed | `206ef82` |
-| 4 | Add `unsupported_document_type` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `f7450ff` |
-| 5 | Add unit tests for `unsupported_document_type` in `tests/test_verification_models.py` | Completed | `56b841e` |
-| 6 | Implement `check_document_type` in `src/veridoc/verification/document_type.py` | Completed | `6820e39` |
-| 7 | Add unit tests in `tests/test_verification_document_type.py` covering invoice, PO, and unknown types | Completed | `91c9798` |
-| 8 | Integrate `check_document_type` into `VerificationService.verify()` | Completed | `a309c2e` |
-| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_document_type.py` | Completed | `d85f6a0`, `4c0ab4e` |
-| 10 | Update `docs/testing.md` test inventory and guide | Completed | `de4f9bc` |
-| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Completed | `277c11b`, `8650c07`, `451c466` |
-| 12 | Update `CHANGELOG.md` for Phase 31 | Completed | `e1809ec` |
-| 13 | Record Phase 31 completion snapshot in `docs/release-evidence.md` | Completed | `69dfb9c` |
-| 14 | Mark Phase 31 complete in `docs/roadmap.md` and update approval rule | Completed | `6327eab` |
-| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | Pending |
+| 1 | Record ADR 0038 in `docs/decisions/` and index | Completed | `55a079f`, `b5fe1c9` |
+| 2 | Define Phase 32 specification in `docs/roadmap.md` | Completed | `c0230af` |
+| 3 | Initialize `docs/PROGRESS.md` for Phase 32 | Completed | `49b02f1` |
+| 4 | Add `extraction_uncertainty` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `2c63594` |
+| 5 | Add unit tests for `extraction_uncertainty` in `tests/test_verification_models.py` | Completed | `5ac1ca7` |
+| 6 | Implement `check_extraction_uncertainties` in `src/veridoc/verification/uncertainties.py` | Completed | `c2f9be8` |
+| 7 | Add unit tests for `check_extraction_uncertainties` in `tests/test_verification_uncertainties.py` | Completed | `bc0577b` |
+| 8 | Integrate `check_extraction_uncertainties` into `VerificationService.verify()` | Completed | `3eab5df` |
+| 9 | Add immutability, service integration, and verdict tests in `tests/test_verification_uncertainties.py` | Completed | `0898f22` |
+| 10 | Update `docs/testing.md` test inventory and guide | Completed | `65a889c` |
+| 11 | Update `docs/architecture.md`, `AGENTS.md`, and `README.md` | Completed | `de8230d`, `f5bf603`, `9579da2` |
+| 12 | Update `CHANGELOG.md` for Phase 32 | Completed | `2e5c182` |
+| 13 | Record Phase 32 completion snapshot in `docs/release-evidence.md` | Completed | `ccea9a2` |
+| 14 | Mark Phase 32 complete in `docs/roadmap.md` and update approval rule | Completed | `e24b071` |
+| 15 | Finalize `docs/PROGRESS.md` and verify full CI parity | Completed | `45a235b` |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `unsupported_document_type` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
-| 2 | `check_document_type` returns `[]` when `invoice.document_type == "invoice"` | Verified | `tests/test_verification_document_type.py` passed |
-| 3 | `check_document_type` returns one `unsupported_document_type` finding (`severity="high"`) when `invoice.document_type == "purchase_order"` or `"unknown"` | Verified | `tests/test_verification_document_type.py` passed |
-| 4 | `check_document_type` does not mutate input `InvoiceExtraction` | Verified | `tests/test_verification_document_type.py` passed |
-| 5 | `VerificationService.verify()` includes findings and routes violating documents to `review_required` with `highest_severity="high"` | Verified | `tests/test_verification_document_type.py` passed |
+| 1 | `extraction_uncertainty` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
+| 2 | `check_extraction_uncertainties` returns `[]` when `invoice.uncertainties` is empty | Verified | `tests/test_verification_uncertainties.py` passed |
+| 3 | `check_extraction_uncertainties` returns one `extraction_uncertainty` finding (`severity="medium"`) for each declared uncertainty in `invoice.uncertainties` | Verified | `tests/test_verification_uncertainties.py` passed |
+| 4 | `check_extraction_uncertainties` does not mutate input `InvoiceExtraction` | Verified | `tests/test_verification_uncertainties.py` passed |
+| 5 | `VerificationService.verify()` includes `extraction_uncertainty` findings and routes violating documents to `review_required` | Verified | `tests/test_verification_uncertainties.py` passed |
 | 6 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Ruff, mypy, pytest, pip-audit, twine, smoke tests pass |
 
 ## Decision Log
 
-### Decision 1: Scope of Phase 31 — Document Type Verification (ADR 0037)
-- **Context:** `InvoiceExtraction` captures `document_type: Literal["invoice", "purchase_order", "unknown"]`, but `VerificationService` previously did not inspect it. Ingested purchase orders or unclassified documents (e.g. quotes, receipts, terms pages) could pass arithmetic and reference checks and receive an unearned `clear` invoice processing verdict.
-- **Decision:** Establish `check_document_type(invoice)` returning `unsupported_document_type` (`severity="high"`) whenever `invoice.document_type != "invoice"`.
-- **Alternatives Considered:** (a) Reject at ingestion/extraction boundary. Rejected: Breaks review console visibility into rejected or misclassified uploads. (b) Use `severity="medium"` for unknown documents. Rejected: Non-invoice instruments cannot be cleared for payment under any circumstance.
+### Decision 1: Scope of Phase 32 — Extraction Uncertainty Verification (ADR 0038)
+- **Context:** `InvoiceExtraction` models capture `uncertainties: list[ExtractionUncertainty]`, instructing extraction models to declare any perceptual or textual ambiguities (e.g., watermarks, tears, blurry fields). Prior to Phase 32, `VerificationService` ignored `invoice.uncertainties`, allowing invoices with known ambiguities to pass arithmetic/reference rules and receive an unearned `clear` verdict.
+- **Decision:** Establish `check_extraction_uncertainties(invoice)` returning one `extraction_uncertainty` finding (`severity="medium"`) for each declared uncertainty, routing the invoice to `review_required`.
+- **Alternatives Considered:** (a) Use `severity="high"`. Rejected: `high` is reserved for confirmed fraud or critical invariant violations (e.g. bank account mismatch, negative total). `medium` is the standard for field-level ambiguity requiring review. (b) Discard uncertainties at extraction time. Rejected: Direct evidence of untrustworthy data would be lost. (c) Filter uncertainties by field name. Rejected: Any uncertainty on any field or the document warrants review before straight-through processing.
 - **Blast Radius & Reversibility:** Zero breaking changes to existing models; purely additive verification check.
 
 ## Validation Results

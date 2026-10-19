@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 32 extraction uncertainty verification (`extraction_uncertainty`):
+  - Architecture Decision Record 0038 documenting extraction uncertainty semantics, model perceptual ambiguity reporting, straight-through processing risks with obscured fields, and human-in-the-loop review routing.
+  - `extraction_uncertainty` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="medium"`.
+  - Implemented `check_extraction_uncertainties()` pure function in `veridoc.verification.uncertainties` evaluating `invoice.uncertainties`. Emits one `medium`-severity finding per declared uncertainty with structured details (`field`, `reason`, `uncertainty_index`), tailored explanations distinguishing field-level versus general document ambiguities, and safe `[]` exclusion for invoices without uncertainties.
+  - Integrated `check_extraction_uncertainties(invoice)` into `VerificationService.verify()`, routing violating invoices with declared perceptual ambiguities to `review_required`.
+  - 8 focused unit and integration tests in `tests/test_verification_uncertainties.py` covering empty uncertainties, default invoices, single field-specific uncertainty, single general document uncertainty, multiple uncertainties preserving order and index, input invoice immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 31 document type verification (`unsupported_document_type`):
   - Architecture Decision Record 0037 documenting document classification invariants, purchase order inversion risks, duplicate disbursement prevention, and non-invoice instrument isolation.
   - `unsupported_document_type` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="high"`.
