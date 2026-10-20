@@ -271,3 +271,19 @@ def test_verification_finding_accepts_extraction_uncertainty() -> None:
     assert finding.severity == "medium"
     assert finding.details["field"] == "total"
     assert finding.details["uncertainty_index"] == 0
+
+
+def test_verification_finding_accepts_missing_required_field() -> None:
+    finding = VerificationFinding(
+        finding_type="missing_required_field",
+        severity="high",
+        explanation="The required invoice field 'invoice_number' is missing.",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.invoice_number is not None",
+        observed_value=None,
+        expected_value="invoice_number",
+        details={"field": "invoice_number"},
+    )
+    assert finding.finding_type == "missing_required_field"
+    assert finding.severity == "high"
+    assert finding.details["field"] == "invoice_number"
