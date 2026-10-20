@@ -287,6 +287,11 @@ implementation remains deliberately small:
   invoices), triggering paths (field-specific uncertainties, general document uncertainties,
   multiple uncertainties), structured details (`field`, `reason`, `uncertainty_index`), input
   immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_completeness.py` covers Phase 33 deterministic required
+  invoice field completeness verification (ADR 0039): the fixed required-field order
+  and severities, non-triggering complete invoices, each missing field independently,
+  multiple missing fields, empty extractions, structured details, input immutability,
+  `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
