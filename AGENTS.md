@@ -72,7 +72,8 @@ implementation remains deliberately small:
   migration-, schema-, and row-semantics-checked online backup plus
   stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
-  rules, an API-neutral service, and the typed verification graph.
+  rules (including required invoice field completeness), an API-neutral
+  service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
   deterministic rendering, provider-draft guardrails, an API-neutral service,
   an optional OpenAI adapter, and the typed explanation graph.
