@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 33 required invoice field completeness verification (`missing_required_field`):
+  - Architecture Decision Record 0039 documenting why `invoice_number`, `invoice_date`, `currency`, and `total` are required for a verifiable invoice and why vendor identity and optional commercial fields are excluded.
+  - `missing_required_field` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Established `REQUIRED_INVOICE_FIELDS` as an immutable ordered table and implemented `check_required_fields()` in `veridoc.verification.completeness`. Emits one finding per absent required field in fixed order, with `high` severity for `invoice_number` and `total`, `medium` severity for `invoice_date` and `currency`, and structured details (`field`).
+  - Integrated `check_required_fields(invoice)` first in `VerificationService.verify()`, preventing sparse and empty extractions from clearing vacuously.
+  - 12 focused unit and integration tests in `tests/test_verification_completeness.py` covering the declared field table, complete invoices, each missing field, multiple missing fields, empty extractions, input immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 32 extraction uncertainty verification (`extraction_uncertainty`):
   - Architecture Decision Record 0038 documenting extraction uncertainty semantics, model perceptual ambiguity reporting, straight-through processing risks with obscured fields, and human-in-the-loop review routing.
   - `extraction_uncertainty` added to the `FindingType` literal union in `veridoc.verification.models` with `severity="medium"`.
