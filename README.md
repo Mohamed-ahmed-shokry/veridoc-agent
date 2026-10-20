@@ -47,14 +47,15 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console. Phase 21 through 32 expand deterministic
+assignee filtering in the review console. Phase 21 through 33 expand deterministic
 fraud, validation, arithmetic, payment, credit, and uncertainty rules: stale invoice detection (ADR 0028), future invoice date
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
 total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
 header monetary bounds (ADR 0033), fractional rounding bounds with omitted-field
 handling (ADR 0034), payment terms due date consistency (ADR 0035), Phase 29 CI
 quality gate restoration, excessive credit window bounds (ADR 0036), document type verification (ADR 0037),
-and extraction uncertainty verification (ADR 0038).
+extraction uncertainty verification (ADR 0038), and required invoice field completeness
+verification (ADR 0039).
 
 ## Implemented capabilities
 
