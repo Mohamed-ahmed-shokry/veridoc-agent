@@ -26,6 +26,9 @@ class _FakeExtractor:
         return InvoiceExtraction(
             document_type="invoice",
             invoice_number="INV-001",
+            invoice_date="2026-08-01",
+            currency="USD",
+            total="110.00",
             ocr_confidence=request.document.confidence,
         )
 
@@ -69,9 +72,11 @@ async def test_processing_graph_runs_every_phase_to_a_typed_result() -> None:
 
     assert state["ocr"].document.confidence == 93.0
     assert state["extraction"].invoice_number == "INV-001"
-    assert state["verification"].findings == []
-    assert state["explanations"].explanations == []
-    assert state["result"].verdict.status == "clear"
+    assert [finding.finding_type for finding in state["verification"].findings] == [
+        "insufficient_history"
+    ]
+    assert len(state["explanations"].explanations) == 1
+    assert state["result"].verdict.status == "review_required"
 
 
 @pytest.mark.anyio
