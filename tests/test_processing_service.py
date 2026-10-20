@@ -27,13 +27,25 @@ class _FakeExtractor:
             document_type="invoice",
             vendor_name="Fictional Supplies Ltd.",
             invoice_number="INV-002",
+            invoice_date="2026-08-01",
+            currency="USD",
+            total="100.00",
             ocr_confidence=request.document.confidence,
         )
 
 
 class _EmptyRepository:
     def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
-        return []
+        assert vendor_key == "fictional-supplies-ltd"
+        return [
+            HistoricalInvoice(
+                vendor_key=vendor_key,
+                invoice_number=f"PRIOR-{index}",
+                currency="USD",
+                total="100.00",
+            )
+            for index in range(3)
+        ]
 
     def find_invoice(
         self, vendor_key: str, invoice_number: str
