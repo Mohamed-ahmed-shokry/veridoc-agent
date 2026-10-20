@@ -151,3 +151,71 @@ def test_check_required_fields_preserves_input_immutability() -> None:
     original_dump = invoice.model_dump()
     _ = check_required_fields(invoice)
     assert invoice.model_dump() == original_dump
+
+
+class _FakeInvoiceRepository:
+    """Minimal fake repository for VerificationService integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_includes_missing_required_field() -> None:
+    """VerificationService.verify runs the completeness check and reports gaps."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _complete_invoice(currency=None)
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    findings = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "missing_required_field"
+    ]
+    assert len(findings) == 1
+    assert findings[0].details["field"] == "currency"
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_routes_missing_total_to_high_review() -> None:
+    """An invoice without a total cannot clear and reports high severity."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = _complete_invoice(total=None)
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+
+
+def test_empty_invoice_cannot_clear_processing() -> None:
+    """A completely empty invoice routes to review with high severity."""
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice())
+
+    completeness = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "missing_required_field"
+    ]
+    assert len(completeness) == len(REQUIRED_INVOICE_FIELDS)
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
