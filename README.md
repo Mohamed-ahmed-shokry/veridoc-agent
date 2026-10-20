@@ -129,7 +129,8 @@ verification (ADR 0039).
 - deterministic payment terms and due date consistency verification detecting accelerated and extended payment terms ([ADR 0035](docs/decisions/0035-payment-terms-due-date-consistency.md));
 - deterministic excessive credit window and due date bound verification detecting OCR year hallucinations and multi-year deferred liabilities ([ADR 0036](docs/decisions/0036-excessive-due-date-window.md));
 - deterministic document type verification detecting non-invoice instruments to prevent unearned clear verdicts ([ADR 0037](docs/decisions/0037-document-type-verification.md));
-- deterministic extraction uncertainty verification elevating declared perceptual ambiguities to prevent unearned clear verdicts ([ADR 0038](docs/decisions/0038-extraction-uncertainty-verification.md)); and
+- deterministic extraction uncertainty verification elevating declared perceptual ambiguities to prevent unearned clear verdicts ([ADR 0038](docs/decisions/0038-extraction-uncertainty-verification.md));
+- deterministic required invoice field completeness verification requiring invoice number, date, currency, and total so sparse extractions cannot clear vacuously ([ADR 0039](docs/decisions/0039-required-invoice-field-completeness.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
