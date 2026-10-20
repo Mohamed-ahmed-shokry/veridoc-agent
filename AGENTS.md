@@ -377,7 +377,10 @@ to prevent unearned clear verdicts on non-invoice instruments. Phase 32 adds
 deterministic extraction uncertainty verification (ADR 0038) detecting declared
 extraction ambiguities (`len(invoice.uncertainties) > 0`) to prevent unearned clear verdicts
 when upstream extraction explicitly declares that extracted fields or the document could not be
-determined with certainty.
+determined with certainty. Phase 33 adds deterministic required invoice field completeness
+verification (ADR 0039) requiring `invoice_number`, `invoice_date`, `currency`, and `total`
+so sparse or empty extractions cannot clear vacuously when every field-dependent rule is
+skipped.
 
 The current and planned workflow is:
 
