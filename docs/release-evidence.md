@@ -1360,17 +1360,60 @@ updated roadmap, updated testing guide, and updated CHANGELOG) are fully verifie
 migration, new dependency, or route change was made.
 Phase 14 remains planned but blocked on a Tesseract-equipped operator environment.
 
+## Phase 33 completion snapshot
+
+The Phase 33 completion gate was recorded on 2026-10-21 against the `phase/required-field-completeness` branch.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed after upgrading Pillow to 13.0.0 and certifi to 2026.10.19 (0 known vulnerabilities) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All files formatted |
+| `uv run mypy` | No issues found across all source files |
+| `uv run pytest --cov=veridoc` | 1379 passed; total branch coverage 94.01% (90% floor) |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| Remote GitHub Actions CI | Run [39518432117](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39518432117) succeeded for `13bf33e` |
+| `git status --short` | Clean worktree |
+
+The Phase 33 deliverables (ordered `REQUIRED_INVOICE_FIELDS` table, pure
+`check_required_fields()`, `missing_required_field` finding type, fixed-severity
+per-field evidence, first-position `VerificationService.verify()` integration,
+12 tests in `tests/test_verification_completeness.py`, ADR 0039, updated
+AGENTS.md, architecture.md, roadmap, testing guide, README, and CHANGELOG) are
+fully verified and documented. Existing processing, evaluation, and review
+integration fixtures were completed with the newly required fields so their
+original assertions remain meaningful. A separate dependency commit upgraded
+Pillow and certifi to audited versions because the vulnerability database added
+findings against the previously locked versions. No database schema migration,
+new route, or new dependency was introduced.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
 coverage, build, distribution, isolated wheel and source-distribution, and
 full-tree whitespace gates on GitHub-hosted Ubuntu runners. The pytest gate also
 enforces local Markdown links and the documented test-module inventory. The
-maintenance CLI smoke and final clean-worktree check remain local evidence. No
-hosted CI result was observed during this local completion run. This snapshot
-therefore does not claim a remote CI pass, deployment readiness, live provider
-execution, or accuracy on a representative invoice corpus. Tests use
-deterministic fakes for external OCR and model boundaries.
+maintenance CLI smoke and final clean-worktree check remain local evidence.
+The Phase 33 hosted CI result was observed directly (run 39518432117); the
+snapshot still does not claim deployment readiness, live provider execution, or
+accuracy on a representative invoice corpus. Tests use deterministic fakes for
+external OCR and model boundaries.
 
 See the [development guide](development.md) for the reproducible commands and
 the [testing guide](testing.md) for the evidence required by change type.
