@@ -38,7 +38,7 @@ boundaries only and require separate approval before implementation.
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 | 31 | Document type verification (ADR 0037) | Complete |
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
-| 33 | Required invoice field completeness verification (ADR 0039) | In progress |
+| 33 | Required invoice field completeness verification (ADR 0039) | Complete |
 
 ## Phase 7: release engineering
 
