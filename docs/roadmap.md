@@ -39,7 +39,7 @@ boundaries only and require separate approval before implementation.
 | 31 | Document type verification (ADR 0037) | Complete |
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 | 33 | Required invoice field completeness verification (ADR 0039) | Complete |
-| 34 | Line item completeness and derived subtotal verification (ADR 0040) | In progress |
+| 34 | Line item completeness and derived subtotal verification (ADR 0040) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2027,7 +2027,7 @@ Phase 34 adds:
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 33 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 34 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
