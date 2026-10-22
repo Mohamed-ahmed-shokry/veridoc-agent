@@ -1,7 +1,10 @@
 """Deterministic invoice arithmetic verification tests."""
 
 from veridoc.extraction.models import InvoiceExtraction, InvoiceLineItem
-from veridoc.verification.arithmetic import check_arithmetic
+from veridoc.verification.arithmetic import (
+    check_arithmetic,
+    check_line_items_subtotal,
+)
 
 
 def test_arithmetic_checks_accept_a_consistent_invoice() -> None:
@@ -408,7 +411,7 @@ def test_line_items_subtotal_rounding_discrepancy_within_tolerance() -> None:
     assert finding.comparison_source == "invoice_line_items"
     assert (
         finding.deterministic_rule
-        == "abs(sum(line_item.total_price) - subtotal) <= 0.02"
+        == "abs(sum(line_item.total_price or quantity * unit_price) - subtotal) <= 0.02"
     )
     assert finding.observed_value == "100.00"
     assert finding.expected_value == "99.99"
@@ -450,7 +453,10 @@ def test_line_items_subtotal_material_mismatch_exceeding_tolerance() -> None:
     assert finding.finding_type == "line_items_subtotal_mismatch"
     assert finding.severity == "high"
     assert finding.comparison_source == "invoice_line_items"
-    assert finding.deterministic_rule == "sum(line_item.total_price) == subtotal"
+    assert (
+        finding.deterministic_rule
+        == "sum(line_item.total_price or quantity * unit_price) == subtotal"
+    )
     assert finding.observed_value == "100.00"
     assert finding.expected_value == "90.00"
     assert finding.details == {
@@ -476,13 +482,13 @@ def test_line_items_subtotal_missing_fields_skipped() -> None:
     )
     assert check_arithmetic(invoice_no_items) == []
 
-    # One line item missing total_price
+    # One line item without enough data to derive a total
     invoice_missing_item_total = InvoiceExtraction(
         document_type="invoice",
         subtotal="100.00",
         line_items=[
             InvoiceLineItem(total_price="50.00"),
-            InvoiceLineItem(quantity="1", unit_price="50.00"),  # total_price is None
+            InvoiceLineItem(description="Underivable"),
         ],
     )
     assert check_arithmetic(invoice_missing_item_total) == []
@@ -586,3 +592,50 @@ def test_verification_service_integrates_arithmetic_rounding() -> None:
     result = service.verify(invoice)
     finding_types = [f.finding_type for f in result.findings]
     assert "rounding_discrepancy" in finding_types
+
+
+def test_line_items_subtotal_derives_quantity_times_unit_price() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        subtotal="100.00",
+        line_items=[
+            InvoiceLineItem(description="Explicit", total_price="40.00"),
+            InvoiceLineItem(description="Derived", quantity="3", unit_price="20.00"),
+        ],
+    )
+
+    assert check_line_items_subtotal(invoice) == []
+
+
+def test_line_items_subtotal_flags_derived_mismatch() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        subtotal="100.00",
+        line_items=[
+            InvoiceLineItem(description="Derived", quantity="3", unit_price="20.00"),
+        ],
+    )
+
+    findings = check_line_items_subtotal(invoice)
+
+    assert [finding.finding_type for finding in findings] == [
+        "line_items_subtotal_mismatch"
+    ]
+    assert findings[0].expected_value == "60.00"
+    assert findings[0].severity == "high"
+
+
+def test_line_items_subtotal_derived_rounding_discrepancy() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        subtotal="1.00",
+        line_items=[
+            InvoiceLineItem(description="Derived", quantity="3", unit_price="0.33"),
+        ],
+    )
+
+    findings = check_line_items_subtotal(invoice)
+
+    assert [finding.finding_type for finding in findings] == ["rounding_discrepancy"]
+    assert findings[0].severity == "low"
+    assert findings[0].expected_value == "0.99"
