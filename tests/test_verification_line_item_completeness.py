@@ -1,5 +1,6 @@
 """Line item completeness verification tests."""
 
+from datetime import date
 from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction, InvoiceLineItem
@@ -131,3 +132,71 @@ def test_completeness_does_not_mutate_the_invoice() -> None:
     check_line_item_completeness(invoice)
 
     assert invoice == original
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_reports_line_item_gaps() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        invoice_number="INV-2026-001",
+        invoice_date=date(2026, 8, 1),
+        currency="USD",
+        subtotal=Decimal("100.00"),
+        tax=Decimal("0.00"),
+        total=Decimal("100.00"),
+        line_items=[InvoiceLineItem()],
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+    findings = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "incomplete_line_item"
+    ]
+
+    assert [finding.details["field"] for finding in findings] == [
+        "identity",
+        "amount",
+    ]
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "medium"
+
+
+def test_verification_service_does_not_flag_complete_line_items() -> None:
+    from veridoc.verification.service import VerificationService
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        total=Decimal("100.00"),
+        line_items=[
+            InvoiceLineItem(
+                description="Consulting",
+                quantity=Decimal(2),
+                unit_price=Decimal("50.00"),
+            )
+        ],
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+
+    assert not [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "incomplete_line_item"
+    ]

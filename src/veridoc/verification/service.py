@@ -19,6 +19,7 @@ from veridoc.verification.header_amounts import check_header_amounts
 from veridoc.verification.history import check_historical_total
 from veridoc.verification.invoice_totals import check_non_positive_invoice_total
 from veridoc.verification.line_item_amounts import check_non_positive_line_items
+from veridoc.verification.line_item_completeness import check_line_item_completeness
 from veridoc.verification.line_items import (
     check_line_item_occurrence,
     check_line_item_statistics,
@@ -62,6 +63,7 @@ class VerificationService:
     ) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_required_fields(invoice)
+        findings.extend(check_line_item_completeness(invoice))
         findings.extend(check_arithmetic(invoice))
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))
