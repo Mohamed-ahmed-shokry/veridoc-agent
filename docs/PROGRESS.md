@@ -24,7 +24,7 @@
 | 9 | Add derived subtotal and rounding tests | Completed | `3421441` |
 | 10 | Update the documented test inventory | Completed | `ffb42d7` |
 | 11 | Update README, CHANGELOG, architecture, AGENTS, and roadmap | Completed | `e648631`..`969f2d6` |
-| 12 | Verify local CI parity and record release evidence | Completed | this commit |
+| 12 | Verify local CI parity and record release evidence | Completed | `4519ee0` |
 | 13 | Push branch, open draft PR, and verify remote CI | Completed | CI run `39847055568` |
 | 14 | Finalize this progress record | Completed | this commit |
 
