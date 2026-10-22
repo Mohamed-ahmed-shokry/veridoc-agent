@@ -39,6 +39,7 @@ boundaries only and require separate approval before implementation.
 | 31 | Document type verification (ADR 0037) | Complete |
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 | 33 | Required invoice field completeness verification (ADR 0039) | Complete |
+| 34 | Line item completeness and derived subtotal verification (ADR 0040) | In progress |
 
 ## Phase 7: release engineering
 
@@ -1919,6 +1920,110 @@ See [ADR 0039](decisions/0039-required-invoice-field-completeness.md). Phase 33 
 6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`,
    `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
 7. Run the full release gate, push, and verify remote CI.
+
+## Phase 34: line item completeness and derived subtotal verification
+
+Phase 34 adds deterministic line-item completeness verification and closes the
+subtotal bypass caused by omitted line totals (ADR 0040), preventing line items
+that cannot be identified or priced from being silently skipped.
+
+### Motivation and context
+
+Phase 33 requires header identity and monetary fields. Line items remained a
+blind spot:
+
+- `line_item_key` returns `None` when both `product_identifier` and
+  `description` are absent or blank. Duplicate detection, vendor-history
+  occurrence, historical price/quantity statistics, and purchase-order matching
+  all skip such a line, so it can never be reconciled.
+- A line item may have no monetary data, or only one of `quantity` and
+  `unit_price`. Its amount is then neither checked by line-item arithmetic nor
+  usable by subtotal verification.
+- `check_line_items_subtotal` returned early when any `total_price` was absent,
+  even when `quantity * unit_price` was derivable. One omitted line total
+  disabled subtotal verification for the entire invoice.
+
+### Decision summary
+
+See [ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md).
+Phase 34 adds:
+
+- `incomplete_line_item` to `FindingType` in `veridoc.verification.models`;
+- `check_line_item_completeness(invoice)` in
+  `veridoc.verification.line_item_completeness`;
+- identity and amount requirements per line item, in line-item order with
+  identity before amount, both at `medium` severity;
+- derived `quantity * unit_price` line totals inside
+  `check_line_items_subtotal` when `total_price` is absent;
+- `VerificationService.verify()` integration after header completeness;
+- `tests/test_verification_line_item_completeness.py` and extended arithmetic
+  tests covering all paths.
+
+### Deliverables
+
+- `incomplete_line_item` finding type;
+- `check_line_item_completeness` pure function with the documented requirements;
+- `check_line_items_subtotal` derives omitted line totals instead of returning
+  early;
+- focused unit, ordering, immutability, service integration, verdict, and
+  subtotal-derivation tests;
+- ADR 0040 and decisions-index registration;
+- synchronized `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`,
+  `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and
+  `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `incomplete_line_item` appears in `FindingType` and is accepted by
+   `VerificationFinding` (verified by `tests/test_verification_models.py`).
+2. `check_line_item_completeness` returns `[]` for an invoice with no line items
+   and for line items that have an identity and a total or both quantity and
+   unit price (verified by `tests/test_verification_line_item_completeness.py`).
+3. Missing identity yields one `medium` finding with `field="identity"`; an
+   amount that cannot be derived yields one `medium` finding with
+   `field="amount"` (verified by
+   `tests/test_verification_line_item_completeness.py`).
+4. Multiple line items produce findings in line-item order with identity before
+   amount, and `total_price=0` counts as present (verified by
+   `tests/test_verification_line_item_completeness.py`).
+5. `check_line_item_completeness` does not mutate the input extraction
+   (verified by `tests/test_verification_line_item_completeness.py`).
+6. `VerificationService.verify()` reports completeness findings and routes to
+   `review_required` (verified by
+   `tests/test_verification_line_item_completeness.py`).
+7. `check_line_items_subtotal` derives `quantity * unit_price` when a line total
+   is absent, still honors rounding tolerance, and flags material mismatches
+   (verified by `tests/test_verification_arithmetic.py`).
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_line_item_completeness.py tests/test_verification_arithmetic.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated distribution smoke tests.
+- Push the phase branch and verify the GitHub Actions workflow is green.
+
+### Exclusions
+
+- Requiring line items on every invoice; summary invoices remain valid.
+- Requiring quantity or unit price when `total_price` is present.
+- Judging line-item sign or value; Phases 25 and 27 own those rules.
+- Modifying extraction schemas, persistence, prompts, or evaluation manifests.
+
+### Micro-task breakdown
+
+1. Add the Phase 34 specification and ADR 0040.
+2. Add `incomplete_line_item` to `FindingType` with a model test.
+3. Implement `check_line_item_completeness` with unit tests.
+4. Integrate the completeness check into `VerificationService.verify()`.
+5. Derive omitted line totals in `check_line_items_subtotal` with tests.
+6. Update affected graph, service, and integration fixtures.
+7. Update documentation, release evidence, and the progress record.
+8. Run the full release gate, push, and verify remote CI.
 
 ## Approval rule
 
