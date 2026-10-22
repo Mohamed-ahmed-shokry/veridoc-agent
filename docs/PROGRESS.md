@@ -39,7 +39,7 @@
 | 5 | The check does not mutate the input extraction | Verified | `tests/test_verification_line_item_completeness.py` passed |
 | 6 | `VerificationService.verify()` reports line item gaps and routes to `review_required` | Verified | `tests/test_verification_line_item_completeness.py` passed |
 | 7 | `check_line_items_subtotal` derives `quantity * unit_price`, preserves tolerance, and flags material mismatches | Verified | `tests/test_verification_arithmetic.py` passed |
-| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local gates below; CI run [39847055568](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847055568) success |
+| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local gates below; CI run [39847896182](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847896182) success |
 
 ## Decision Log
 
@@ -97,8 +97,8 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 Remote CI:
 
 - Workflow: `CI`
-- Run: [39847055568](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847055568)
-- Head commit: `969f2d6`
+- Run: [39847896182](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847896182)
+- Head commit: `a863194`
 - Result: `success`
 
 The container-build step runs only in GitHub Actions; local Docker is not

@@ -1431,7 +1431,7 @@ Verified results:
 | `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
 | Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
 | Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
-| Remote GitHub Actions CI | Run [39847055568](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847055568) succeeded for `969f2d6` |
+| Remote GitHub Actions CI | Run [39847896182](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847896182) succeeded for `a863194` |
 | `git status --short` | Clean worktree |
 
 The Phase 34 deliverables (pure `check_line_item_completeness()`,
@@ -1451,7 +1451,7 @@ coverage, build, distribution, isolated wheel and source-distribution, and
 full-tree whitespace gates on GitHub-hosted Ubuntu runners. The pytest gate also
 enforces local Markdown links and the documented test-module inventory. The
 maintenance CLI smoke and final clean-worktree check remain local evidence.
-The Phase 33 and Phase 34 hosted CI results were observed directly (runs 39518432117 and 39847055568); the
+The Phase 33 and Phase 34 hosted CI results were observed directly (runs 39518432117 and 39847896182); the
 snapshot still does not claim deployment readiness, live provider execution, or
 accuracy on a representative invoice corpus. Tests use deterministic fakes for
 external OCR and model boundaries.
