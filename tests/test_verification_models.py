@@ -287,3 +287,19 @@ def test_verification_finding_accepts_missing_required_field() -> None:
     assert finding.finding_type == "missing_required_field"
     assert finding.severity == "high"
     assert finding.details["field"] == "invoice_number"
+
+
+def test_verification_finding_accepts_incomplete_line_item() -> None:
+    finding = VerificationFinding(
+        finding_type="incomplete_line_item",
+        severity="medium",
+        explanation="The line item has no identifying value.",
+        comparison_source="invoice_line_items",
+        deterministic_rule="line_item.product_identifier or line_item.description is present",
+        observed_value=None,
+        expected_value="identity",
+        details={"line_item_index": 0, "field": "identity"},
+    )
+    assert finding.finding_type == "incomplete_line_item"
+    assert finding.severity == "medium"
+    assert finding.details == {"line_item_index": 0, "field": "identity"}
