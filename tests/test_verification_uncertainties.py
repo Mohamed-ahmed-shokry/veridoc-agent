@@ -170,6 +170,8 @@ def test_verification_service_includes_extraction_uncertainty() -> None:
     from veridoc.verification.service import VerificationService
 
     invoice = _invoice(
+        invoice_number="INV-001",
+        invoice_date=date(2026, 8, 1),
         total=Decimal("500.00"),
         currency="USD",
         uncertainties=[
@@ -199,6 +201,8 @@ def test_verification_service_routes_multiple_uncertainties_to_review_required()
     from veridoc.verification.service import VerificationService
 
     invoice = _invoice(
+        invoice_number="INV-001",
+        invoice_date=date(2026, 8, 1),
         total=Decimal("150.00"),
         currency="USD",
         uncertainties=[

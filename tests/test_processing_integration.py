@@ -38,6 +38,9 @@ class _IntegrationExtractor:
             document_type="invoice",
             vendor_name="Fictional Supplies Ltd.",
             invoice_number="INV-002",
+            invoice_date="2026-08-01",
+            currency="USD",
+            total="100.00",
             ocr_confidence=request.document.confidence,
         )
 
@@ -71,6 +74,15 @@ async def test_process_endpoint_runs_the_complete_dependency_graph(
             invoice_number="INV-002",
         )
     )
+    for index in range(3):
+        repository.add_invoice(
+            HistoricalInvoice(
+                vendor_key="fictional-supplies-ltd",
+                invoice_number=f"PRIOR-{index}",
+                currency="USD",
+                total="100.00",
+            )
+        )
     monkeypatch.setenv("VERIDOC_REFERENCE_DATABASE", str(database_path))
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("VERIDOC_LLM_MODEL", raising=False)
@@ -107,5 +119,14 @@ async def test_process_endpoint_runs_the_complete_dependency_graph(
         HistoricalInvoice(
             vendor_key="fictional-supplies-ltd",
             invoice_number="INV-002",
-        )
+        ),
+        *[
+            HistoricalInvoice(
+                vendor_key="fictional-supplies-ltd",
+                invoice_number=f"PRIOR-{index}",
+                currency="USD",
+                total="100.00",
+            )
+            for index in range(3)
+        ],
     ]

@@ -38,6 +38,7 @@ boundaries only and require separate approval before implementation.
 | 30 | Excessive credit window and due date bound verification (ADR 0036) | Complete |
 | 31 | Document type verification (ADR 0037) | Complete |
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
+| 33 | Required invoice field completeness verification (ADR 0039) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1802,9 +1803,126 @@ routing the document to mandatory human review (`review_required`).
 14. Mark Phase 32 complete in `docs/ROADMAP.md` and update approval rule.
 15. Finalize `docs/PROGRESS.md` and verify full CI parity.
 
+## Phase 33: required invoice field completeness verification
+
+Phase 33 introduces deterministic required-field completeness verification
+(ADR 0039) detecting extractions that omit critical invoice identity or
+monetary fields, preventing sparse or partially blank extractions from
+receiving an unearned `clear` processing verdict.
+
+### Motivation and context
+
+Every existing deterministic rule is conditional on at least one extracted
+field being present. For example, `check_duplicate_invoice_number` returns no
+finding when `invoice_number` is `None`, `check_invoice_staleness`,
+`check_future_invoice_date`, `check_payment_terms_due_date`, and
+`check_excessive_due_date_window` all return no finding when `invoice_date` or
+`due_date` is `None`, `check_non_positive_invoice_total` and the arithmetic
+checks return no finding when `total` is `None`, and same-currency historical
+comparisons silently skip when `currency` is `None`. A particularly sparse
+extraction—or a document that is an invoice in name only—can therefore pass
+every check and clear automatically even though the facts required for
+accounts-payable posting and audit identity are absent.
+
+Four fields are required for a genuinely verifiable invoice:
+
+1. `invoice_number` — the vendor-scoped identity used for duplicate detection,
+   review evidence, and AP posting. Without it the same invoice can be paid
+   repeatedly.
+2. `invoice_date` — the anchor for staleness, future-date, payment-term, and
+   credit-window checks. Without it every date rule is silently skipped.
+3. `currency` — the unit of every monetary amount. Without it historical
+   comparisons are skipped and the payable amount is ambiguous.
+4. `total` — the payable amount. Without it positivity, arithmetic, purchase
+   order ceiling, and historical-outlier checks are all skipped.
+
+Vendor identity is deliberately excluded from this rule: it already produces a
+dedicated `insufficient_history` finding and a vendor-resolution result.
+
+### Decision summary
+
+See [ADR 0039](decisions/0039-required-invoice-field-completeness.md). Phase 33 adds:
+
+- `missing_required_field` to `FindingType` in `veridoc.verification.models`;
+- `REQUIRED_INVOICE_FIELDS` and `check_required_fields(invoice)` in
+  `veridoc.verification.completeness`;
+- one `missing_required_field` finding per absent required field, in fixed
+  order, with `invoice_number` and `total` at `high` severity and
+  `invoice_date` and `currency` at `medium` severity;
+- `VerificationService.verify()` calls `check_required_fields` first;
+- `tests/test_verification_completeness.py` covering each excluded and
+  triggering field, multiple missing fields, empty extractions, structured
+  details, input immutability, service integration, and verdict derivation;
+
+### Deliverables
+
+- `missing_required_field` added to `FindingType` in `veridoc.verification.models`;
+- `REQUIRED_INVOICE_FIELDS` constant and `check_required_fields()` pure function
+  in `veridoc.verification.completeness`;
+- `VerificationService.verify()` invokes `check_required_fields`;
+- focused module tests covering every required field independently and in
+  combination;
+- ADR 0039 and the decisions index;
+- synchronized `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`,
+  `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and
+  `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `missing_required_field` appears in `FindingType` and is accepted by
+   `VerificationFinding` (verified by `tests/test_verification_models.py`).
+2. `check_required_fields` returns `[]` for an invoice with `invoice_number`,
+   `invoice_date`, `currency`, and `total` populated (verified by
+   `tests/test_verification_completeness.py`).
+3. `check_required_fields` returns exactly one `missing_required_field` finding
+   per absent required field, in fixed field order, with the documented
+   severities and `details={"field": <name>}` (verified by
+   `tests/test_verification_completeness.py`).
+4. A completely empty invoice extraction yields four findings and cannot clear
+   (verified by `tests/test_verification_completeness.py`).
+5. `check_required_fields` does not mutate the input extraction (verified by
+   `tests/test_verification_completeness.py`).
+6. `VerificationService.verify()` includes completeness findings and routes
+   violating invoices to `review_required` (verified by
+   `tests/test_verification_completeness.py`).
+7. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py` and
+  `uv run pytest tests/test_verification_completeness.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated distribution smoke tests.
+- Push the phase branch and verify the GitHub Actions workflow is green.
+
+### Exclusions
+
+- Requiring vendor identity, `due_date`, `payment_terms`, `subtotal`, `tax`,
+  `discount`, or line items, all of which are legitimately optional and in
+  several cases already covered by other rules.
+- Modifying `InvoiceExtraction` schemas, extraction prompts, persistence
+  schemas, or evaluation corpus manifests.
+- Rejecting incomplete documents at the ingestion or extraction boundary.
+
+### Micro-task breakdown
+
+1. Add the Phase 33 specification to `docs/roadmap.md`.
+2. Record ADR 0039 and register it in the decisions index.
+3. Add `missing_required_field` to `FindingType` with a model test.
+4. Implement `REQUIRED_INVOICE_FIELDS` and `check_required_fields` with tests.
+5. Integrate `check_required_fields` into `VerificationService.verify()` with
+   service and verdict tests.
+6. Update `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`, `README.md`,
+   `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
+7. Run the full release gate, push, and verify remote CI.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 32 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 33 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,

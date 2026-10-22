@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 32 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 33 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -72,7 +72,8 @@ implementation remains deliberately small:
   migration-, schema-, and row-semantics-checked online backup plus
   stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
-  rules, an API-neutral service, and the typed verification graph.
+  rules (including required invoice field completeness), an API-neutral
+  service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
   deterministic rendering, provider-draft guardrails, an API-neutral service,
   an optional OpenAI adapter, and the typed explanation graph.
@@ -286,6 +287,11 @@ implementation remains deliberately small:
   invoices), triggering paths (field-specific uncertainties, general document uncertainties,
   multiple uncertainties), structured details (`field`, `reason`, `uncertainty_index`), input
   immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_completeness.py` covers Phase 33 deterministic required
+  invoice field completeness verification (ADR 0039): the fixed required-field order
+  and severities, non-triggering complete invoices, each missing field independently,
+  multiple missing fields, empty extractions, structured details, input immutability,
+  `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -371,7 +377,10 @@ to prevent unearned clear verdicts on non-invoice instruments. Phase 32 adds
 deterministic extraction uncertainty verification (ADR 0038) detecting declared
 extraction ambiguities (`len(invoice.uncertainties) > 0`) to prevent unearned clear verdicts
 when upstream extraction explicitly declares that extracted fields or the document could not be
-determined with certainty.
+determined with certainty. Phase 33 adds deterministic required invoice field completeness
+verification (ADR 0039) requiring `invoice_number`, `invoice_date`, `currency`, and `total`
+so sparse or empty extractions cannot clear vacuously when every field-dependent rule is
+skipped.
 
 The current and planned workflow is:
 

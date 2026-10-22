@@ -176,6 +176,7 @@ def test_verification_service_includes_excessive_due_date_window() -> None:
     from veridoc.verification.service import VerificationService
 
     invoice = _invoice(
+        invoice_number="INV-001",
         invoice_date=date(2026, 1, 1),
         due_date=date(2028, 1, 1),
         total="500.00",

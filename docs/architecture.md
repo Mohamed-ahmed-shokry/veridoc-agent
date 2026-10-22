@@ -232,7 +232,12 @@ fractional rounding bounds with omitted-field normalization ([ADR 0034](decision
 payment terms and due date consistency ([ADR 0035](decisions/0035-payment-terms-due-date-consistency.md)),
 excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-window.md)),
 document type verification ([ADR 0037](decisions/0037-document-type-verification.md)),
-and extraction uncertainty verification ([ADR 0038](decisions/0038-extraction-uncertainty-verification.md)).
+extraction uncertainty verification ([ADR 0038](decisions/0038-extraction-uncertainty-verification.md)),
+and required invoice field completeness verification
+([ADR 0039](decisions/0039-required-invoice-field-completeness.md)). Completeness
+runs first and requires `invoice_number`, `invoice_date`, `currency`, and
+`total`, because every other rule is conditional on the fields it evaluates and
+a sparse extraction would otherwise clear vacuously.
 
 ## Typed explanation flow
 

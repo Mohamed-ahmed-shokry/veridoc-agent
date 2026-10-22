@@ -50,6 +50,7 @@ FindingType = Literal[
     "excessive_due_date_window",
     "unsupported_document_type",
     "extraction_uncertainty",
+    "missing_required_field",
 ]
 
 

@@ -55,3 +55,4 @@ Accepted decisions:
 - [0036: Excessive credit window and due date bound verification](0036-excessive-due-date-window.md)
 - [0037: Document type verification](0037-document-type-verification.md)
 - [0038: Extraction uncertainty verification](0038-extraction-uncertainty-verification.md)
+- [0039: Required invoice field completeness verification](0039-required-invoice-field-completeness.md)

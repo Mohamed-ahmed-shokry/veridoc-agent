@@ -30,4 +30,6 @@ def test_verification_graph_runs_the_service_node() -> None:
     result = graph.invoke({"extraction": extraction})
 
     assert result["extraction"] == extraction
-    assert result["verification"].findings == []
+    assert [
+        finding.details["field"] for finding in result["verification"].findings
+    ] == ["invoice_number", "invoice_date", "currency", "total"]

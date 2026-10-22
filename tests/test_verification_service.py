@@ -44,6 +44,7 @@ def test_verification_service_returns_no_findings_for_a_normal_invoice() -> None
         document_type="invoice",
         vendor_name="Fictional Supplies",
         invoice_number="INV-004",
+        invoice_date="2026-08-01",
         currency="USD",
         total="7300.00",
         payment_terms="Net 30",
@@ -85,6 +86,9 @@ def test_verification_service_declares_missing_vendor_history() -> None:
     result = VerificationService(VerificationRepository()).verify(invoice)
 
     assert [finding.finding_type for finding in result.findings] == [
-        "insufficient_history"
+        "missing_required_field",
+        "missing_required_field",
+        "missing_required_field",
+        "insufficient_history",
     ]
-    assert result.findings[0].details == {"metric": "vendor_history"}
+    assert result.findings[-1].details == {"metric": "vendor_history"}
