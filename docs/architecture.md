@@ -233,11 +233,17 @@ payment terms and due date consistency ([ADR 0035](decisions/0035-payment-terms-
 excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-window.md)),
 document type verification ([ADR 0037](decisions/0037-document-type-verification.md)),
 extraction uncertainty verification ([ADR 0038](decisions/0038-extraction-uncertainty-verification.md)),
-and required invoice field completeness verification
-([ADR 0039](decisions/0039-required-invoice-field-completeness.md)). Completeness
-runs first and requires `invoice_number`, `invoice_date`, `currency`, and
-`total`, because every other rule is conditional on the fields it evaluates and
-a sparse extraction would otherwise clear vacuously.
+required invoice field completeness verification
+([ADR 0039](decisions/0039-required-invoice-field-completeness.md)), and line item
+completeness with derived subtotals
+([ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md)).
+Header completeness runs first and requires `invoice_number`, `invoice_date`,
+`currency`, and `total`, because every other rule is conditional on the fields
+it evaluates and a sparse extraction would otherwise clear vacuously. Line item
+completeness then requires every line to carry a non-blank identity and either
+`total_price` or both `quantity` and `unit_price`; subtotal verification derives
+`quantity * unit_price` for lines without a printed total instead of skipping
+the check.
 
 ## Typed explanation flow
 
