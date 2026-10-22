@@ -47,15 +47,16 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console. Phase 21 through 33 expand deterministic
-fraud, validation, arithmetic, payment, credit, and uncertainty rules: stale invoice detection (ADR 0028), future invoice date
+assignee filtering in the review console. Phase 21 through 34 expand deterministic
+fraud, validation, arithmetic, payment, credit, completeness, and uncertainty rules: stale invoice detection (ADR 0028), future invoice date
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
 total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
 header monetary bounds (ADR 0033), fractional rounding bounds with omitted-field
 handling (ADR 0034), payment terms due date consistency (ADR 0035), Phase 29 CI
 quality gate restoration, excessive credit window bounds (ADR 0036), document type verification (ADR 0037),
-extraction uncertainty verification (ADR 0038), and required invoice field completeness
-verification (ADR 0039).
+extraction uncertainty verification (ADR 0038), required invoice field completeness
+verification (ADR 0039), and line item completeness with derived subtotal
+verification (ADR 0040).
 
 ## Implemented capabilities
 
@@ -130,7 +131,8 @@ verification (ADR 0039).
 - deterministic excessive credit window and due date bound verification detecting OCR year hallucinations and multi-year deferred liabilities ([ADR 0036](docs/decisions/0036-excessive-due-date-window.md));
 - deterministic document type verification detecting non-invoice instruments to prevent unearned clear verdicts ([ADR 0037](docs/decisions/0037-document-type-verification.md));
 - deterministic extraction uncertainty verification elevating declared perceptual ambiguities to prevent unearned clear verdicts ([ADR 0038](docs/decisions/0038-extraction-uncertainty-verification.md));
-- deterministic required invoice field completeness verification requiring invoice number, date, currency, and total so sparse extractions cannot clear vacuously ([ADR 0039](docs/decisions/0039-required-invoice-field-completeness.md)); and
+- deterministic required invoice field completeness verification requiring invoice number, date, currency, and total so sparse extractions cannot clear vacuously ([ADR 0039](docs/decisions/0039-required-invoice-field-completeness.md));
+- deterministic line item completeness verification requiring an identity and a total or derivable quantity-times-price amount, with omitted line totals derived during subtotal verification ([ADR 0040](docs/decisions/0040-line-item-completeness-and-derived-subtotals.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
