@@ -183,7 +183,7 @@ def check_line_items_subtotal(
                 ),
                 comparison_source="invoice_line_items",
                 deterministic_rule=(
-                    f"abs(sum(line_item.total_price or quantity * unit_price) - subtotal) <= {rounding_tolerance}"
+                    f"abs(sum(line_item.total_price if present else quantity * unit_price) - subtotal) <= {rounding_tolerance}"
                 ),
                 observed_value=str(invoice.subtotal),
                 expected_value=str(expected_subtotal),
@@ -201,7 +201,7 @@ def check_line_items_subtotal(
             severity="high",
             explanation="The sum of line-item totals does not equal the invoice subtotal.",
             comparison_source="invoice_line_items",
-            deterministic_rule="sum(line_item.total_price or quantity * unit_price) == subtotal",
+            deterministic_rule="sum(line_item.total_price if present else quantity * unit_price) == subtotal",
             observed_value=str(invoice.subtotal),
             expected_value=str(expected_subtotal),
             details={

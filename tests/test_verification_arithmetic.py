@@ -411,7 +411,7 @@ def test_line_items_subtotal_rounding_discrepancy_within_tolerance() -> None:
     assert finding.comparison_source == "invoice_line_items"
     assert (
         finding.deterministic_rule
-        == "abs(sum(line_item.total_price or quantity * unit_price) - subtotal) <= 0.02"
+        == "abs(sum(line_item.total_price if present else quantity * unit_price) - subtotal) <= 0.02"
     )
     assert finding.observed_value == "100.00"
     assert finding.expected_value == "99.99"
@@ -455,7 +455,7 @@ def test_line_items_subtotal_material_mismatch_exceeding_tolerance() -> None:
     assert finding.comparison_source == "invoice_line_items"
     assert (
         finding.deterministic_rule
-        == "sum(line_item.total_price or quantity * unit_price) == subtotal"
+        == "sum(line_item.total_price if present else quantity * unit_price) == subtotal"
     )
     assert finding.observed_value == "100.00"
     assert finding.expected_value == "90.00"
