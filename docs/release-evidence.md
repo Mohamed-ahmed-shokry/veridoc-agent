@@ -1403,6 +1403,47 @@ Pillow and certifi to audited versions because the vulnerability database added
 findings against the previously locked versions. No database schema migration,
 new route, or new dependency was introduced.
 
+## Phase 34 completion snapshot
+
+The Phase 34 completion gate was recorded on 2026-10-22 against the `phase/line-item-completeness` branch, stacked on `phase/required-field-completeness`.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed (0 known vulnerabilities; `veridoc` skipped as not on PyPI) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All 310 files formatted |
+| `uv run mypy` | No issues found across 119 source files |
+| `uv run pytest --cov=veridoc` | 1396 passed; total branch coverage 94.02% (90% floor) |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated-wheel smoke test | Passed `scripts/smoke_distribution.py` |
+| Isolated source-distribution smoke test | Passed `scripts/smoke_distribution.py` |
+| Remote GitHub Actions CI | Run [39847055568](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/39847055568) succeeded for `969f2d6` |
+| `git status --short` | Clean worktree |
+
+The Phase 34 deliverables (pure `check_line_item_completeness()`,
+`incomplete_line_item` finding type, identity and amount requirements with
+stable structured details, derived `quantity * unit_price` line totals in
+`check_line_items_subtotal()`, service integration, 13 tests in
+`tests/test_verification_line_item_completeness.py`, extended arithmetic tests,
+ADR 0040, updated AGENTS.md, architecture.md, roadmap, testing guide, README,
+and CHANGELOG) are fully verified and documented. No database schema migration,
+new dependency, new route, extraction schema change, prompt change, or
+evaluation-manifest change was introduced.
+
 ## Evidence boundaries
 
 The repository workflow reproduces the dependency, audit, quality, test,
@@ -1410,7 +1451,7 @@ coverage, build, distribution, isolated wheel and source-distribution, and
 full-tree whitespace gates on GitHub-hosted Ubuntu runners. The pytest gate also
 enforces local Markdown links and the documented test-module inventory. The
 maintenance CLI smoke and final clean-worktree check remain local evidence.
-The Phase 33 hosted CI result was observed directly (run 39518432117); the
+The Phase 33 and Phase 34 hosted CI results were observed directly (runs 39518432117 and 39847055568); the
 snapshot still does not claim deployment readiness, live provider execution, or
 accuracy on a representative invoice corpus. Tests use deterministic fakes for
 external OCR and model boundaries.
