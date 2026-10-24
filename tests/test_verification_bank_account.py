@@ -139,3 +139,55 @@ def test_bank_account_checksum_preserves_input_immutability() -> None:
     snapshot = invoice.model_dump()
     check_bank_account_checksum(invoice)
     assert invoice.model_dump() == snapshot
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_reports_invalid_bank_account() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_bank_account="GB82WEST12345698765433",
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+    findings = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "invalid_bank_account"
+    ]
+    assert len(findings) == 1
+    assert findings[0].severity == "high"
+    assert findings[0].details["reason"] == "checksum"
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+    assert verdict.highest_severity == "high"
+
+
+def test_verification_service_accepts_valid_bank_account() -> None:
+    from veridoc.verification.service import VerificationService
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_bank_account="GB82WEST12345698765432",
+    )
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(invoice)
+    assert not [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "invalid_bank_account"
+    ]
