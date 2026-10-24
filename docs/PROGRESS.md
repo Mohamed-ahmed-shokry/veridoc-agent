@@ -25,7 +25,8 @@
 | 10 | Update test fixtures with verified valid IBAN checksums | Completed | `7f79b5f` |
 | 11 | Update README, CHANGELOG, architecture, AGENTS, and roadmap | Completed | `384ae74`..`3a57e55` |
 | 12 | Verify local CI parity and record release evidence | Completed | `faba18c` |
-| 13 | Finalize this progress record | Completed | this commit |
+| 13 | Fix EOF whitespace in release evidence | Completed | `c1b4aef` |
+| 14 | Finalize progress record with green CI run 40123775767 | Completed | this commit |
 
 ## Acceptance Criteria
 
@@ -38,7 +39,7 @@
 | 5 | Absent, blank, and non-IBAN-shaped (domestic) accounts produce no finding | Verified | `tests/test_verification_bank_account.py` passed |
 | 6 | The check does not mutate the input extraction | Verified | `tests/test_verification_bank_account.py` passed |
 | 7 | `VerificationService.verify()` reports the finding and routes to `review_required` | Verified | `tests/test_verification_bank_account.py` passed |
-| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | 1430 tests passed locally; CI run [40121883276](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/40121883276) success |
+| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | 1430 tests passed locally; CI run [40123775767](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/40123775767) success |
 
 ## Decision Log
 
@@ -96,8 +97,8 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 Remote CI:
 
 - Workflow: `CI`
-- Run: [40121883276](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/40121883276)
-- Head commit: `e5d7d20`
+- Run: [40123775767](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/40123775767)
+- Head commit: `c1b4aef`
 - Result: `success`
 
 ## Blockers
