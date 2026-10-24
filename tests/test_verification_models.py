@@ -303,3 +303,22 @@ def test_verification_finding_accepts_incomplete_line_item() -> None:
     assert finding.finding_type == "incomplete_line_item"
     assert finding.severity == "medium"
     assert finding.details == {"line_item_index": 0, "field": "identity"}
+
+
+def test_verification_finding_accepts_invalid_bank_account() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_bank_account",
+        severity="high",
+        explanation="The vendor bank account fails its IBAN checksum.",
+        comparison_source="invoice_fields",
+        deterministic_rule="IBAN mod-97 remainder == 1",
+        observed_value="GB00BARC20201512345678",
+        details={
+            "field": "vendor_bank_account",
+            "account": "GB00BARC20201512345678",
+            "reason": "checksum",
+        },
+    )
+    assert finding.finding_type == "invalid_bank_account"
+    assert finding.severity == "high"
+    assert finding.details["reason"] == "checksum"

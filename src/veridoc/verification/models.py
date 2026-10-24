@@ -52,6 +52,7 @@ FindingType = Literal[
     "extraction_uncertainty",
     "missing_required_field",
     "incomplete_line_item",
+    "invalid_bank_account",
 ]
 
 
