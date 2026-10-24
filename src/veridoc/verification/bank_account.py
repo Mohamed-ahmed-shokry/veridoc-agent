@@ -95,4 +95,15 @@ IBAN_COUNTRY_LENGTHS: Final[dict[str, int]] = {
     "XK": 20,
 }
 
-__all__ = ["IBAN_COUNTRY_LENGTHS"]
+def iban_checksum_is_valid(iban: str) -> bool:
+    """Return whether a normalized IBAN satisfies the ISO 7064 mod-97-10 check.
+
+    The first four characters move to the end, letters become two-digit numbers
+    (``A`` is 10), and the resulting integer must leave a remainder of 1.
+    """
+    rearranged = iban[4:] + iban[:4]
+    digits = "".join(str(int(character, 36)) for character in rearranged)
+    return int(digits) % 97 == 1
+
+
+__all__ = ["IBAN_COUNTRY_LENGTHS", "iban_checksum_is_valid"]
