@@ -13,7 +13,14 @@ account numbers and free text are intentionally ignored.
 
 from __future__ import annotations
 
+import re
 from typing import Final
+
+from veridoc.extraction.models import InvoiceExtraction
+from veridoc.vendors.models import normalize_bank_account
+from veridoc.verification.models import VerificationFinding
+
+_IBAN_PATTERN: Final[re.Pattern[str]] = re.compile(r"^[A-Z]{2}[0-9]{2}[A-Z0-9]+$")
 
 IBAN_COUNTRY_LENGTHS: Final[dict[str, int]] = {
     "AD": 24,
@@ -107,4 +114,82 @@ def iban_checksum_is_valid(iban: str) -> bool:
     return int(digits) % 97 == 1
 
 
-__all__ = ["IBAN_COUNTRY_LENGTHS", "iban_checksum_is_valid"]
+def check_bank_account_checksum(
+    invoice: InvoiceExtraction,
+) -> list[VerificationFinding]:
+    """Verify IBAN length and checksum for extracted vendor bank accounts.
+
+    Returns an empty list when:
+    - ``invoice.vendor_bank_account`` is absent or blank;
+    - the normalized value does not match IBAN structure or uses an unknown country code;
+    - the normalized value matches the country length and satisfies the mod-97 check.
+
+    Returns a list with one ``invalid_bank_account`` finding (severity="high")
+    when:
+    - the account is IBAN-shaped but its length does not equal the expected country length (reason="length");
+    - the account is IBAN-shaped and has the correct length, but fails the mod-97 check (reason="checksum").
+    """
+    if not invoice.vendor_bank_account:
+        return []
+
+    account = normalize_bank_account(invoice.vendor_bank_account)
+    if not account:
+        return []
+
+    if not _IBAN_PATTERN.match(account):
+        return []
+
+    country_code = account[:2]
+    expected_length = IBAN_COUNTRY_LENGTHS.get(country_code)
+    if expected_length is None:
+        return []
+
+    if len(account) != expected_length:
+        return [
+            VerificationFinding(
+                finding_type="invalid_bank_account",
+                severity="high",
+                explanation=(
+                    f"The vendor bank account '{account}' has {len(account)} characters, but "
+                    f"{country_code} IBANs require {expected_length} characters."
+                ),
+                comparison_source="invoice_fields",
+                deterministic_rule="len(IBAN) == expected_country_length",
+                observed_value=account,
+                expected_value=f"{expected_length} characters",
+                details={
+                    "field": "vendor_bank_account",
+                    "account": account,
+                    "reason": "length",
+                },
+            )
+        ]
+
+    if not iban_checksum_is_valid(account):
+        return [
+            VerificationFinding(
+                finding_type="invalid_bank_account",
+                severity="high",
+                explanation=(
+                    f"The vendor bank account '{account}' fails its IBAN checksum."
+                ),
+                comparison_source="invoice_fields",
+                deterministic_rule="IBAN mod-97 remainder == 1",
+                observed_value=account,
+                expected_value=None,
+                details={
+                    "field": "vendor_bank_account",
+                    "account": account,
+                    "reason": "checksum",
+                },
+            )
+        ]
+
+    return []
+
+
+__all__ = [
+    "IBAN_COUNTRY_LENGTHS",
+    "check_bank_account_checksum",
+    "iban_checksum_is_valid",
+]

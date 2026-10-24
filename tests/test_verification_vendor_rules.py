@@ -31,7 +31,7 @@ def _setup_repository(tmp_path: Path) -> SQLiteInvoiceRepository:
             VendorBankAccount(
                 account_number="12345678",
                 bank_code="BARC",
-                iban="GB82BARC20000012345678",
+                iban="GB74BARC20000012345678",
             )
         ],
         tax_ids=[
@@ -130,7 +130,7 @@ def test_check_vendor_bank_account_matches_verified_iban(tmp_path: Path) -> None
     invoice = InvoiceExtraction(
         document_type="invoice",
         vendor_name="Acme Corporation Ltd",
-        vendor_bank_account="GB82 BARC 2000 0012 3456 78",
+        vendor_bank_account="GB74 BARC 2000 0012 3456 78",
     )
     findings, resolution = check_vendor_registry(invoice, repo)
     assert resolution is not None
