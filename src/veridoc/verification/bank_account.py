@@ -95,6 +95,7 @@ IBAN_COUNTRY_LENGTHS: Final[dict[str, int]] = {
     "XK": 20,
 }
 
+
 def iban_checksum_is_valid(iban: str) -> bool:
     """Return whether a normalized IBAN satisfies the ISO 7064 mod-97-10 check.
 
