@@ -150,6 +150,7 @@ tests/
 ├── test_verification_document_type.py   Phase 31 document type verification rules and paths
 ├── test_verification_uncertainties.py Phase 32 extraction uncertainty verification rules and paths
 ├── test_verification_completeness.py Phase 33 required invoice field completeness rules and paths
+├── test_verification_line_item_completeness.py Phase 34 line item completeness rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

@@ -51,6 +51,7 @@ FindingType = Literal[
     "unsupported_document_type",
     "extraction_uncertainty",
     "missing_required_field",
+    "incomplete_line_item",
 ]
 
 

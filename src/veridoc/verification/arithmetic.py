@@ -163,9 +163,12 @@ def check_line_items_subtotal(
         return []
     expected_subtotal = Decimal(0)
     for line_item in invoice.line_items:
-        if line_item.total_price is None:
-            return []
-        expected_subtotal += line_item.total_price
+        line_total = line_item.total_price
+        if line_total is None:
+            if line_item.quantity is None or line_item.unit_price is None:
+                return []
+            line_total = line_item.quantity * line_item.unit_price
+        expected_subtotal += line_total
     if invoice.subtotal == expected_subtotal:
         return []
     discrepancy = abs(invoice.subtotal - expected_subtotal)
@@ -179,7 +182,9 @@ def check_line_items_subtotal(
                     f"{discrepancy} within the tolerance of {rounding_tolerance}."
                 ),
                 comparison_source="invoice_line_items",
-                deterministic_rule=f"abs(sum(line_item.total_price) - subtotal) <= {rounding_tolerance}",
+                deterministic_rule=(
+                    f"abs(sum(line_item.total_price if present else quantity * unit_price) - subtotal) <= {rounding_tolerance}"
+                ),
                 observed_value=str(invoice.subtotal),
                 expected_value=str(expected_subtotal),
                 details={
@@ -196,7 +201,7 @@ def check_line_items_subtotal(
             severity="high",
             explanation="The sum of line-item totals does not equal the invoice subtotal.",
             comparison_source="invoice_line_items",
-            deterministic_rule="sum(line_item.total_price) == subtotal",
+            deterministic_rule="sum(line_item.total_price if present else quantity * unit_price) == subtotal",
             observed_value=str(invoice.subtotal),
             expected_value=str(expected_subtotal),
             details={

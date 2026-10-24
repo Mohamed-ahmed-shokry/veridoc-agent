@@ -8,6 +8,14 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 34 line item completeness and derived subtotal verification (`incomplete_line_item`):
+  - Architecture Decision Record 0040 documenting why unidentifiable or unpriceable line items are unreconcilable and why omitted line totals must not disable subtotal verification.
+  - `incomplete_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_line_item_completeness()` in `veridoc.verification.line_item_completeness`. Requires a non-blank `product_identifier` or `description` and either `total_price` or both `quantity` and `unit_price`; emits one `medium`-severity finding per gap in line-item order with identity before amount, and structured details (`line_item_index`, `field`).
+  - Updated `check_line_items_subtotal()` to derive `quantity * unit_price` when `total_price` is absent instead of skipping the entire check, preserving rounding tolerance and mismatch severities.
+  - Integrated `check_line_item_completeness(invoice)` into `VerificationService.verify()` after header completeness.
+  - 13 focused unit and integration tests in `tests/test_verification_line_item_completeness.py` plus derived-subtotal coverage in `tests/test_verification_arithmetic.py`.
+
 - Phase 33 required invoice field completeness verification (`missing_required_field`):
   - Architecture Decision Record 0039 documenting why `invoice_number`, `invoice_date`, `currency`, and `total` are required for a verifiable invoice and why vendor identity and optional commercial fields are excluded.
   - `missing_required_field` added to the `FindingType` literal union in `veridoc.verification.models`.

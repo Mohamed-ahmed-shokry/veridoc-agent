@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 33 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 34 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -72,8 +72,8 @@ implementation remains deliberately small:
   migration-, schema-, and row-semantics-checked online backup plus
   stopped-service atomic restore.
 - `src/veridoc/verification/` owns typed findings, deterministic verification
-  rules (including required invoice field completeness), an API-neutral
-  service, and the typed verification graph.
+  rules (including required invoice field and line item completeness), an
+  API-neutral service, and the typed verification graph.
 - `src/veridoc/explanation/` owns strict explanation results and provider drafts,
   deterministic rendering, provider-draft guardrails, an API-neutral service,
   an optional OpenAI adapter, and the typed explanation graph.
@@ -292,6 +292,11 @@ implementation remains deliberately small:
   and severities, non-triggering complete invoices, each missing field independently,
   multiple missing fields, empty extractions, structured details, input immutability,
   `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_line_item_completeness.py` covers Phase 34 deterministic
+  line item completeness verification (ADR 0040): empty and complete line item sets,
+  identity and amount gaps including blank identities and partial price inputs,
+  finding order, zero totals, input immutability, `VerificationService` integration,
+  and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -380,7 +385,10 @@ when upstream extraction explicitly declares that extracted fields or the docume
 determined with certainty. Phase 33 adds deterministic required invoice field completeness
 verification (ADR 0039) requiring `invoice_number`, `invoice_date`, `currency`, and `total`
 so sparse or empty extractions cannot clear vacuously when every field-dependent rule is
-skipped.
+skipped. Phase 34 adds deterministic line item completeness verification (ADR 0040)
+requiring a non-blank identity and a total price or derivable quantity-times-price
+amount, and derives omitted line totals during subtotal verification instead of
+skipping the check.
 
 The current and planned workflow is:
 
@@ -561,6 +569,15 @@ uv run pytest tests/test_verification_staleness.py
 uv run pytest tests/test_verification_future_dates.py
 uv run pytest tests/test_verification_duplicate_line_items.py
 uv run pytest tests/test_verification_invoice_totals.py
+uv run pytest tests/test_verification_line_item_amounts.py
+uv run pytest tests/test_verification_header_amounts.py
+uv run pytest tests/test_verification_arithmetic.py
+uv run pytest tests/test_verification_payment_terms.py
+uv run pytest tests/test_verification_due_date_bounds.py
+uv run pytest tests/test_verification_document_type.py
+uv run pytest tests/test_verification_uncertainties.py
+uv run pytest tests/test_verification_completeness.py
+uv run pytest tests/test_verification_line_item_completeness.py
 
 # Inspect the reference-data maintenance interface.
 uv run veridoc-reference --help
@@ -891,8 +908,21 @@ following documentation commit.
   verification rule for zero and negative invoice totals (ADR 0031). **Complete.**
 - Phase 25: non-positive line item detection — deterministic `non_positive_line_item`
   verification rule for zero and negative line item amounts, quantities, and unit prices (ADR 0032). **Complete.**
+- Phase 26: invoice header monetary bounds — non-positive subtotals, negative tax,
+  and invalid discounts (ADR 0033). **Complete.**
+- Phase 27: arithmetic rounding tolerances and fractional rounding bounds
+  (ADR 0034). **Complete.**
+- Phase 28: payment terms and due date consistency (ADR 0035). **Complete.**
+- Phase 29: GitHub Actions CI restoration and whitespace hygiene (ADR
+  persistence through test gates). **Complete.**
+- Phase 30: excessive credit window and due date bounds (ADR 0036). **Complete.**
+- Phase 31: document type verification (ADR 0037). **Complete.**
+- Phase 32: extraction uncertainty verification (ADR 0038). **Complete.**
+- Phase 33: required invoice field completeness verification (ADR 0039). **Complete.**
+- Phase 34: line item completeness and derived subtotal verification (ADR 0040).
+  **Complete.**
 
-Phases 0 through 13 and Phases 15 through 25 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 34 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
