@@ -1488,4 +1488,3 @@ Verified results:
 | `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
 | Isolated wheel smoke test | Passed isolated installation and API verification |
 | Isolated sdist smoke test | Passed isolated build, installation, and API verification |
-
