@@ -234,16 +234,20 @@ excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-win
 document type verification ([ADR 0037](decisions/0037-document-type-verification.md)),
 extraction uncertainty verification ([ADR 0038](decisions/0038-extraction-uncertainty-verification.md)),
 required invoice field completeness verification
-([ADR 0039](decisions/0039-required-invoice-field-completeness.md)), and line item
+([ADR 0039](decisions/0039-required-invoice-field-completeness.md)), line item
 completeness with derived subtotals
-([ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md)).
+([ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md)), and
+vendor bank account checksum verification
+([ADR 0041](decisions/0041-vendor-bank-account-checksum-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
 completeness then requires every line to carry a non-blank identity and either
 `total_price` or both `quantity` and `unit_price`; subtotal verification derives
 `quantity * unit_price` for lines without a printed total instead of skipping
-the check.
+the check. Bank account checksum verification enforces ISO 13616 country lengths
+and mod-97 integrity for IBAN-shaped remit-to accounts independently of master
+data.
 
 ## Typed explanation flow
 
