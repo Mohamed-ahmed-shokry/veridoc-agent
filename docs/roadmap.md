@@ -2025,6 +2025,75 @@ Phase 34 adds:
 7. Update documentation, release evidence, and the progress record.
 8. Run the full release gate, push, and verify remote CI.
 
+## Phase 35: vendor bank account checksum verification
+
+Phase 35 adds deterministic ISO 13616 IBAN structure and mod-97 checksum
+verification for the extracted `vendor_bank_account` (ADR 0041), so that OCR
+digit misreads and fabricated remit-to accounts are routed to review even when
+the vendor registry cannot reconcile them.
+
+### Objective
+
+An invoice whose `vendor_bank_account` is IBAN-shaped but fails its country
+length or mod-97 checksum yields a `high` `invalid_bank_account` finding and a
+`review_required` verdict through the real `VerificationService` and
+processing graph. Valid IBANs, absent accounts, and non-IBAN domestic account
+numbers produce no finding.
+
+### Scope
+
+- `invalid_bank_account` added to `FindingType`;
+- pure `check_bank_account_checksum(invoice)` in
+  `veridoc.verification.bank_account`, with an IBAN country-length table;
+- `VerificationService.verify()` integration after line-item completeness;
+- fixtures that use a checksum-invalid IBAN-shaped value are corrected;
+- ADR 0041, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_bank_account` is accepted by `VerificationFinding`.
+2. A valid IBAN (spaced or compact, mixed case) produces no finding.
+3. An IBAN-shaped value with a wrong checksum produces one `high` finding with
+   `details` carrying the normalized account and `reason="checksum"`.
+4. An IBAN-shaped value whose length differs from the country length produces
+   one `high` finding with `reason="length"`.
+5. Absent, blank, and non-IBAN-shaped (domestic) accounts produce no finding.
+6. The check does not mutate the input extraction.
+7. `VerificationService.verify()` reports the finding and routes to
+   `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_bank_account.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid IBAN; push
+  and verify GitHub Actions is green.
+
+### Exclusions
+
+- National account-number (BBAN) checksums beyond IBAN: per-country rules are
+  large and brittle.
+- Tax identifier format validation: formats vary and need a separate decision.
+- Extending vendor-registry matching or changing persistence schemas.
+
+### Micro-task breakdown
+
+1. Add the Phase 35 specification and ADR 0041.
+2. Register ADR 0041 in the decisions index.
+3. Add `invalid_bank_account` to `FindingType` with a model test.
+4. Add the IBAN length table and mod-97 helper with tests.
+5. Implement `check_bank_account_checksum` with unit tests per path.
+6. Integrate into `VerificationService.verify()` with service/verdict tests.
+7. Correct any fixture using a checksum-invalid IBAN-shaped value.
+8. Update documentation, release evidence, and the progress record.
+9. Run the full release gate, push, open a draft PR, and verify remote CI.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 34 are complete. Phase 14 is
