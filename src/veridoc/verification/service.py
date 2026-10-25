@@ -9,6 +9,7 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.vendors.protocol import VendorRepository
 from veridoc.verification.arithmetic import check_arithmetic
+from veridoc.verification.bank_account import check_bank_account_checksum
 from veridoc.verification.completeness import check_required_fields
 from veridoc.verification.document_type import check_document_type
 from veridoc.verification.due_date_bounds import check_excessive_due_date_window
@@ -64,6 +65,7 @@ class VerificationService:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_required_fields(invoice)
         findings.extend(check_line_item_completeness(invoice))
+        findings.extend(check_bank_account_checksum(invoice))
         findings.extend(check_arithmetic(invoice))
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))

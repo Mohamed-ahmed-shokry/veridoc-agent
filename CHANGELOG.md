@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 35 vendor bank account checksum verification (`invalid_bank_account`):
+  - Architecture Decision Record 0041 documenting deterministic ISO 13616 IBAN structure and ISO 7064 mod-97-10 checksum verification for extracted vendor bank accounts.
+  - `invalid_bank_account` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_bank_account_checksum()` and `iban_checksum_is_valid()` in `veridoc.verification.bank_account` with an authoritative country-length table (`IBAN_COUNTRY_LENGTHS`). Emits a `high`-severity finding when an IBAN-shaped account has an invalid country length (`reason="length"`) or fails the mod-97 remainder check (`reason="checksum"`).
+  - Integrated `check_bank_account_checksum(invoice)` into `VerificationService.verify()` after line-item completeness.
+  - 33 focused unit, helper, fixture, and integration tests in `tests/test_verification_bank_account.py` covering published IBAN examples, digit corruption, length mismatches, domestic account passthrough, input immutability, `VerificationService` integration, and verdict derivation.
+
 - Phase 34 line item completeness and derived subtotal verification (`incomplete_line_item`):
   - Architecture Decision Record 0040 documenting why unidentifiable or unpriceable line items are unreconcilable and why omitted line totals must not disable subtotal verification.
   - `incomplete_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
