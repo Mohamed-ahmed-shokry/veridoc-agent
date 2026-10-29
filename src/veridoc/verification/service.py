@@ -33,6 +33,7 @@ from veridoc.verification.purchase_orders import (
 )
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 from veridoc.verification.staleness import check_invoice_staleness
+from veridoc.verification.tax_id import check_tax_id_format
 from veridoc.verification.uncertainties import check_extraction_uncertainties
 from veridoc.verification.vendor_rules import check_vendor_registry
 from veridoc.verification.vendors import vendor_key_for
@@ -66,6 +67,7 @@ class VerificationService:
         findings = check_required_fields(invoice)
         findings.extend(check_line_item_completeness(invoice))
         findings.extend(check_bank_account_checksum(invoice))
+        findings.extend(check_tax_id_format(invoice))
         findings.extend(check_arithmetic(invoice))
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))
