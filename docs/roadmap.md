@@ -2163,7 +2163,7 @@ identifiers without a recognized prefix produce no finding.
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 35 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 36 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
