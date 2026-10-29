@@ -323,6 +323,7 @@ def test_verification_finding_accepts_invalid_bank_account() -> None:
     assert finding.severity == "high"
     assert finding.details["reason"] == "checksum"
 
+
 def test_verification_finding_accepts_invalid_tax_id() -> None:
     finding = VerificationFinding(
         finding_type="invalid_tax_id",
