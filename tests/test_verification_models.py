@@ -322,3 +322,17 @@ def test_verification_finding_accepts_invalid_bank_account() -> None:
     assert finding.finding_type == "invalid_bank_account"
     assert finding.severity == "high"
     assert finding.details["reason"] == "checksum"
+
+def test_verification_finding_accepts_invalid_tax_id() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_tax_id",
+        severity="medium",
+        explanation="The vendor VAT number does not match its country structure.",
+        comparison_source="invoice_fields",
+        deterministic_rule="vendor_tax_id matches the country VAT structure",
+        observed_value="DE12345",
+        details={"field": "vendor_tax_id", "tax_id": "DE12345", "country": "DE"},
+    )
+    assert finding.finding_type == "invalid_tax_id"
+    assert finding.severity == "medium"
+    assert finding.details["country"] == "DE"
