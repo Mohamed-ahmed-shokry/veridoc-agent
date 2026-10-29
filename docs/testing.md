@@ -152,6 +152,7 @@ tests/
 ├── test_verification_completeness.py Phase 33 required invoice field completeness rules and paths
 ├── test_verification_line_item_completeness.py Phase 34 line item completeness rules and paths
 ├── test_verification_bank_account.py Phase 35 IBAN checksum rules and paths
+├── test_verification_tax_id.py      Phase 36 VAT identifier format rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
