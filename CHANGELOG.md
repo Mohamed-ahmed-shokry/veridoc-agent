@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 36 vendor VAT identifier format verification (`invalid_tax_id`):
+  - Architecture Decision Record 0042 documenting deterministic per-country VAT structure verification for extracted vendor tax identifiers and why checksums, online validation, and unrecognized schemes are excluded.
+  - `invalid_tax_id` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_tax_id_format()` in `veridoc.verification.tax_id` with the `VAT_STRUCTURES` table covering EU member state prefixes (`EL` for Greece), `GB`, and `XI`. Emits one `medium`-severity finding when a recognized prefix is followed by a structurally invalid remainder, with structured details (`field`, `tax_id`, `country`). Identifiers are normalized with `normalize_tax_id`; absent, blank, and unrecognized-prefix identifiers produce no finding.
+  - Integrated `check_tax_id_format(invoice)` into `VerificationService.verify()` after bank account verification.
+  - 59 focused unit and integration tests in `tests/test_verification_tax_id.py`.
+
 - Phase 35 vendor bank account checksum verification (`invalid_bank_account`):
   - Architecture Decision Record 0041 documenting deterministic ISO 13616 IBAN structure and ISO 7064 mod-97-10 checksum verification for extracted vendor bank accounts.
   - `invalid_bank_account` added to the `FindingType` literal union in `veridoc.verification.models`.
