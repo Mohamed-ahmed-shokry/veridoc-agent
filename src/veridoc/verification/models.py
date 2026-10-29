@@ -53,6 +53,7 @@ FindingType = Literal[
     "missing_required_field",
     "incomplete_line_item",
     "invalid_bank_account",
+    "invalid_tax_id",
 ]
 
 
