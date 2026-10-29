@@ -2094,6 +2094,73 @@ numbers produce no finding.
 8. Update documentation, release evidence, and the progress record.
 9. Run the full release gate, push, open a draft PR, and verify remote CI.
 
+## Phase 36: vendor VAT identifier format verification
+
+Phase 36 adds deterministic national VAT number structure verification for the
+extracted `vendor_tax_id` (ADR 0042), so that OCR misreads and fabricated
+tax identifiers are routed to review even when the vendor registry cannot
+reconcile them. It is the tax-identifier counterpart of Phase 35.
+
+### Objective
+
+An invoice whose `vendor_tax_id` carries a recognized EU/UK VAT country prefix
+but violates that country's structure yields a `medium` `invalid_tax_id`
+finding and a `review_required` verdict through the real
+`VerificationService`. Structurally valid VAT numbers, absent identifiers, and
+identifiers without a recognized prefix produce no finding.
+
+### Scope
+
+- `invalid_tax_id` added to `FindingType`;
+- pure `check_tax_id_format(invoice)` in `veridoc.verification.tax_id`, with a
+  per-country structure table (format only, no checksums);
+- `VerificationService.verify()` integration after bank account verification;
+- ADR 0042, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_tax_id` is accepted by `VerificationFinding`.
+2. Structurally valid VAT numbers (spaced, punctuated, lowercase) produce no
+   finding for every table country.
+3. A recognized-prefix identifier with the wrong structure produces one
+   `medium` finding whose `details` carry `field`, the normalized `tax_id`,
+   and the `country` prefix.
+4. Absent, blank, and unrecognized-prefix (domestic) identifiers produce no
+   finding.
+5. The check does not mutate the input extraction.
+6. `VerificationService.verify()` reports the finding and routes to
+   `review_required`.
+7. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_tax_id.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid VAT number;
+  push and verify GitHub Actions is green.
+
+### Exclusions
+
+- Per-country VAT checksum algorithms: large, brittle, and a separate decision.
+- Online VIES validation: needs network access and credentials.
+- Non-European tax identifier schemes: no recognized prefix, so ignored.
+
+### Micro-task breakdown
+
+1. Add the Phase 36 specification and ADR 0042.
+2. Register ADR 0042 in the decisions index.
+3. Add `invalid_tax_id` to `FindingType` with a model test.
+4. Add the per-country VAT structure table with a test.
+5. Implement `check_tax_id_format` with unit tests per path.
+6. Integrate into `VerificationService.verify()` with service/verdict tests.
+7. Update documentation, release evidence, and the progress record.
+8. Run the full release gate, push, open a draft PR, and verify remote CI.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 35 are complete. Phase 14 is
