@@ -238,7 +238,9 @@ required invoice field completeness verification
 completeness with derived subtotals
 ([ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md)), and
 vendor bank account checksum verification
-([ADR 0041](decisions/0041-vendor-bank-account-checksum-verification.md)).
+([ADR 0041](decisions/0041-vendor-bank-account-checksum-verification.md)), and
+vendor VAT identifier format verification
+([ADR 0042](decisions/0042-vendor-vat-identifier-format-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -247,7 +249,8 @@ completeness then requires every line to carry a non-blank identity and either
 `quantity * unit_price` for lines without a printed total instead of skipping
 the check. Bank account checksum verification enforces ISO 13616 country lengths
 and mod-97 integrity for IBAN-shaped remit-to accounts independently of master
-data.
+data, and VAT identifier verification enforces the published per-country structure
+for recognized prefixes, also independently of master data.
 
 ## Typed explanation flow
 
