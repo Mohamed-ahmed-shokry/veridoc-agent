@@ -126,3 +126,38 @@ def test_tax_id_format_does_not_mutate_input() -> None:
     check_tax_id_format(invoice)
 
     assert invoice.model_dump() == snapshot
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_reports_invalid_tax_id() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice("DE12345678"))
+    findings = [f for f in result.findings if f.finding_type == "invalid_tax_id"]
+
+    assert len(findings) == 1
+    assert findings[0].severity == "medium"
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_accepts_valid_tax_id() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice("DE123456789"))
+
+    assert not [f for f in result.findings if f.finding_type == "invalid_tax_id"]
