@@ -58,3 +58,4 @@ Accepted decisions:
 - [0039: Required invoice field completeness verification](0039-required-invoice-field-completeness.md)
 - [0040: Line item completeness and derived subtotal verification](0040-line-item-completeness-and-derived-subtotals.md)
 - [0041: Vendor bank account checksum verification](0041-vendor-bank-account-checksum-verification.md)
+- [0042: Vendor VAT identifier format verification](0042-vendor-vat-identifier-format-verification.md)
