@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import UTC, datetime
 from decimal import Decimal
 from io import BytesIO
 from pathlib import Path
@@ -38,7 +38,7 @@ class _FakeExtractor:
             document_type="invoice",
             vendor_name="Acme Inc",
             invoice_number="INV-100",
-            invoice_date=date(2026, 8, 1),
+            invoice_date=datetime.now(UTC).date(),
             total=Decimal("100.00"),
             currency="USD",
             line_items=[
@@ -112,7 +112,7 @@ async def test_evaluation_runner_run(tmp_path: Path) -> None:
     # Create ground truth
     gt = GroundTruthInvoice(
         invoice_number="INV-100",
-        invoice_date="2026-08-01",
+        invoice_date=datetime.now(UTC).date().isoformat(),
         due_date=None,
         vendor_name="Acme Inc",
         vendor_tax_id=None,
