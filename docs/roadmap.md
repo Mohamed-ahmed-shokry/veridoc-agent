@@ -40,6 +40,8 @@ boundaries only and require separate approval before implementation.
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 | 33 | Required invoice field completeness verification (ADR 0039) | Complete |
 | 34 | Line item completeness and derived subtotal verification (ADR 0040) | Complete |
+| 35 | Vendor bank account checksum verification (ADR 0041) | Complete |
+| 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
 
 ## Phase 7: release engineering
 
