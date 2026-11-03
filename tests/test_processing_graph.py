@@ -1,5 +1,6 @@
 """Complete processing graph composition tests."""
 
+from datetime import date
 from io import BytesIO
 
 import pytest
@@ -26,7 +27,7 @@ class _FakeExtractor:
         return InvoiceExtraction(
             document_type="invoice",
             invoice_number="INV-001",
-            invoice_date="2026-08-01",
+            invoice_date=date.today().isoformat(),
             currency="USD",
             total="110.00",
             ocr_confidence=request.document.confidence,
