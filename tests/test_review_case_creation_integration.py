@@ -9,8 +9,8 @@ mirroring how test_processing_integration.py exercises /process end to end.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from hashlib import sha256
-from datetime import date
 from io import BytesIO
 from pathlib import Path
 
@@ -59,7 +59,7 @@ class _IntegrationExtractor:
             document_type="invoice",
             vendor_name="Fictional Supplies Ltd.",
             invoice_number="INV-002",
-            invoice_date=date.today().isoformat(),
+            invoice_date=datetime.now(UTC).date().isoformat(),
             currency="USD",
             total="100.00",
             ocr_confidence=request.document.confidence,
