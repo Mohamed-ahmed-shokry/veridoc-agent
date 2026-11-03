@@ -57,7 +57,9 @@ def test_verification_service_returns_no_findings_for_a_normal_invoice() -> None
         ],
     )
 
-    result = VerificationService(VerificationRepository()).verify(invoice, reference_date=date(2026, 8, 1))
+    result = VerificationService(VerificationRepository()).verify(
+        invoice, reference_date=date(2026, 8, 1)
+    )
 
     assert result.findings == []
 
@@ -73,7 +75,9 @@ def test_verification_service_combines_repository_and_history_findings() -> None
         line_items=[InvoiceLineItem(product_identifier="SOFTWARE", quantity="1")],
     )
 
-    result = VerificationService(VerificationRepository()).verify(invoice, reference_date=date(2026, 8, 1))
+    result = VerificationService(VerificationRepository()).verify(
+        invoice, reference_date=date(2026, 8, 1)
+    )
 
     finding_types = [finding.finding_type for finding in result.findings]
     assert "duplicate_invoice_number" in finding_types
@@ -85,7 +89,9 @@ def test_verification_service_combines_repository_and_history_findings() -> None
 def test_verification_service_declares_missing_vendor_history() -> None:
     invoice = InvoiceExtraction(document_type="invoice", total="7200.00")
 
-    result = VerificationService(VerificationRepository()).verify(invoice, reference_date=date(2026, 8, 1))
+    result = VerificationService(VerificationRepository()).verify(
+        invoice, reference_date=date(2026, 8, 1)
+    )
 
     assert [finding.finding_type for finding in result.findings] == [
         "missing_required_field",
