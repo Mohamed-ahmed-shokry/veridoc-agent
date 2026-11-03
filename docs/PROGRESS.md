@@ -91,3 +91,10 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 | `uv run python scripts/check_distribution.py` | Both archives passed content and safety checks |
 | Isolated wheel smoke test | Passed |
 | Isolated source distribution smoke test | Passed |
+
+Remote CI:
+
+- Workflow: CI
+- Run: [41590794178](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/41590794178)
+- Head commit: cbf93a4
+- Result: success
