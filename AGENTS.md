@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 36 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 37 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -306,6 +306,10 @@ implementation remains deliberately small:
   identifier format verification (ADR 0042): every country structure, spacing and case
   normalization, wrong-structure findings, unrecognized-prefix and blank acceptance,
   input immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_currency.py` covers Phase 37 deterministic ISO 4217
+  currency code verification (ADR 0043): all table currency codes, spacing and case
+  normalization, unrecognized code findings, absent and empty acceptance, input
+  immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
@@ -401,7 +405,9 @@ skipping the check. Phase 35 adds deterministic vendor bank account checksum
 verification (ADR 0041) enforcing ISO 13616 country lengths and mod-97
 integrity for IBAN-shaped remit-to accounts. Phase 36 adds deterministic vendor
 VAT identifier format verification (ADR 0042) enforcing per-country structure for
-recognized EU/UK prefixes.
+recognized EU/UK prefixes. Phase 37 adds deterministic ISO 4217 currency code
+verification (ADR 0043) validating 3-letter currency codes against standard
+active currencies.
 
 The current and planned workflow is:
 
@@ -938,8 +944,9 @@ following documentation commit.
   **Complete.**
 - Phase 35: vendor bank account checksum verification (ADR 0041). **Complete.**
 - Phase 36: vendor VAT identifier format verification (ADR 0042). **Complete.**
+- Phase 37: ISO 4217 currency code verification (ADR 0043). **Complete.**
 
-Phases 0 through 13 and Phases 15 through 36 are complete. Phase 14 awaits its
+Phases 0 through 13 and Phases 15 through 37 are complete. Phase 14 awaits its
 environment. Before any later phase, inspect the repository, run the existing
 suite, present the implementation and commit plan, identify documentation changes,
 and wait for explicit approval. The same rule applies to any future phase's
