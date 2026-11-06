@@ -56,8 +56,8 @@ handling (ADR 0034), payment terms due date consistency (ADR 0035), Phase 29 CI
 quality gate restoration, excessive credit window bounds (ADR 0036), document type verification (ADR 0037),
 extraction uncertainty verification (ADR 0038), required invoice field completeness
 verification (ADR 0039), line item completeness with derived subtotal
-verification (ADR 0040), vendor bank account checksum verification (ADR 0041), and
-vendor VAT identifier format verification (ADR 0042).
+verification (ADR 0040), vendor bank account checksum verification (ADR 0041), vendor
+VAT identifier format verification (ADR 0042), and ISO 4217 currency code verification (ADR 0043).
 
 ## Implemented capabilities
 
@@ -135,7 +135,8 @@ vendor VAT identifier format verification (ADR 0042).
 - deterministic required invoice field completeness verification requiring invoice number, date, currency, and total so sparse extractions cannot clear vacuously ([ADR 0039](docs/decisions/0039-required-invoice-field-completeness.md));
 - deterministic line item completeness verification requiring an identity and a total or derivable quantity-times-price amount, with omitted line totals derived during subtotal verification ([ADR 0040](docs/decisions/0040-line-item-completeness-and-derived-subtotals.md));
 - deterministic vendor bank account checksum verification enforcing ISO 13616 country lengths and mod-97 integrity for IBAN-shaped remit-to accounts ([ADR 0041](docs/decisions/0041-vendor-bank-account-checksum-verification.md));
-- deterministic vendor VAT identifier format verification enforcing per-country structure for recognized EU/UK prefixes ([ADR 0042](docs/decisions/0042-vendor-vat-identifier-format-verification.md)); and
+- deterministic vendor VAT identifier format verification enforcing per-country structure for recognized EU/UK prefixes ([ADR 0042](docs/decisions/0042-vendor-vat-identifier-format-verification.md));
+- deterministic ISO 4217 currency code verification validating 3-letter currency codes against standard active currencies ([ADR 0043](docs/decisions/0043-iso-4217-currency-code-verification.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
