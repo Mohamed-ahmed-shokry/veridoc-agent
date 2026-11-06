@@ -54,6 +54,7 @@ FindingType = Literal[
     "incomplete_line_item",
     "invalid_bank_account",
     "invalid_tax_id",
+    "invalid_currency",
 ]
 
 
