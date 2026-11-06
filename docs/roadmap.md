@@ -42,6 +42,7 @@ boundaries only and require separate approval before implementation.
 | 34 | Line item completeness and derived subtotal verification (ADR 0040) | Complete |
 | 35 | Vendor bank account checksum verification (ADR 0041) | Complete |
 | 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
+| 37 | ISO 4217 currency code verification (ADR 0043) | In progress |
 
 ## Phase 7: release engineering
 
@@ -2162,6 +2163,74 @@ identifiers without a recognized prefix produce no finding.
 6. Integrate into `VerificationService.verify()` with service/verdict tests.
 7. Update documentation, release evidence, and the progress record.
 8. Run the full release gate, push, open a draft PR, and verify remote CI.
+
+
+## Phase 37: ISO 4217 currency code verification
+
+Phase 37 adds deterministic currency code verification against the authoritative
+ISO 4217 standard (ADR 0043), ensuring that extracted 3-letter currency codes
+that do not correspond to any recognized international currency are flagged and
+routed to review before accounting or payment systems process them. It is the
+currency counterpart of Phase 35 (IBAN format/checksum) and Phase 36 (VAT format).
+
+### Objective
+
+An invoice whose extracted `currency` is present but does not match any recognized
+ISO 4217 three-letter currency code (e.g. `XYZ`, `INV`, `TOT`, `FOO`) yields a
+`medium` `invalid_currency` finding and a `review_required` verdict through the
+real `VerificationService`. Recognized ISO 4217 currency codes (e.g. `USD`, `EUR`,
+`GBP`, `CAD`, `JPY`) and absent (`None`) currencies produce no finding (omitted
+currency is handled by Phase 33 required-field completeness).
+
+### Scope
+
+- `invalid_currency` added to `FindingType`;
+- pure `check_currency_code(invoice)` in `veridoc.verification.currency`, with the
+  authoritative ISO 4217 currency code table;
+- `VerificationService.verify()` integration after tax ID format verification;
+- ADR 0043, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_currency` is accepted by `VerificationFinding`.
+2. Valid ISO 4217 currency codes produce no finding.
+3. Lowercase or whitespace-padded valid codes normalize cleanly and produce no finding.
+4. An unrecognized / invalid 3-letter code produces one `medium` finding whose
+   `details` carry `field="currency"` and the normalized `currency`.
+5. Absent (`None`) or empty string currency produces no finding.
+6. The check does not mutate the input extraction.
+7. `VerificationService.verify()` reports the finding and routes to `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_currency.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid currency code;
+  push and verify GitHub Actions is green.
+
+### Exclusions
+
+- Historical / discontinued currency conversion rates.
+- Crypto-asset or non-fiat codes not recognized by ISO 4217.
+- Automated currency conversion or FX rate lookups.
+
+### Micro-task breakdown
+
+1. Add the Phase 37 specification and ADR 0043.
+2. Register ADR 0043 in the decisions index.
+3. Add `invalid_currency` to `FindingType` with a model test.
+4. Add the ISO 4217 currency code table and `check_currency_code` rule.
+5. Add unit tests covering all paths and input immutability.
+6. Register test module in documentation.
+7. Integrate into `VerificationService.verify()` with service/verdict tests.
+8. Update documentation, release evidence, and the progress record.
+9. Run the full release gate, push, open a draft PR, and verify remote CI.
 
 ## Approval rule
 
