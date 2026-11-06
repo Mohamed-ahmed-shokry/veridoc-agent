@@ -42,7 +42,7 @@ boundaries only and require separate approval before implementation.
 | 34 | Line item completeness and derived subtotal verification (ADR 0040) | Complete |
 | 35 | Vendor bank account checksum verification (ADR 0041) | Complete |
 | 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
-| 37 | ISO 4217 currency code verification (ADR 0043) | In progress |
+| 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2234,7 +2234,7 @@ currency is handled by Phase 33 required-field completeness).
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 36 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 37 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
