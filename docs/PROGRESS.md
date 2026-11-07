@@ -4,10 +4,10 @@
 
 - **Phase:** Phase 37
 - **Goal:** Introduce deterministic ISO 4217 three-letter currency code verification (ADR 0043) for extracted invoice currency, catching OCR misreads, hallucinated alphabetic symbols, and non-standard abbreviations, routing invalid currency codes to review.
-- **Status:** Complete (Local CI passed; ready for remote delivery)
+- **Status:** Complete
 - **Branch:** `phase/currency-code-verification`
-- **Draft PR:** [Pending creation]
-- **Base:** `phase/iban-checksum-verification` (stacked on Phase 36)
+- **Draft PR:** [#16](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/16)
+- **Base:** `phase/vat-format-verification` (stacked on Phase 36)
 
 ## Task Status
 
@@ -78,3 +78,10 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 | `uv run python scripts/check_distribution.py` | Both archives passed content and safety checks |
 | Isolated wheel smoke test | Passed |
 | Isolated source distribution smoke test | Passed |
+
+Remote CI:
+
+- Workflow: CI
+- Run: [42386763803](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/42386763803)
+- Head commit: `7f7e488`
+- Result: success
