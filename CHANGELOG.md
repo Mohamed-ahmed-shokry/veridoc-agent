@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 37 ISO 4217 currency code verification (`invalid_currency`):
+  - Architecture Decision Record 0043 documenting deterministic ISO 4217 three-letter currency code verification for extracted invoice currencies and why FX conversion and cryptocurrency tokens are excluded.
+  - `invalid_currency` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_currency_code()` in `veridoc.verification.currency` with the `ISO_4217_CURRENCY_CODES` authoritative set covering standard active alphabetic currency codes. Emits one `medium`-severity finding when a present currency code does not match a recognized ISO 4217 code, with structured details (`field`, `currency`). Absent (`None`) or empty currencies produce no finding.
+  - Integrated `check_currency_code(invoice)` into `VerificationService.verify()` after VAT format verification.
+  - 40 focused unit, normalization, immutability, and integration tests in `tests/test_verification_currency.py`.
+
 - Phase 36 vendor VAT identifier format verification (`invalid_tax_id`):
   - Architecture Decision Record 0042 documenting deterministic per-country VAT structure verification for extracted vendor tax identifiers and why checksums, online validation, and unrecognized schemes are excluded.
   - `invalid_tax_id` added to the `FindingType` literal union in `veridoc.verification.models`.
@@ -460,6 +467,13 @@ semantic versions for tagged releases.
 ## [0.1.0] - 2026-08-02
 
 ### Added
+
+- Phase 37 ISO 4217 currency code verification (`invalid_currency`):
+  - Architecture Decision Record 0043 documenting deterministic ISO 4217 three-letter currency code verification for extracted invoice currencies and why FX conversion and cryptocurrency tokens are excluded.
+  - `invalid_currency` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_currency_code()` in `veridoc.verification.currency` with the `ISO_4217_CURRENCY_CODES` authoritative set covering standard active alphabetic currency codes. Emits one `medium`-severity finding when a present currency code does not match a recognized ISO 4217 code, with structured details (`field`, `currency`). Absent (`None`) or empty currencies produce no finding.
+  - Integrated `check_currency_code(invoice)` into `VerificationService.verify()` after VAT format verification.
+  - 40 focused unit, normalization, immutability, and integration tests in `tests/test_verification_currency.py`.
 
 - Bounded PDF, PNG, and JPEG ingestion with ephemeral temporary storage.
 - Replaceable Tesseract OCR with typed page results.

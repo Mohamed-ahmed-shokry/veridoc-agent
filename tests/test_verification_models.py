@@ -337,3 +337,19 @@ def test_verification_finding_accepts_invalid_tax_id() -> None:
     assert finding.finding_type == "invalid_tax_id"
     assert finding.severity == "medium"
     assert finding.details["country"] == "DE"
+
+
+def test_verification_finding_accepts_invalid_currency() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_currency",
+        severity="medium",
+        explanation="The invoice currency code (XYZ) is not a recognized ISO 4217 standard currency.",
+        comparison_source="invoice_fields",
+        deterministic_rule="currency in ISO 4217 active alphabetic codes",
+        observed_value="XYZ",
+        expected_value="valid ISO 4217 currency code",
+        details={"field": "currency", "currency": "XYZ"},
+    )
+    assert finding.finding_type == "invalid_currency"
+    assert finding.severity == "medium"
+    assert finding.details["currency"] == "XYZ"
