@@ -34,6 +34,7 @@ from veridoc.verification.purchase_orders import (
 )
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 from veridoc.verification.staleness import check_invoice_staleness
+from veridoc.verification.tax_bounds import check_excessive_tax
 from veridoc.verification.tax_id import check_tax_id_format
 from veridoc.verification.uncertainties import check_extraction_uncertainties
 from veridoc.verification.vendor_rules import check_vendor_registry
@@ -74,6 +75,7 @@ class VerificationService:
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))
         findings.extend(check_header_amounts(invoice))
+        findings.extend(check_excessive_tax(invoice))
         findings.extend(check_duplicate_line_items(invoice))
         findings.extend(check_invoice_staleness(invoice, reference_date=reference_date))
         findings.extend(
