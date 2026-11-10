@@ -353,3 +353,26 @@ def test_verification_finding_accepts_invalid_currency() -> None:
     assert finding.finding_type == "invalid_currency"
     assert finding.severity == "medium"
     assert finding.details["currency"] == "XYZ"
+
+
+def test_verification_finding_accepts_excessive_tax() -> None:
+    finding = VerificationFinding(
+        finding_type="excessive_tax",
+        severity="high",
+        explanation="The invoice tax (150.00) exceeds the pre-tax subtotal (100.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.tax <= invoice.subtotal",
+        observed_value="150.00",
+        expected_value="<= 100.00",
+        details={
+            "field": "tax",
+            "tax": "150.00",
+            "subtotal": "100.00",
+            "effective_tax_rate": "1.5000",
+            "max_tax_rate": "1.00",
+        },
+    )
+    assert finding.finding_type == "excessive_tax"
+    assert finding.severity == "high"
+    assert finding.details["tax"] == "150.00"
+    assert finding.details["subtotal"] == "100.00"
