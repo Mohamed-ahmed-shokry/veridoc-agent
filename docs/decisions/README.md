@@ -60,3 +60,4 @@ Accepted decisions:
 - [0041: Vendor bank account checksum verification](0041-vendor-bank-account-checksum-verification.md)
 - [0042: Vendor VAT identifier format verification](0042-vendor-vat-identifier-format-verification.md)
 - [0043: ISO 4217 currency code verification](0043-iso-4217-currency-code-verification.md)
+- [0044: Excessive tax amount verification](0044-excessive-tax-amount-verification.md)
