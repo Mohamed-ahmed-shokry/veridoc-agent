@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 38 excessive tax amount verification (`excessive_tax`):
+  - Architecture Decision Record 0044 documenting deterministic verification of invoice tax amounts against pre-tax subtotals and payable invoice totals.
+  - `excessive_tax` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_excessive_tax()` in `veridoc.verification.tax_bounds`. Emits one `high`-severity finding when `tax > subtotal` (effective tax rate > 100% when `subtotal > 0`), or when `tax > total` (when `subtotal` is absent and `total > 0`). Structured details carry `field`, `tax`, `subtotal`, `effective_tax_rate`, and `max_tax_rate` (or `total`). Parametrized with `max_tax_rate` (defaulting to `Decimal("1.00")`). Absent (`None`), zero, or negative taxes, and non-positive subtotals/totals produce no finding.
+  - Integrated `check_excessive_tax(invoice)` into `VerificationService.verify()` after header amount checks.
+  - 11 focused unit, parameter, immutability, and service integration tests in `tests/test_verification_tax_bounds.py`.
+
 - Phase 37 ISO 4217 currency code verification (`invalid_currency`):
   - Architecture Decision Record 0043 documenting deterministic ISO 4217 three-letter currency code verification for extracted invoice currencies and why FX conversion and cryptocurrency tokens are excluded.
   - `invalid_currency` added to the `FindingType` literal union in `veridoc.verification.models`.
@@ -467,13 +474,6 @@ semantic versions for tagged releases.
 ## [0.1.0] - 2026-08-02
 
 ### Added
-
-- Phase 37 ISO 4217 currency code verification (`invalid_currency`):
-  - Architecture Decision Record 0043 documenting deterministic ISO 4217 three-letter currency code verification for extracted invoice currencies and why FX conversion and cryptocurrency tokens are excluded.
-  - `invalid_currency` added to the `FindingType` literal union in `veridoc.verification.models`.
-  - Implemented `check_currency_code()` in `veridoc.verification.currency` with the `ISO_4217_CURRENCY_CODES` authoritative set covering standard active alphabetic currency codes. Emits one `medium`-severity finding when a present currency code does not match a recognized ISO 4217 code, with structured details (`field`, `currency`). Absent (`None`) or empty currencies produce no finding.
-  - Integrated `check_currency_code(invoice)` into `VerificationService.verify()` after VAT format verification.
-  - 40 focused unit, normalization, immutability, and integration tests in `tests/test_verification_currency.py`.
 
 - Bounded PDF, PNG, and JPEG ingestion with ephemeral temporary storage.
 - Replaceable Tesseract OCR with typed page results.
