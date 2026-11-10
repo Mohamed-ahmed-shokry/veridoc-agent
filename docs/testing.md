@@ -154,6 +154,7 @@ tests/
 ├── test_verification_bank_account.py Phase 35 IBAN checksum rules and paths
 ├── test_verification_tax_id.py      Phase 36 VAT identifier format rules and paths
 ├── test_verification_currency.py    Phase 37 ISO 4217 currency code rules and paths
+├── test_verification_tax_bounds.py  Phase 38 excessive tax amount rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism
