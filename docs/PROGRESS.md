@@ -4,9 +4,9 @@
 
 - **Phase:** Phase 38
 - **Goal:** Introduce deterministic excessive tax amount verification (ADR 0044) for invoice headers, catching OCR decimal misreads, field transpositions, and impossible tax liabilities exceeding pre-tax subtotals or totals.
-- **Status:** Complete (Local CI passed; ready for remote delivery)
+- **Status:** Complete
 - **Branch:** `phase/excessive-tax-verification`
-- **Draft PR:** [Pending creation]
+- **Draft PR:** [#17](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/17)
 - **Base:** `phase/vat-format-verification` (stacked on Phase 37)
 
 ## Task Status
@@ -79,3 +79,10 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 | `uv run python scripts/check_distribution.py` | Both archives passed content and safety checks |
 | Isolated wheel smoke test | Passed |
 | Isolated source distribution smoke test | Passed |
+
+Remote CI:
+
+- Workflow: CI
+- Run: [42830021770](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/42830021770)
+- Head commit: `f761f82`
+- Result: success
