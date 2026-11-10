@@ -74,11 +74,16 @@ def check_excessive_tax(
                 if max_tax_rate == DEFAULT_MAX_TAX_TO_SUBTOTAL_RATIO
                 else f"invoice.tax <= invoice.subtotal * {max_tax_rate}"
             )
+            expected_val = (
+                f"<= {subtotal}"
+                if max_tax_rate == DEFAULT_MAX_TAX_TO_SUBTOTAL_RATIO
+                else f"<= {max_allowed_tax}"
+            )
             details: dict[str, str | int | float | bool | None] = {
                 "field": "tax",
                 "tax": str(tax),
                 "subtotal": str(subtotal),
-                "effective_tax_rate": str(round(effective_rate, 4)),
+                "effective_tax_rate": f"{effective_rate:.4f}",
                 "max_tax_rate": str(max_tax_rate),
             }
             if invoice.currency is not None:
@@ -92,7 +97,7 @@ def check_excessive_tax(
                     comparison_source="invoice_fields",
                     deterministic_rule=rule,
                     observed_value=str(tax),
-                    expected_value=f"<= {max_allowed_tax}",
+                    expected_value=expected_val,
                     details=details,
                 )
             ]
