@@ -43,6 +43,7 @@ boundaries only and require separate approval before implementation.
 | 35 | Vendor bank account checksum verification (ADR 0041) | Complete |
 | 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
 | 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
+| 38 | Excessive tax amount verification (ADR 0044) | In progress |
 
 ## Phase 7: release engineering
 
@@ -2231,6 +2232,82 @@ currency is handled by Phase 33 required-field completeness).
 7. Integrate into `VerificationService.verify()` with service/verdict tests.
 8. Update documentation, release evidence, and the progress record.
 9. Run the full release gate, push, open a draft PR, and verify remote CI.
+
+## Phase 38: excessive tax amount verification
+
+Phase 38 adds deterministic verification of invoice tax amounts against pre-tax
+subtotals and payable totals (ADR 0044). In standard commercial taxation (VAT,
+GST, sales tax), statutory rates represent a bounded fraction of the taxable
+base. An extracted tax amount exceeding the subtotal (`tax > subtotal` when
+`subtotal > 0`), or exceeding the total payable amount (`tax > total` when
+`subtotal` is omitted and `total > 0`), indicates an OCR decimal-shift defect,
+field transposition, or invoice distortion, which must be routed to human review.
+
+### Objective
+
+An invoice whose extracted `tax` amount exceeds the `subtotal` (an effective
+tax rate > 100%), or exceeds the `total` when `subtotal` is absent, yields a
+`high`-severity `excessive_tax` finding and a `review_required` verdict through
+`VerificationService`. Invoices with valid commercial tax proportions
+(`tax <= subtotal`), zero tax, absent tax, or absent subtotal and total produce
+no finding.
+
+### Scope
+
+- `excessive_tax` added to `FindingType` in `veridoc.verification.models`;
+- pure `check_excessive_tax(invoice: InvoiceExtraction, max_tax_rate: Decimal = Decimal("1.00"))`
+  in `veridoc.verification.tax_bounds`;
+- structured details: `"field": "tax"`, `"tax"`, `"subtotal"`, `"effective_tax_rate"`,
+  and `"max_tax_rate"` (or `"total"` when subtotal is omitted);
+- `VerificationService.verify()` integration before arithmetic checks;
+- ADR 0044, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `excessive_tax` appears in `FindingType` and is accepted by `VerificationFinding`.
+2. Invoices with `tax <= subtotal` (including 0%, standard commercial rates 5-27%, and 100%) produce no finding.
+3. Invoices where `subtotal > 0` and `tax > subtotal` produce one `high`-severity finding with `field="tax"`, `tax`, `subtotal`, and `effective_tax_rate`.
+4. Invoices where `subtotal is None`, `total > 0`, and `tax > total` produce one `high`-severity finding with `field="tax"`, `tax`, and `total`.
+5. Invoices with absent (`None`) tax or absent subtotal and total produce no finding.
+6. Invoices with non-positive subtotals or totals (`<= 0`) produce no finding here (deferred to `non_positive_subtotal` / `non_positive_invoice_total`).
+7. The check does not mutate the input extraction.
+8. `VerificationService.verify()` reports the finding and routes the verdict to `review_required`.
+9. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_tax_bounds.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on valid and excessive tax amounts; push and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Multi-rate line-item level VAT schedule attribution.
+- Product-category tax exemption certificates.
+- Municipal/state bracket breakdown calculation.
+
+### Micro-task breakdown
+
+1. Add Phase 38 specification in `docs/roadmap.md`.
+2. Record ADR 0044 in `docs/decisions/0044-excessive-tax-amount-verification.md`.
+3. Register ADR 0044 in the decisions index.
+4. Add `excessive_tax` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `excessive_tax` in `tests/test_verification_models.py`.
+6. Implement `check_excessive_tax` in `src/veridoc/verification/tax_bounds.py`.
+7. Add unit tests covering all paths and input immutability in `tests/test_verification_tax_bounds.py`.
+8. Register `test_verification_tax_bounds` in `docs/testing.md`.
+9. Integrate `check_excessive_tax` into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_tax_bounds.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 38 complete in `docs/roadmap.md` approval rule.
+13. Record Phase 38 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 38 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
 
 ## Approval rule
 
