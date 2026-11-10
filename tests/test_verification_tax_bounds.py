@@ -189,3 +189,58 @@ def test_check_excessive_tax_preserves_input_immutability() -> None:
     check_excessive_tax(invoice)
     assert invoice.model_dump() == dump_before
     assert DEFAULT_MAX_TAX_TO_SUBTOTAL_RATIO == Decimal("1.00")
+
+
+# ---------------------------------------------------------------------------
+# Service Integration & Verdict
+# ---------------------------------------------------------------------------
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_reports_excessive_tax() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    invoice = _invoice(
+        subtotal=Decimal("100.00"),
+        tax=Decimal("150.00"),
+        total=Decimal("250.00"),
+        currency="USD",
+    )
+    result = service.verify(invoice)
+    findings = [f for f in result.findings if f.finding_type == "excessive_tax"]
+
+    assert len(findings) == 1
+    assert findings[0].severity == "high"
+    assert findings[0].details["tax"] == "150.00"
+    assert findings[0].details["subtotal"] == "100.00"
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_accepts_valid_tax() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    invoice = _invoice(
+        subtotal=Decimal("100.00"),
+        tax=Decimal("20.00"),
+        total=Decimal("120.00"),
+        currency="USD",
+    )
+    result = service.verify(invoice)
+    findings = [f for f in result.findings if f.finding_type == "excessive_tax"]
+
+    assert findings == []
