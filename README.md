@@ -136,7 +136,8 @@ VAT identifier format verification (ADR 0042), and ISO 4217 currency code verifi
 - deterministic line item completeness verification requiring an identity and a total or derivable quantity-times-price amount, with omitted line totals derived during subtotal verification ([ADR 0040](docs/decisions/0040-line-item-completeness-and-derived-subtotals.md));
 - deterministic vendor bank account checksum verification enforcing ISO 13616 country lengths and mod-97 integrity for IBAN-shaped remit-to accounts ([ADR 0041](docs/decisions/0041-vendor-bank-account-checksum-verification.md));
 - deterministic vendor VAT identifier format verification enforcing per-country structure for recognized EU/UK prefixes ([ADR 0042](docs/decisions/0042-vendor-vat-identifier-format-verification.md));
-- deterministic ISO 4217 currency code verification validating 3-letter currency codes against standard active currencies ([ADR 0043](docs/decisions/0043-iso-4217-currency-code-verification.md)); and
+- deterministic ISO 4217 currency code verification validating 3-letter currency codes against standard active currencies ([ADR 0043](docs/decisions/0043-iso-4217-currency-code-verification.md));
+- deterministic excessive tax amount verification detecting tax liabilities that exceed the pre-tax subtotal or payable invoice total ([ADR 0044](docs/decisions/0044-excessive-tax-amount-verification.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
