@@ -6,6 +6,7 @@
 - **Goal:** Introduce deterministic invoice number format, placeholder, label, and length bound verification (ADR 0045) for invoice headers, catching OCR hallucinations, default templates, blank/punctuation tokens, non-printable control characters, and runaway strings.
 - **Status:** Complete
 - **Branch:** `phase/invoice-number-verification`
+- **Draft PR:** [#18](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/18)
 - **Base:** `phase/excessive-tax-verification` (stacked on Phase 38)
 
 ## Task Status
@@ -80,3 +81,10 @@ Local commands run from the repository root on Windows with Python 3.12.12 and u
 | `uv run python scripts/check_distribution.py` | Both archives passed content and safety checks |
 | Isolated wheel smoke test | Passed |
 | Isolated source distribution smoke test | Passed |
+
+Remote CI:
+
+- Workflow: CI
+- Run: [43047037644](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43047037644)
+- Head commit: `2a9f674`
+- Result: success (1m36s)
