@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 38 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 39 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -315,6 +315,11 @@ implementation remains deliberately small:
   exceeding total with omitted subtotal, absent/zero/negative tax acceptance, non-positive
   subtotal/total passthrough, custom tax rates, input immutability, `VerificationService`
   integration, and verdict derivation.
+- `tests/test_verification_invoice_number.py` covers Phase 39 deterministic invoice
+  number format and placeholder verification (ADR 0045): placeholder tokens, generic
+  labels, control characters and line breaks, blank/punctuation-only values, excessive
+  length bounds, clean identifier acceptance, absent invoice number passthrough, input
+  immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
