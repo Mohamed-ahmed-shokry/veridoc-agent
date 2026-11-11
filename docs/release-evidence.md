@@ -1576,3 +1576,33 @@ Verified results:
 | `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
 | Isolated wheel smoke test | Passed isolated installation and API verification |
 | Isolated sdist smoke test | Passed isolated build, installation, and API verification |
+
+## Phase 39 completion snapshot
+
+The Phase 39 completion gate was recorded on 2026-11-11 against the
+`phase/invoice-number-verification` branch, stacked on `phase/excessive-tax-verification`.
+
+Environment:
+
+- Windows with Python 3.12.12;
+- uv 0.9.13;
+- GitHub Actions Ubuntu runner; and
+- a clean Git worktree before and after the gate.
+
+Verified results:
+
+| Gate | Result |
+| --- | --- |
+| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Clean (zero whitespace errors) |
+| `uv lock --check` | Lockfile and project metadata agree |
+| `uv run pip-audit` | Passed (0 known vulnerabilities; `veridoc` skipped as not on PyPI) |
+| `uv run ruff check .` | Passed (All checks passed!) |
+| `uv run ruff format --check .` | All 325 files formatted |
+| `uv run mypy` | No issues found across 124 source files |
+| `uv run pytest --cov=veridoc` | 1610 passed; total branch coverage 94.15% (90% floor) |
+| `uv run pytest tests/test_documentation.py` | Local Markdown links, documented test-module inventory, and tracked whitespace hygiene test passed |
+| `uv build --clear` | Built wheel and source distribution |
+| `uv run twine check dist/*` | Both distributions passed metadata validation |
+| `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
+| Isolated wheel smoke test | Passed isolated installation and API verification |
+| Isolated sdist smoke test | Passed isolated build, installation, and API verification |
