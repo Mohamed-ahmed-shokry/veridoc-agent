@@ -44,7 +44,7 @@ boundaries only and require separate approval before implementation.
 | 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
 | 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
-| 39 | Invoice number format & placeholder verification (ADR 0045) | In progress |
+| 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2393,7 +2393,7 @@ handled by Phase 33 required-field completeness).
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 38 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 39 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
