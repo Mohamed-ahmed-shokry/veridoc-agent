@@ -4,6 +4,7 @@ from veridoc.extraction.models import InvoiceExtraction, InvoiceLineItem
 from veridoc.verification.arithmetic import (
     check_arithmetic,
     check_line_items_subtotal,
+    derive_unit_price,
 )
 
 
@@ -639,3 +640,33 @@ def test_line_items_subtotal_derived_rounding_discrepancy() -> None:
     assert [finding.finding_type for finding in findings] == ["rounding_discrepancy"]
     assert findings[0].severity == "low"
     assert findings[0].expected_value == "0.99"
+
+
+def test_derive_unit_price_exact_division() -> None:
+    from decimal import Decimal
+
+    assert derive_unit_price(Decimal("2"), Decimal("100.00")) == Decimal("50.0000")
+    assert derive_unit_price(Decimal("4"), Decimal("10.00")) == Decimal("2.5000")
+
+
+def test_derive_unit_price_fractional_precision() -> None:
+    from decimal import Decimal
+
+    # 10 / 3 = 3.333333... rounded to 4 decimals = 3.3333
+    assert derive_unit_price(Decimal("3"), Decimal("10.00")) == Decimal("3.3333")
+
+
+def test_derive_unit_price_handles_none() -> None:
+    from decimal import Decimal
+
+    assert derive_unit_price(None, Decimal("100.00")) is None
+    assert derive_unit_price(Decimal("2"), None) is None
+    assert derive_unit_price(None, None) is None
+
+
+def test_derive_unit_price_handles_zero_and_negative_quantity() -> None:
+    from decimal import Decimal
+
+    assert derive_unit_price(Decimal("0"), Decimal("100.00")) is None
+    assert derive_unit_price(Decimal("-2"), Decimal("100.00")) is None
+
