@@ -46,7 +46,7 @@ boundaries only and require separate approval before implementation.
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 | 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
-| 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | In progress |
+| 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2562,7 +2562,7 @@ Establish deterministic cross-field geographic verification between `vendor_tax_
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 40 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 41 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
