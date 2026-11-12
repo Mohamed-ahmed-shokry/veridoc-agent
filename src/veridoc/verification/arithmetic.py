@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Final
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
 
 DEFAULT_ROUNDING_TOLERANCE: Final[Decimal] = Decimal("0.02")
+UNIT_PRICE_PRECISION: Final[Decimal] = Decimal("0.0001")
+
+
+def derive_unit_price(
+    quantity: Decimal | None,
+    total_price: Decimal | None,
+) -> Decimal | None:
+    """Safely derive unit price as total_price / quantity rounded to 4 decimal places.
+
+    Returns None if quantity or total_price is absent, or if quantity <= 0.
+    """
+    if quantity is None or total_price is None or quantity <= Decimal(0):
+        return None
+    try:
+        return (total_price / quantity).quantize(UNIT_PRICE_PRECISION)
+    except (InvalidOperation, ZeroDivisionError):
+        return None
 
 
 def check_arithmetic(
@@ -238,9 +255,11 @@ _check_invoice_dates = check_invoice_dates
 
 __all__ = [
     "DEFAULT_ROUNDING_TOLERANCE",
+    "UNIT_PRICE_PRECISION",
     "check_arithmetic",
     "check_invoice_dates",
     "check_invoice_total",
     "check_line_item_amounts",
     "check_line_items_subtotal",
+    "derive_unit_price",
 ]
