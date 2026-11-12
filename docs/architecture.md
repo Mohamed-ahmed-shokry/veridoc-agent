@@ -246,9 +246,11 @@ ISO 4217 currency code verification
 excessive tax amount verification
 ([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)),
 invoice number format and placeholder verification
-([ADR 0045](decisions/0045-invoice-number-format-verification.md)), and
+([ADR 0045](decisions/0045-invoice-number-format-verification.md)),
 line-item derived unit price arithmetic verification
-([ADR 0046](decisions/0046-line-item-derived-unit-price-verification.md)).
+([ADR 0046](decisions/0046-line-item-derived-unit-price-verification.md)), and
+cross-field vendor tax ID and bank account country consistency verification
+([ADR 0047](decisions/0047-cross-field-tax-id-bank-country-consistency.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -258,9 +260,11 @@ completeness then requires every line to carry a non-blank identity and either
 the check. Bank account checksum verification enforces ISO 13616 country lengths
 and mod-97 integrity for IBAN-shaped remit-to accounts independently of master
 data, VAT identifier verification enforces the published per-country structure
-for recognized prefixes independently of master data, currency code verification
-enforces standard active ISO 4217 alphabetic currency codes, excessive tax
-verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals,
+for recognized prefixes independently of master data, cross-field country consistency
+verification ensures the remit-to bank IBAN country aligns with the vendor tax identifier
+country (accounting for geographic equivalents such as Greece EL/GR and Northern Ireland XI/GB),
+currency code verification enforces standard active ISO 4217 alphabetic currency codes,
+excessive tax verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals,
 and invoice number format verification rejects placeholders, generic labels, control
 characters, blank/punctuation-only values, and excessive-length identifiers.
 
