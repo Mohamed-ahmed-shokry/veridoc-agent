@@ -1,90 +1,70 @@
-# Phase 39 Progress Record: Invoice Number Format & Placeholder Verification
+# Phase 40 Progress Record: Line-Item Derived Unit Price Arithmetic Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 39
-- **Goal:** Introduce deterministic invoice number format, placeholder, label, and length bound verification (ADR 0045) for invoice headers, catching OCR hallucinations, default templates, blank/punctuation tokens, non-printable control characters, and runaway strings.
+- **Phase:** Phase 40
+- **Goal:** Introduce deterministic line-item derived unit price arithmetic verification (ADR 0046), enabling safe unit price derivation from `total_price / quantity` with 4-decimal precision when `unit_price` is omitted on line items, and integrating derived pricing into historical unit price outlier analysis.
 - **Status:** Complete
-- **Branch:** `phase/invoice-number-verification`
-- **Draft PR:** [#18](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/18)
-- **Base:** `phase/excessive-tax-verification` (stacked on Phase 38)
+- **Branch:** `phase/line-item-unit-price-derivation`
+- **Draft PR:** [#19](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/19)
+- **Base:** `phase/invoice-number-verification` (stacked on Phase 39)
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 39 specification in `docs/roadmap.md` and record ADR 0045 | Completed | `e73e887`, `b06667a` |
-| 2 | Register ADR 0045 in the decisions index | Completed | `e171566` |
-| 3 | Add `invalid_invoice_number` to `FindingType` with a model test | Completed | `d4c6af6`, `7835f24` |
-| 4 | Implement `check_invoice_number_format` rule in `veridoc.verification.invoice_number` | Completed | `7d9e305` |
-| 5 | Add unit tests covering all paths and input immutability | Completed | `db2b877` |
-| 6 | Register test module in documentation | Completed | `45fc721` |
-| 7 | Integrate rule into `VerificationService.verify()` | Completed | `5a0434c` |
-| 8 | Add `VerificationService` integration and verdict tests | Completed | `c0f919d` |
-| 9 | Update README, CHANGELOG, architecture, AGENTS, and roadmap | Completed | `0abde52`..`2e9944d` |
-| 10 | Verify local CI parity and record release evidence | Completed | `0dfa4df` |
-| 11 | Finalize progress record with validation evidence | Completed | this commit |
+| 1 | Define Phase 40 specification in `docs/roadmap.md` | Completed | `2b3d6a3` |
+| 2 | Record ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md` | Completed | `96fc0c2` |
+| 3 | Register ADR 0046 in decisions index | Completed | `6d853ee` |
+| 4 | Implement `derive_unit_price` helper in `src/veridoc/verification/arithmetic.py` | Completed | `59283f5` |
+| 5 | Add unit tests for `derive_unit_price` in `tests/test_verification_arithmetic.py` | Completed | `9a2efd7` |
+| 6 | Integrate derived unit price into `check_line_item_statistics` in `src/veridoc/verification/line_items.py` | Completed | `055c051` |
+| 7 | Add unit tests for derived unit price historical outlier detection in `tests/test_verification_line_items.py` | Completed | `8118d23` |
+| 8 | Fix EOF whitespace and format issues across touched files | Completed | `7200468`, `27106b2`, `be9897c`, `c0e57a4` |
+| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `26d5fd0`, `f10a878`, `64e2bad`, `80e3527` |
+| 10 | Mark Phase 40 complete in `docs/roadmap.md` approval rule and phase table | Completed | `f818637` |
+| 11 | Record Phase 40 completion snapshot in `docs/release-evidence.md` | Completed | `5e249d4` |
+| 12 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `invalid_invoice_number` appears in `FindingType` and is accepted by `VerificationFinding` | Verified | `tests/test_verification_models.py` passed |
-| 2 | Clean, legitimate alphanumeric invoice numbers produce no finding | Verified | `tests/test_verification_invoice_number.py` passed |
-| 3 | Invoices with placeholder numbers (`N/A`, `NONE`, `NULL`, `UNKNOWN`, `TBD`, `PENDING`, `VOID`, `SAMPLE`) produce one `high`-severity finding with `reason="placeholder"` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 4 | Invoices with generic header labels (`INVOICE`, `INVOICE NUMBER`, `INV #`, `BILL NO`, `NUMBER`) produce one `high`-severity finding with `reason="generic_label"` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 5 | Invoices with blank or pure punctuation strings (`"-"`, `"---"`, `"."`, `"/"`, `"   "`) produce one `high`-severity finding with `reason="blank_or_punctuation"` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 6 | Invoices with control characters or newlines produce one `high`-severity finding with `reason="control_characters"` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 7 | Invoices with runaway length (> 64 characters) produce one `high`-severity finding with `reason="excessive_length"` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 8 | Invoices with absent (`None`) invoice number produce no finding (deferred to required-field completeness) | Verified | `tests/test_verification_invoice_number.py` passed |
-| 9 | The check does not mutate the input extraction | Verified | `tests/test_verification_invoice_number.py` passed |
-| 10 | `VerificationService.verify()` reports the finding and routes the verdict to `review_required` | Verified | `tests/test_verification_invoice_number.py` passed |
-| 11 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | 1610 tests passed locally; quality gate green |
+| 1 | `derive_unit_price` safely calculates `total_price / quantity` rounded to 4 decimal places when `quantity > 0` | Verified | `tests/test_verification_arithmetic.py` passed |
+| 2 | When `quantity <= 0`, `derive_unit_price` returns `None` without raising `DivisionByZero` or `InvalidOperation` | Verified | `tests/test_verification_arithmetic.py` passed |
+| 3 | Invoices with line items having omitted `unit_price` but valid `total_price` and `quantity > 0` participate in historical line-item unit price outlier detection | Verified | `tests/test_verification_line_items.py` passed |
+| 4 | If a derived unit price deviates significantly from historical mean (z-score >= 3.0), `historical_line_item_price_outlier` is emitted with details indicating derived unit price | Verified | `tests/test_verification_line_items.py` passed |
+| 5 | Invoices with already present `unit_price` continue using the explicit `unit_price` without behavior change | Verified | Existing test suite passed with 0 regressions |
+| 6 | Input extractions and historical records remain immutable | Verified | Test assertions confirm zero mutations |
+| 7 | `VerificationService.verify()` and the complete processing pipeline run cleanly with 100% green tests | Verified | 1615 tests passed with 94.15% branch coverage |
+| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Remote CI run 43229676738 passed quality job in 1m41s |
 
 ## Decision Log
 
-### Decision 1: Enforce canonical placeholder and generic label dictionaries
-- **Context:** OCR engines frequently read column headers (such as "INVOICE NUMBER" or "INV #") as the value when the actual identifier box is unaligned or blank, or transcribe template placeholder text (`N/A`, `NULL`, `SAMPLE`, `TBD`) when no number exists.
-- **Decision:** Maintain immutable frozen canonical sets `_PLACEHOLDER_TOKENS` and `_GENERIC_LABEL_TOKENS` in `veridoc.verification.invoice_number` and categorize matched values cleanly with `reason="placeholder"` and `reason="generic_label"`.
-- **Alternatives Considered:** Open-ended heuristics or LLM re-classification. Rejected: non-deterministic and ungrounded.
-- **Blast Radius & Reversibility:** Pure function, zero impact on valid alphanumeric identifiers.
+### Decision 1: Pure helper with bounded decimal quantization
+- **Context:** In commercial invoices, `unit_price` is frequently omitted or uncaptured while line `quantity` and `total_price` are available. A naive division could raise `DivisionByZero` or `InvalidOperation` when quantities are zero or negative, or produce unbounded floating point representations.
+- **Decision:** Implement `derive_unit_price(quantity, total_price)` returning `Decimal | None` quantized to `Decimal("0.0001")` (4 decimal places standard in commercial pricing). If either argument is `None` or `quantity <= 0`, return `None` safely.
+- **Alternatives Considered:** Returning full floating point or 2 decimal places. Rejected: 4 decimal places accommodates high-precision fractional unit rates standard in enterprise AP/ERP systems.
+- **Blast Radius & Reversibility:** Pure function, zero side effects.
 
-### Decision 2: Enforce strict structural hygiene (control characters, blank/punctuation, length)
-- **Context:** OCR artifacts often include trailing line breaks or multiline blocks accidentally merged into the invoice number. Furthermore, runaway text (> 64 chars) or punctuation-only strings (`"-"`, `"---"`, `"."`) distort database indexes, downstream ERP ingestion, and human reviews.
-- **Decision:** Check for non-printable control characters/newlines (`reason="control_characters"`), require at least one alphanumeric character (`reason="blank_or_punctuation"`), and enforce an upper length bound of `MAX_INVOICE_NUMBER_LENGTH = 64` (`reason="excessive_length"`).
-- **Alternatives Considered:** Free-form string storage without validation. Rejected: leads to database index corruption and silent ERP integration failures.
-- **Blast Radius & Reversibility:** Pure function; standard invoice numbers globally rarely exceed 35 characters, making 64 characters safely permissive.
+### Decision 2: Transparent outlier evaluation with explicit provenance tag
+- **Context:** `check_line_item_statistics` previously skipped unit price outlier detection if `line_item.unit_price is None`.
+- **Decision:** Fall back to `derive_unit_price(line_item.quantity, line_item.total_price)`. If an outlier is detected, tag `details["derived_unit_price"] = True` so review operators and audit trails distinguish explicit vs derived unit prices.
+- **Alternatives Considered:** Mutating the extracted line item to inject `unit_price`. Rejected: violates extraction schema immutability.
 
-### Decision 3: Assign `high` severity to `invalid_invoice_number` findings
-- **Context:** An invoice without a valid, authentic identifier cannot be matched to purchase orders, reconciled against historical payments, or legally submitted for payment processing.
-- **Decision:** Assign `high` severity to `invalid_invoice_number`, routing the invoice to `review_required` in `derive_verdict`.
-- **Alternatives Considered:** `medium` or `low` severity. Rejected: invalid identifiers present immediate duplicate billing and reconciliation hazards, requiring human operator intervention.
-- **Blast Radius & Reversibility:** Fully consistent with the verification severity framework.
+## Validation & CI Log
 
-## CI & Validation Log
-
-Local commands run from the repository root on Windows with Python 3.12.12 and uv 0.9.13:
-
-| Command | Result |
-|---|---|
-| `git diff --check "$(git hash-object -t tree /dev/null)" HEAD` | Passed (zero whitespace issues) |
-| `uv lock --check` | Passed |
-| `uv run pip-audit` | Passed (0 known vulnerabilities; `veridoc` skipped as not on PyPI) |
-| `uv run ruff check .` | Passed (All checks passed!) |
-| `uv run ruff format --check .` | Passed (325 files formatted) |
-| `uv run mypy` | Passed (124 source files) |
-| `uv run pytest -q` | 1610 passed |
-| `uv run pytest --cov=veridoc` | 1610 passed; 94.15% total branch coverage (90% floor) |
-| `uv run pytest tests/test_documentation.py` | 3 passed |
-| `uv build --clear` | Wheel and source distribution built |
-| `uv run twine check dist/*` | Both distributions passed metadata validation |
-| `uv run python scripts/check_distribution.py` | Both archives passed content and safety checks |
-| Isolated wheel smoke test | Passed |
-| Isolated source distribution smoke test | Passed |
-
-Remote CI:
-
-- Workflow: CI
-- Run: [43047037644](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43047037644)
-- Head commit: `2a9f674`
-- Result: success (1m36s)
+- `git diff --check "$(git hash-object -t tree /dev/null)" HEAD`: Clean (0 errors)
+- `uv lock --check`: Passed
+- `uv run pip-audit`: Passed (0 vulnerabilities)
+- `uv run ruff check .`: Passed (All checks passed)
+- `uv run ruff format --check .`: Passed (326 files formatted)
+- `uv run mypy`: Passed (0 issues in 124 files)
+- `uv run pytest --cov=veridoc`: Passed (1615 passed, 94.15% branch coverage)
+- `uv run pytest tests/test_documentation.py`: Passed (3 passed)
+- `uv build --clear`: Built wheel and sdist
+- `uv run twine check dist/*`: Both passed
+- `uv run python scripts/check_distribution.py`: Both passed
+- Isolated wheel smoke test: Passed
+- Isolated sdist smoke test: Passed
+- Remote CI run: [43229676738](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43229676738) (Quality job passed in 1m41s)
