@@ -669,4 +669,3 @@ def test_derive_unit_price_handles_zero_and_negative_quantity() -> None:
 
     assert derive_unit_price(Decimal("0"), Decimal("100.00")) is None
     assert derive_unit_price(Decimal("-2"), Decimal("100.00")) is None
-
