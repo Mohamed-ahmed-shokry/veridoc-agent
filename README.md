@@ -138,7 +138,8 @@ VAT identifier format verification (ADR 0042), and ISO 4217 currency code verifi
 - deterministic vendor VAT identifier format verification enforcing per-country structure for recognized EU/UK prefixes ([ADR 0042](docs/decisions/0042-vendor-vat-identifier-format-verification.md));
 - deterministic ISO 4217 currency code verification validating 3-letter currency codes against standard active currencies ([ADR 0043](docs/decisions/0043-iso-4217-currency-code-verification.md));
 - deterministic excessive tax amount verification detecting tax liabilities that exceed the pre-tax subtotal or payable invoice total ([ADR 0044](docs/decisions/0044-excessive-tax-amount-verification.md));
-- deterministic invoice number format and placeholder verification detecting generic placeholders, labels, and corrupted syntax ([ADR 0045](docs/decisions/0045-invoice-number-format-verification.md)); and
+- deterministic invoice number format and placeholder verification detecting generic placeholders, labels, and corrupted syntax ([ADR 0045](docs/decisions/0045-invoice-number-format-verification.md));
+- deterministic line-item derived unit price arithmetic verification and historical price outlier evaluation ([ADR 0046](docs/decisions/0046-line-item-derived-unit-price-verification.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
