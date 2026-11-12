@@ -9,7 +9,9 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.vendors.protocol import VendorRepository
 from veridoc.verification.arithmetic import check_arithmetic
+from veridoc.verification.bank_account import check_bank_account_checksum
 from veridoc.verification.completeness import check_required_fields
+from veridoc.verification.currency import check_currency_code
 from veridoc.verification.document_type import check_document_type
 from veridoc.verification.due_date_bounds import check_excessive_due_date_window
 from veridoc.verification.duplicate_line_items import check_duplicate_line_items
@@ -17,8 +19,10 @@ from veridoc.verification.field_history import check_payment_terms
 from veridoc.verification.future_dates import check_future_invoice_date
 from veridoc.verification.header_amounts import check_header_amounts
 from veridoc.verification.history import check_historical_total
+from veridoc.verification.invoice_number import check_invoice_number_format
 from veridoc.verification.invoice_totals import check_non_positive_invoice_total
 from veridoc.verification.line_item_amounts import check_non_positive_line_items
+from veridoc.verification.line_item_completeness import check_line_item_completeness
 from veridoc.verification.line_items import (
     check_line_item_occurrence,
     check_line_item_statistics,
@@ -31,6 +35,8 @@ from veridoc.verification.purchase_orders import (
 )
 from veridoc.verification.repository_checks import check_duplicate_invoice_number
 from veridoc.verification.staleness import check_invoice_staleness
+from veridoc.verification.tax_bounds import check_excessive_tax
+from veridoc.verification.tax_id import check_tax_id_format
 from veridoc.verification.uncertainties import check_extraction_uncertainties
 from veridoc.verification.vendor_rules import check_vendor_registry
 from veridoc.verification.vendors import vendor_key_for
@@ -62,10 +68,16 @@ class VerificationService:
     ) -> VerificationResult:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_required_fields(invoice)
+        findings.extend(check_invoice_number_format(invoice))
+        findings.extend(check_line_item_completeness(invoice))
+        findings.extend(check_bank_account_checksum(invoice))
+        findings.extend(check_tax_id_format(invoice))
+        findings.extend(check_currency_code(invoice))
         findings.extend(check_arithmetic(invoice))
         findings.extend(check_non_positive_invoice_total(invoice))
         findings.extend(check_non_positive_line_items(invoice))
         findings.extend(check_header_amounts(invoice))
+        findings.extend(check_excessive_tax(invoice))
         findings.extend(check_duplicate_line_items(invoice))
         findings.extend(check_invoice_staleness(invoice, reference_date=reference_date))
         findings.extend(

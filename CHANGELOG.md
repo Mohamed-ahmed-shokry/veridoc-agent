@@ -8,6 +8,55 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 40 line-item derived unit price arithmetic verification:
+  - Architecture Decision Record 0046 documenting deterministic line-item derived unit price calculation and its application to historical unit price outlier analysis.
+  - Implemented pure helper `derive_unit_price(quantity, total_price)` in `veridoc.verification.arithmetic`. Evaluates `total_price / quantity` rounded to 4 decimal places (`0.0001`) when `quantity > 0`; returns `None` safely when either argument is absent or `quantity <= 0` without raising division exceptions.
+  - Integrated `derive_unit_price()` into `check_line_item_statistics()` in `veridoc.verification.line_items` to evaluate derived unit prices for items omitting `unit_price`, emitting `historical_line_item_price_outlier` with `derived_unit_price: True` in finding details when z-score deviates significantly from vendor history.
+  - Unit tests covering exact division, 4-decimal precision, None/zero/negative quantity handling, and historical outlier detection with derived unit prices.
+
+- Phase 39 invoice number format and placeholder verification (`invalid_invoice_number`):
+  - Architecture Decision Record 0045 documenting deterministic verification of invoice number syntax, length bounds, and placeholder/label detection.
+  - `invalid_invoice_number` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_invoice_number_format()` in `veridoc.verification.invoice_number`. Emits one `high`-severity finding when `invoice_number` matches a placeholder token (e.g. `N/A`, `NONE`, `NULL`), generic field label (e.g. `INVOICE`, `INV #`, `BILL NO`), blank or punctuation-only string, control characters/newlines, or exceeds 64 characters. Structured details carry `field`, `invoice_number`, and `reason`. Absent (`None`) invoice numbers produce no finding (deferred to required-field completeness).
+  - Integrated `check_invoice_number_format(invoice)` into `VerificationService.verify()` following required field completeness.
+  - 66 focused unit, categorization, immutability, and service integration tests in `tests/test_verification_invoice_number.py`.
+
+- Phase 38 excessive tax amount verification (`excessive_tax`):
+  - Architecture Decision Record 0044 documenting deterministic verification of invoice tax amounts against pre-tax subtotals and payable invoice totals.
+  - `excessive_tax` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_excessive_tax()` in `veridoc.verification.tax_bounds`. Emits one `high`-severity finding when `tax > subtotal` (effective tax rate > 100% when `subtotal > 0`), or when `tax > total` (when `subtotal` is absent and `total > 0`). Structured details carry `field`, `tax`, `subtotal`, `effective_tax_rate`, and `max_tax_rate` (or `total`). Parametrized with `max_tax_rate` (defaulting to `Decimal("1.00")`). Absent (`None`), zero, or negative taxes, and non-positive subtotals/totals produce no finding.
+  - Integrated `check_excessive_tax(invoice)` into `VerificationService.verify()` after header amount checks.
+  - 11 focused unit, parameter, immutability, and service integration tests in `tests/test_verification_tax_bounds.py`.
+
+- Phase 37 ISO 4217 currency code verification (`invalid_currency`):
+  - Architecture Decision Record 0043 documenting deterministic ISO 4217 three-letter currency code verification for extracted invoice currencies and why FX conversion and cryptocurrency tokens are excluded.
+  - `invalid_currency` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_currency_code()` in `veridoc.verification.currency` with the `ISO_4217_CURRENCY_CODES` authoritative set covering standard active alphabetic currency codes. Emits one `medium`-severity finding when a present currency code does not match a recognized ISO 4217 code, with structured details (`field`, `currency`). Absent (`None`) or empty currencies produce no finding.
+  - Integrated `check_currency_code(invoice)` into `VerificationService.verify()` after VAT format verification.
+  - 40 focused unit, normalization, immutability, and integration tests in `tests/test_verification_currency.py`.
+
+- Phase 36 vendor VAT identifier format verification (`invalid_tax_id`):
+  - Architecture Decision Record 0042 documenting deterministic per-country VAT structure verification for extracted vendor tax identifiers and why checksums, online validation, and unrecognized schemes are excluded.
+  - `invalid_tax_id` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_tax_id_format()` in `veridoc.verification.tax_id` with the `VAT_STRUCTURES` table covering EU member state prefixes (`EL` for Greece), `GB`, and `XI`. Emits one `medium`-severity finding when a recognized prefix is followed by a structurally invalid remainder, with structured details (`field`, `tax_id`, `country`). Identifiers are normalized with `normalize_tax_id`; absent, blank, and unrecognized-prefix identifiers produce no finding.
+  - Integrated `check_tax_id_format(invoice)` into `VerificationService.verify()` after bank account verification.
+  - 59 focused unit and integration tests in `tests/test_verification_tax_id.py`.
+
+- Phase 35 vendor bank account checksum verification (`invalid_bank_account`):
+  - Architecture Decision Record 0041 documenting deterministic ISO 13616 IBAN structure and ISO 7064 mod-97-10 checksum verification for extracted vendor bank accounts.
+  - `invalid_bank_account` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_bank_account_checksum()` and `iban_checksum_is_valid()` in `veridoc.verification.bank_account` with an authoritative country-length table (`IBAN_COUNTRY_LENGTHS`). Emits a `high`-severity finding when an IBAN-shaped account has an invalid country length (`reason="length"`) or fails the mod-97 remainder check (`reason="checksum"`).
+  - Integrated `check_bank_account_checksum(invoice)` into `VerificationService.verify()` after line-item completeness.
+  - 33 focused unit, helper, fixture, and integration tests in `tests/test_verification_bank_account.py` covering published IBAN examples, digit corruption, length mismatches, domestic account passthrough, input immutability, `VerificationService` integration, and verdict derivation.
+
+- Phase 34 line item completeness and derived subtotal verification (`incomplete_line_item`):
+  - Architecture Decision Record 0040 documenting why unidentifiable or unpriceable line items are unreconcilable and why omitted line totals must not disable subtotal verification.
+  - `incomplete_line_item` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_line_item_completeness()` in `veridoc.verification.line_item_completeness`. Requires a non-blank `product_identifier` or `description` and either `total_price` or both `quantity` and `unit_price`; emits one `medium`-severity finding per gap in line-item order with identity before amount, and structured details (`line_item_index`, `field`).
+  - Updated `check_line_items_subtotal()` to derive `quantity * unit_price` when `total_price` is absent instead of skipping the entire check, preserving rounding tolerance and mismatch severities.
+  - Integrated `check_line_item_completeness(invoice)` into `VerificationService.verify()` after header completeness.
+  - 13 focused unit and integration tests in `tests/test_verification_line_item_completeness.py` plus derived-subtotal coverage in `tests/test_verification_arithmetic.py`.
+
 - Phase 33 required invoice field completeness verification (`missing_required_field`):
   - Architecture Decision Record 0039 documenting why `invoice_number`, `invoice_date`, `currency`, and `total` are required for a verifiable invoice and why vendor identity and optional commercial fields are excluded.
   - `missing_required_field` added to the `FindingType` literal union in `veridoc.verification.models`.

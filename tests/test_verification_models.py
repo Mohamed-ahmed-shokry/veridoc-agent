@@ -287,3 +287,112 @@ def test_verification_finding_accepts_missing_required_field() -> None:
     assert finding.finding_type == "missing_required_field"
     assert finding.severity == "high"
     assert finding.details["field"] == "invoice_number"
+
+
+def test_verification_finding_accepts_incomplete_line_item() -> None:
+    finding = VerificationFinding(
+        finding_type="incomplete_line_item",
+        severity="medium",
+        explanation="The line item has no identifying value.",
+        comparison_source="invoice_line_items",
+        deterministic_rule="line_item.product_identifier or line_item.description is present",
+        observed_value=None,
+        expected_value="identity",
+        details={"line_item_index": 0, "field": "identity"},
+    )
+    assert finding.finding_type == "incomplete_line_item"
+    assert finding.severity == "medium"
+    assert finding.details == {"line_item_index": 0, "field": "identity"}
+
+
+def test_verification_finding_accepts_invalid_bank_account() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_bank_account",
+        severity="high",
+        explanation="The vendor bank account fails its IBAN checksum.",
+        comparison_source="invoice_fields",
+        deterministic_rule="IBAN mod-97 remainder == 1",
+        observed_value="GB00BARC20201512345678",
+        details={
+            "field": "vendor_bank_account",
+            "account": "GB00BARC20201512345678",
+            "reason": "checksum",
+        },
+    )
+    assert finding.finding_type == "invalid_bank_account"
+    assert finding.severity == "high"
+    assert finding.details["reason"] == "checksum"
+
+
+def test_verification_finding_accepts_invalid_tax_id() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_tax_id",
+        severity="medium",
+        explanation="The vendor VAT number does not match its country structure.",
+        comparison_source="invoice_fields",
+        deterministic_rule="vendor_tax_id matches the country VAT structure",
+        observed_value="DE12345",
+        details={"field": "vendor_tax_id", "tax_id": "DE12345", "country": "DE"},
+    )
+    assert finding.finding_type == "invalid_tax_id"
+    assert finding.severity == "medium"
+    assert finding.details["country"] == "DE"
+
+
+def test_verification_finding_accepts_invalid_currency() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_currency",
+        severity="medium",
+        explanation="The invoice currency code (XYZ) is not a recognized ISO 4217 standard currency.",
+        comparison_source="invoice_fields",
+        deterministic_rule="currency in ISO 4217 active alphabetic codes",
+        observed_value="XYZ",
+        expected_value="valid ISO 4217 currency code",
+        details={"field": "currency", "currency": "XYZ"},
+    )
+    assert finding.finding_type == "invalid_currency"
+    assert finding.severity == "medium"
+    assert finding.details["currency"] == "XYZ"
+
+
+def test_verification_finding_accepts_excessive_tax() -> None:
+    finding = VerificationFinding(
+        finding_type="excessive_tax",
+        severity="high",
+        explanation="The invoice tax (150.00) exceeds the pre-tax subtotal (100.00).",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.tax <= invoice.subtotal",
+        observed_value="150.00",
+        expected_value="<= 100.00",
+        details={
+            "field": "tax",
+            "tax": "150.00",
+            "subtotal": "100.00",
+            "effective_tax_rate": "1.5000",
+            "max_tax_rate": "1.00",
+        },
+    )
+    assert finding.finding_type == "excessive_tax"
+    assert finding.severity == "high"
+    assert finding.details["tax"] == "150.00"
+    assert finding.details["subtotal"] == "100.00"
+
+
+def test_verification_finding_accepts_invalid_invoice_number() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_invoice_number",
+        severity="high",
+        explanation="The invoice number is a placeholder ('N/A').",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.invoice_number is a valid alphanumeric identifier and not a placeholder",
+        observed_value="N/A",
+        expected_value="valid invoice number",
+        details={
+            "field": "invoice_number",
+            "invoice_number": "N/A",
+            "reason": "placeholder",
+        },
+    )
+    assert finding.finding_type == "invalid_invoice_number"
+    assert finding.severity == "high"
+    assert finding.details["reason"] == "placeholder"

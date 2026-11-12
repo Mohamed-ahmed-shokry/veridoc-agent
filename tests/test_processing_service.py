@@ -1,5 +1,6 @@
 """Complete processing service tests."""
 
+from datetime import UTC, datetime
 from io import BytesIO
 
 import pytest
@@ -27,7 +28,7 @@ class _FakeExtractor:
             document_type="invoice",
             vendor_name="Fictional Supplies Ltd.",
             invoice_number="INV-002",
-            invoice_date="2026-08-01",
+            invoice_date=datetime.now(UTC).date().isoformat(),
             currency="USD",
             total="100.00",
             ocr_confidence=request.document.confidence,

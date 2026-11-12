@@ -2,13 +2,30 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Final
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
 
 DEFAULT_ROUNDING_TOLERANCE: Final[Decimal] = Decimal("0.02")
+UNIT_PRICE_PRECISION: Final[Decimal] = Decimal("0.0001")
+
+
+def derive_unit_price(
+    quantity: Decimal | None,
+    total_price: Decimal | None,
+) -> Decimal | None:
+    """Safely derive unit price as total_price / quantity rounded to 4 decimal places.
+
+    Returns None if quantity or total_price is absent, or if quantity <= 0.
+    """
+    if quantity is None or total_price is None or quantity <= Decimal(0):
+        return None
+    try:
+        return (total_price / quantity).quantize(UNIT_PRICE_PRECISION)
+    except (InvalidOperation, ZeroDivisionError):
+        return None
 
 
 def check_arithmetic(
@@ -163,9 +180,12 @@ def check_line_items_subtotal(
         return []
     expected_subtotal = Decimal(0)
     for line_item in invoice.line_items:
-        if line_item.total_price is None:
-            return []
-        expected_subtotal += line_item.total_price
+        line_total = line_item.total_price
+        if line_total is None:
+            if line_item.quantity is None or line_item.unit_price is None:
+                return []
+            line_total = line_item.quantity * line_item.unit_price
+        expected_subtotal += line_total
     if invoice.subtotal == expected_subtotal:
         return []
     discrepancy = abs(invoice.subtotal - expected_subtotal)
@@ -179,7 +199,9 @@ def check_line_items_subtotal(
                     f"{discrepancy} within the tolerance of {rounding_tolerance}."
                 ),
                 comparison_source="invoice_line_items",
-                deterministic_rule=f"abs(sum(line_item.total_price) - subtotal) <= {rounding_tolerance}",
+                deterministic_rule=(
+                    f"abs(sum(line_item.total_price if present else quantity * unit_price) - subtotal) <= {rounding_tolerance}"
+                ),
                 observed_value=str(invoice.subtotal),
                 expected_value=str(expected_subtotal),
                 details={
@@ -196,7 +218,7 @@ def check_line_items_subtotal(
             severity="high",
             explanation="The sum of line-item totals does not equal the invoice subtotal.",
             comparison_source="invoice_line_items",
-            deterministic_rule="sum(line_item.total_price) == subtotal",
+            deterministic_rule="sum(line_item.total_price if present else quantity * unit_price) == subtotal",
             observed_value=str(invoice.subtotal),
             expected_value=str(expected_subtotal),
             details={
@@ -233,9 +255,11 @@ _check_invoice_dates = check_invoice_dates
 
 __all__ = [
     "DEFAULT_ROUNDING_TOLERANCE",
+    "UNIT_PRICE_PRECISION",
     "check_arithmetic",
     "check_invoice_dates",
     "check_invoice_total",
     "check_line_item_amounts",
     "check_line_items_subtotal",
+    "derive_unit_price",
 ]

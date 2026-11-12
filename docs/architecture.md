@@ -233,11 +233,36 @@ payment terms and due date consistency ([ADR 0035](decisions/0035-payment-terms-
 excessive credit window bounds ([ADR 0036](decisions/0036-excessive-due-date-window.md)),
 document type verification ([ADR 0037](decisions/0037-document-type-verification.md)),
 extraction uncertainty verification ([ADR 0038](decisions/0038-extraction-uncertainty-verification.md)),
-and required invoice field completeness verification
-([ADR 0039](decisions/0039-required-invoice-field-completeness.md)). Completeness
-runs first and requires `invoice_number`, `invoice_date`, `currency`, and
-`total`, because every other rule is conditional on the fields it evaluates and
-a sparse extraction would otherwise clear vacuously.
+required invoice field completeness verification
+([ADR 0039](decisions/0039-required-invoice-field-completeness.md)), line item
+completeness with derived subtotals
+([ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md)), and
+vendor bank account checksum verification
+([ADR 0041](decisions/0041-vendor-bank-account-checksum-verification.md)),
+vendor VAT identifier format verification
+([ADR 0042](decisions/0042-vendor-vat-identifier-format-verification.md)),
+ISO 4217 currency code verification
+([ADR 0043](decisions/0043-iso-4217-currency-code-verification.md)),
+excessive tax amount verification
+([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)),
+invoice number format and placeholder verification
+([ADR 0045](decisions/0045-invoice-number-format-verification.md)), and
+line-item derived unit price arithmetic verification
+([ADR 0046](decisions/0046-line-item-derived-unit-price-verification.md)).
+Header completeness runs first and requires `invoice_number`, `invoice_date`,
+`currency`, and `total`, because every other rule is conditional on the fields
+it evaluates and a sparse extraction would otherwise clear vacuously. Line item
+completeness then requires every line to carry a non-blank identity and either
+`total_price` or both `quantity` and `unit_price`; subtotal verification derives
+`quantity * unit_price` for lines without a printed total instead of skipping
+the check. Bank account checksum verification enforces ISO 13616 country lengths
+and mod-97 integrity for IBAN-shaped remit-to accounts independently of master
+data, VAT identifier verification enforces the published per-country structure
+for recognized prefixes independently of master data, currency code verification
+enforces standard active ISO 4217 alphabetic currency codes, excessive tax
+verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals,
+and invoice number format verification rejects placeholders, generic labels, control
+characters, blank/punctuation-only values, and excessive-length identifiers.
 
 ## Typed explanation flow
 

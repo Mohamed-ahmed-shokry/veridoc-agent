@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Literal
 
 from veridoc.extraction.models import InvoiceExtraction
+from veridoc.verification.arithmetic import derive_unit_price
 from veridoc.verification.history import (
     MINIMUM_HISTORY_SAMPLE_SIZE,
     OUTLIER_Z_SCORE,
@@ -105,9 +106,17 @@ def check_line_item_statistics(
             )
             == key
         ]
+        effective_unit_price = line_item.unit_price
+        is_derived_price = False
+        if effective_unit_price is None:
+            derived = derive_unit_price(line_item.quantity, line_item.total_price)
+            if derived is not None:
+                effective_unit_price = derived
+                is_derived_price = True
+
         findings.extend(
             _check_metric(
-                observed_value=line_item.unit_price,
+                observed_value=effective_unit_price,
                 historical_values=[
                     historical_line_item.unit_price
                     for historical_line_item in historical_line_items
@@ -117,6 +126,7 @@ def check_line_item_statistics(
                 metric="line_item_unit_price",
                 key=key,
                 index=index,
+                is_derived_price=is_derived_price,
             )
         )
         findings.extend(
@@ -144,9 +154,14 @@ def _check_metric(
     metric: str,
     key: str,
     index: int,
+    is_derived_price: bool = False,
 ) -> list[VerificationFinding]:
     if observed_value is None:
         return []
+    extra_details: dict[str, str | int | float | bool | None] = {}
+    if is_derived_price:
+        extra_details["derived_unit_price"] = True
+
     if len(historical_values) < MINIMUM_HISTORY_SAMPLE_SIZE:
         return [
             VerificationFinding(
@@ -162,6 +177,7 @@ def _check_metric(
                     "line_item_key": key,
                     "line_item_index": index,
                     "required_sample_size": MINIMUM_HISTORY_SAMPLE_SIZE,
+                    **extra_details,
                 },
             )
         ]
@@ -177,6 +193,7 @@ def _check_metric(
             metric,
             key,
             index,
+            extra_details=extra_details,
         )
 
     z_score = abs(observed_value - mean) / standard_deviation
@@ -201,6 +218,7 @@ def _check_metric(
                 "metric": metric,
                 "line_item_key": key,
                 "line_item_index": index,
+                **extra_details,
             },
         )
     ]
@@ -214,9 +232,18 @@ def _check_zero_variance_metric(
     metric: str,
     key: str,
     index: int,
+    extra_details: dict[str, str | int | float | bool | None] | None = None,
 ) -> list[VerificationFinding]:
     if observed_value == mean:
         return []
+    details_dict: dict[str, str | int | float | bool | None] = {
+        "metric": metric,
+        "line_item_key": key,
+        "line_item_index": index,
+    }
+    if extra_details:
+        details_dict.update(extra_details)
+
     return [
         VerificationFinding(
             finding_type=finding_type,
@@ -229,11 +256,7 @@ def _check_zero_variance_metric(
             historical_sample_size=sample_size,
             historical_mean=mean,
             historical_standard_deviation=Decimal(0),
-            details={
-                "metric": metric,
-                "line_item_key": key,
-                "line_item_index": index,
-            },
+            details=details_dict,
         )
     ]
 

@@ -39,6 +39,13 @@ boundaries only and require separate approval before implementation.
 | 31 | Document type verification (ADR 0037) | Complete |
 | 32 | Extraction uncertainty verification (ADR 0038) | Complete |
 | 33 | Required invoice field completeness verification (ADR 0039) | Complete |
+| 34 | Line item completeness and derived subtotal verification (ADR 0040) | Complete |
+| 35 | Vendor bank account checksum verification (ADR 0041) | Complete |
+| 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
+| 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
+| 38 | Excessive tax amount verification (ADR 0044) | Complete |
+| 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
+| 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
 
 ## Phase 7: release engineering
 
@@ -1920,9 +1927,551 @@ See [ADR 0039](decisions/0039-required-invoice-field-completeness.md). Phase 33 
    `CHANGELOG.md`, `docs/release-evidence.md`, and `docs/PROGRESS.md`.
 7. Run the full release gate, push, and verify remote CI.
 
+## Phase 34: line item completeness and derived subtotal verification
+
+Phase 34 adds deterministic line-item completeness verification and closes the
+subtotal bypass caused by omitted line totals (ADR 0040), preventing line items
+that cannot be identified or priced from being silently skipped.
+
+### Motivation and context
+
+Phase 33 requires header identity and monetary fields. Line items remained a
+blind spot:
+
+- `line_item_key` returns `None` when both `product_identifier` and
+  `description` are absent or blank. Duplicate detection, vendor-history
+  occurrence, historical price/quantity statistics, and purchase-order matching
+  all skip such a line, so it can never be reconciled.
+- A line item may have no monetary data, or only one of `quantity` and
+  `unit_price`. Its amount is then neither checked by line-item arithmetic nor
+  usable by subtotal verification.
+- `check_line_items_subtotal` returned early when any `total_price` was absent,
+  even when `quantity * unit_price` was derivable. One omitted line total
+  disabled subtotal verification for the entire invoice.
+
+### Decision summary
+
+See [ADR 0040](decisions/0040-line-item-completeness-and-derived-subtotals.md).
+Phase 34 adds:
+
+- `incomplete_line_item` to `FindingType` in `veridoc.verification.models`;
+- `check_line_item_completeness(invoice)` in
+  `veridoc.verification.line_item_completeness`;
+- identity and amount requirements per line item, in line-item order with
+  identity before amount, both at `medium` severity;
+- derived `quantity * unit_price` line totals inside
+  `check_line_items_subtotal` when `total_price` is absent;
+- `VerificationService.verify()` integration after header completeness;
+- `tests/test_verification_line_item_completeness.py` and extended arithmetic
+  tests covering all paths.
+
+### Deliverables
+
+- `incomplete_line_item` finding type;
+- `check_line_item_completeness` pure function with the documented requirements;
+- `check_line_items_subtotal` derives omitted line totals instead of returning
+  early;
+- focused unit, ordering, immutability, service integration, verdict, and
+  subtotal-derivation tests;
+- ADR 0040 and decisions-index registration;
+- synchronized `docs/testing.md`, `docs/architecture.md`, `AGENTS.md`,
+  `README.md`, `CHANGELOG.md`, `docs/release-evidence.md`, and
+  `docs/PROGRESS.md`.
+
+### Acceptance criteria
+
+1. `incomplete_line_item` appears in `FindingType` and is accepted by
+   `VerificationFinding` (verified by `tests/test_verification_models.py`).
+2. `check_line_item_completeness` returns `[]` for an invoice with no line items
+   and for line items that have an identity and a total or both quantity and
+   unit price (verified by `tests/test_verification_line_item_completeness.py`).
+3. Missing identity yields one `medium` finding with `field="identity"`; an
+   amount that cannot be derived yields one `medium` finding with
+   `field="amount"` (verified by
+   `tests/test_verification_line_item_completeness.py`).
+4. Multiple line items produce findings in line-item order with identity before
+   amount, and `total_price=0` counts as present (verified by
+   `tests/test_verification_line_item_completeness.py`).
+5. `check_line_item_completeness` does not mutate the input extraction
+   (verified by `tests/test_verification_line_item_completeness.py`).
+6. `VerificationService.verify()` reports completeness findings and routes to
+   `review_required` (verified by
+   `tests/test_verification_line_item_completeness.py`).
+7. `check_line_items_subtotal` derives `quantity * unit_price` when a line total
+   is absent, still honors rounding tolerance, and flags material mismatches
+   (verified by `tests/test_verification_arithmetic.py`).
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_line_item_completeness.py tests/test_verification_arithmetic.py`.
+- Run `uv run pytest tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc`.
+- Run `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated distribution smoke tests.
+- Push the phase branch and verify the GitHub Actions workflow is green.
+
+### Exclusions
+
+- Requiring line items on every invoice; summary invoices remain valid.
+- Requiring quantity or unit price when `total_price` is present.
+- Judging line-item sign or value; Phases 25 and 27 own those rules.
+- Modifying extraction schemas, persistence, prompts, or evaluation manifests.
+
+### Micro-task breakdown
+
+1. Add the Phase 34 specification and ADR 0040.
+2. Add `incomplete_line_item` to `FindingType` with a model test.
+3. Implement `check_line_item_completeness` with unit tests.
+4. Integrate the completeness check into `VerificationService.verify()`.
+5. Derive omitted line totals in `check_line_items_subtotal` with tests.
+6. Update affected graph, service, and integration fixtures.
+7. Update documentation, release evidence, and the progress record.
+8. Run the full release gate, push, and verify remote CI.
+
+## Phase 35: vendor bank account checksum verification
+
+Phase 35 adds deterministic ISO 13616 IBAN structure and mod-97 checksum
+verification for the extracted `vendor_bank_account` (ADR 0041), so that OCR
+digit misreads and fabricated remit-to accounts are routed to review even when
+the vendor registry cannot reconcile them.
+
+### Objective
+
+An invoice whose `vendor_bank_account` is IBAN-shaped but fails its country
+length or mod-97 checksum yields a `high` `invalid_bank_account` finding and a
+`review_required` verdict through the real `VerificationService` and
+processing graph. Valid IBANs, absent accounts, and non-IBAN domestic account
+numbers produce no finding.
+
+### Scope
+
+- `invalid_bank_account` added to `FindingType`;
+- pure `check_bank_account_checksum(invoice)` in
+  `veridoc.verification.bank_account`, with an IBAN country-length table;
+- `VerificationService.verify()` integration after line-item completeness;
+- fixtures that use a checksum-invalid IBAN-shaped value are corrected;
+- ADR 0041, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_bank_account` is accepted by `VerificationFinding`.
+2. A valid IBAN (spaced or compact, mixed case) produces no finding.
+3. An IBAN-shaped value with a wrong checksum produces one `high` finding with
+   `details` carrying the normalized account and `reason="checksum"`.
+4. An IBAN-shaped value whose length differs from the country length produces
+   one `high` finding with `reason="length"`.
+5. Absent, blank, and non-IBAN-shaped (domestic) accounts produce no finding.
+6. The check does not mutate the input extraction.
+7. `VerificationService.verify()` reports the finding and routes to
+   `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_bank_account.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid IBAN; push
+  and verify GitHub Actions is green.
+
+### Exclusions
+
+- National account-number (BBAN) checksums beyond IBAN: per-country rules are
+  large and brittle.
+- Tax identifier format validation: formats vary and need a separate decision.
+- Extending vendor-registry matching or changing persistence schemas.
+
+### Micro-task breakdown
+
+1. Add the Phase 35 specification and ADR 0041.
+2. Register ADR 0041 in the decisions index.
+3. Add `invalid_bank_account` to `FindingType` with a model test.
+4. Add the IBAN length table and mod-97 helper with tests.
+5. Implement `check_bank_account_checksum` with unit tests per path.
+6. Integrate into `VerificationService.verify()` with service/verdict tests.
+7. Correct any fixture using a checksum-invalid IBAN-shaped value.
+8. Update documentation, release evidence, and the progress record.
+9. Run the full release gate, push, open a draft PR, and verify remote CI.
+
+## Phase 36: vendor VAT identifier format verification
+
+Phase 36 adds deterministic national VAT number structure verification for the
+extracted `vendor_tax_id` (ADR 0042), so that OCR misreads and fabricated
+tax identifiers are routed to review even when the vendor registry cannot
+reconcile them. It is the tax-identifier counterpart of Phase 35.
+
+### Objective
+
+An invoice whose `vendor_tax_id` carries a recognized EU/UK VAT country prefix
+but violates that country's structure yields a `medium` `invalid_tax_id`
+finding and a `review_required` verdict through the real
+`VerificationService`. Structurally valid VAT numbers, absent identifiers, and
+identifiers without a recognized prefix produce no finding.
+
+### Scope
+
+- `invalid_tax_id` added to `FindingType`;
+- pure `check_tax_id_format(invoice)` in `veridoc.verification.tax_id`, with a
+  per-country structure table (format only, no checksums);
+- `VerificationService.verify()` integration after bank account verification;
+- ADR 0042, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_tax_id` is accepted by `VerificationFinding`.
+2. Structurally valid VAT numbers (spaced, punctuated, lowercase) produce no
+   finding for every table country.
+3. A recognized-prefix identifier with the wrong structure produces one
+   `medium` finding whose `details` carry `field`, the normalized `tax_id`,
+   and the `country` prefix.
+4. Absent, blank, and unrecognized-prefix (domestic) identifiers produce no
+   finding.
+5. The check does not mutate the input extraction.
+6. `VerificationService.verify()` reports the finding and routes to
+   `review_required`.
+7. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_tax_id.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid VAT number;
+  push and verify GitHub Actions is green.
+
+### Exclusions
+
+- Per-country VAT checksum algorithms: large, brittle, and a separate decision.
+- Online VIES validation: needs network access and credentials.
+- Non-European tax identifier schemes: no recognized prefix, so ignored.
+
+### Micro-task breakdown
+
+1. Add the Phase 36 specification and ADR 0042.
+2. Register ADR 0042 in the decisions index.
+3. Add `invalid_tax_id` to `FindingType` with a model test.
+4. Add the per-country VAT structure table with a test.
+5. Implement `check_tax_id_format` with unit tests per path.
+6. Integrate into `VerificationService.verify()` with service/verdict tests.
+7. Update documentation, release evidence, and the progress record.
+8. Run the full release gate, push, open a draft PR, and verify remote CI.
+
+
+## Phase 37: ISO 4217 currency code verification
+
+Phase 37 adds deterministic currency code verification against the authoritative
+ISO 4217 standard (ADR 0043), ensuring that extracted 3-letter currency codes
+that do not correspond to any recognized international currency are flagged and
+routed to review before accounting or payment systems process them. It is the
+currency counterpart of Phase 35 (IBAN format/checksum) and Phase 36 (VAT format).
+
+### Objective
+
+An invoice whose extracted `currency` is present but does not match any recognized
+ISO 4217 three-letter currency code (e.g. `XYZ`, `INV`, `TOT`, `FOO`) yields a
+`medium` `invalid_currency` finding and a `review_required` verdict through the
+real `VerificationService`. Recognized ISO 4217 currency codes (e.g. `USD`, `EUR`,
+`GBP`, `CAD`, `JPY`) and absent (`None`) currencies produce no finding (omitted
+currency is handled by Phase 33 required-field completeness).
+
+### Scope
+
+- `invalid_currency` added to `FindingType`;
+- pure `check_currency_code(invoice)` in `veridoc.verification.currency`, with the
+  authoritative ISO 4217 currency code table;
+- `VerificationService.verify()` integration after tax ID format verification;
+- ADR 0043, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_currency` is accepted by `VerificationFinding`.
+2. Valid ISO 4217 currency codes produce no finding.
+3. Lowercase or whitespace-padded valid codes normalize cleanly and produce no finding.
+4. An unrecognized / invalid 3-letter code produces one `medium` finding whose
+   `details` carry `field="currency"` and the normalized `currency`.
+5. Absent (`None`) or empty string currency produces no finding.
+6. The check does not mutate the input extraction.
+7. `VerificationService.verify()` reports the finding and routes to `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_currency.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on a valid and an invalid currency code;
+  push and verify GitHub Actions is green.
+
+### Exclusions
+
+- Historical / discontinued currency conversion rates.
+- Crypto-asset or non-fiat codes not recognized by ISO 4217.
+- Automated currency conversion or FX rate lookups.
+
+### Micro-task breakdown
+
+1. Add the Phase 37 specification and ADR 0043.
+2. Register ADR 0043 in the decisions index.
+3. Add `invalid_currency` to `FindingType` with a model test.
+4. Add the ISO 4217 currency code table and `check_currency_code` rule.
+5. Add unit tests covering all paths and input immutability.
+6. Register test module in documentation.
+7. Integrate into `VerificationService.verify()` with service/verdict tests.
+8. Update documentation, release evidence, and the progress record.
+9. Run the full release gate, push, open a draft PR, and verify remote CI.
+
+## Phase 38: excessive tax amount verification
+
+Phase 38 adds deterministic verification of invoice tax amounts against pre-tax
+subtotals and payable totals (ADR 0044). In standard commercial taxation (VAT,
+GST, sales tax), statutory rates represent a bounded fraction of the taxable
+base. An extracted tax amount exceeding the subtotal (`tax > subtotal` when
+`subtotal > 0`), or exceeding the total payable amount (`tax > total` when
+`subtotal` is omitted and `total > 0`), indicates an OCR decimal-shift defect,
+field transposition, or invoice distortion, which must be routed to human review.
+
+### Objective
+
+An invoice whose extracted `tax` amount exceeds the `subtotal` (an effective
+tax rate > 100%), or exceeds the `total` when `subtotal` is absent, yields a
+`high`-severity `excessive_tax` finding and a `review_required` verdict through
+`VerificationService`. Invoices with valid commercial tax proportions
+(`tax <= subtotal`), zero tax, absent tax, or absent subtotal and total produce
+no finding.
+
+### Scope
+
+- `excessive_tax` added to `FindingType` in `veridoc.verification.models`;
+- pure `check_excessive_tax(invoice: InvoiceExtraction, max_tax_rate: Decimal = Decimal("1.00"))`
+  in `veridoc.verification.tax_bounds`;
+- structured details: `"field": "tax"`, `"tax"`, `"subtotal"`, `"effective_tax_rate"`,
+  and `"max_tax_rate"` (or `"total"` when subtotal is omitted);
+- `VerificationService.verify()` integration before arithmetic checks;
+- ADR 0044, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `excessive_tax` appears in `FindingType` and is accepted by `VerificationFinding`.
+2. Invoices with `tax <= subtotal` (including 0%, standard commercial rates 5-27%, and 100%) produce no finding.
+3. Invoices where `subtotal > 0` and `tax > subtotal` produce one `high`-severity finding with `field="tax"`, `tax`, `subtotal`, and `effective_tax_rate`.
+4. Invoices where `subtotal is None`, `total > 0`, and `tax > total` produce one `high`-severity finding with `field="tax"`, `tax`, and `total`.
+5. Invoices with absent (`None`) tax or absent subtotal and total produce no finding.
+6. Invoices with non-positive subtotals or totals (`<= 0`) produce no finding here (deferred to `non_positive_subtotal` / `non_positive_invoice_total`).
+7. The check does not mutate the input extraction.
+8. `VerificationService.verify()` reports the finding and routes the verdict to `review_required`.
+9. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_tax_bounds.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on valid and excessive tax amounts; push and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Multi-rate line-item level VAT schedule attribution.
+- Product-category tax exemption certificates.
+- Municipal/state bracket breakdown calculation.
+
+### Micro-task breakdown
+
+1. Add Phase 38 specification in `docs/roadmap.md`.
+2. Record ADR 0044 in `docs/decisions/0044-excessive-tax-amount-verification.md`.
+3. Register ADR 0044 in the decisions index.
+4. Add `excessive_tax` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `excessive_tax` in `tests/test_verification_models.py`.
+6. Implement `check_excessive_tax` in `src/veridoc/verification/tax_bounds.py`.
+7. Add unit tests covering all paths and input immutability in `tests/test_verification_tax_bounds.py`.
+8. Register `test_verification_tax_bounds` in `docs/testing.md`.
+9. Integrate `check_excessive_tax` into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_tax_bounds.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 38 complete in `docs/roadmap.md` approval rule.
+13. Record Phase 38 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 38 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
+
+## Phase 39: invoice number format and placeholder verification
+
+Phase 39 adds deterministic verification of invoice number syntax, length, and
+placeholder detection (ADR 0045). In commercial accounts payable (AP) and ERP
+reconciliation, `invoice_number` is the core transaction identifier. Vision/OCR
+models frequently transcribe generic field labels (e.g. `INVOICE`, `INV#`,
+`BILL NO`), placeholder tokens (`N/A`, `NONE`, `NULL`, `UNKNOWN`, `TBD`), pure
+punctuation (`-`, `/`, `.`), multi-line blocks with control characters, or
+runaway paragraphs (> 64 characters) into the invoice number field. When unflagged,
+such extractions corrupt accounts-payable ledgers and defeat duplicate invoice
+detection.
+
+### Objective
+
+An invoice whose extracted `invoice_number` is a generic placeholder, field
+label, blank or punctuation-only string, contains control characters or newlines,
+or exceeds 64 characters yields a `high`-severity `invalid_invoice_number`
+finding and routes to `review_required` in `VerificationService`. Genuine
+commercial invoice numbers (e.g. `INV-2026-001`, `987654`, `A/102-B`) and absent
+(`None`) invoice numbers produce no finding (omitted invoice number is cleanly
+handled by Phase 33 required-field completeness).
+
+### Scope
+
+- `invalid_invoice_number` added to `FindingType` in `veridoc.verification.models`;
+- pure `check_invoice_number_format(invoice: InvoiceExtraction)` in
+  `veridoc.verification.invoice_number`;
+- comprehensive canonical placeholder set and label pattern matching;
+- structured details: `"field": "invoice_number"`, `"invoice_number"`, and `"reason"`;
+- `VerificationService.verify()` integration;
+- ADR 0045, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_invoice_number` appears in `FindingType` and is accepted by `VerificationFinding`.
+2. Valid commercial invoice numbers (e.g. `INV-2026-001`, `987654`, `A/102-B`) produce no finding.
+3. Invoices with placeholder numbers (`N/A`, `NONE`, `NULL`, `UNKNOWN`, `TBD`, `PENDING`, `VOID`, `SAMPLE`) produce one `high`-severity finding with `reason="placeholder"`.
+4. Invoices with generic header labels (`INVOICE`, `INVOICE NUMBER`, `INV #`, `BILL NO`, `NUMBER`) produce one `high`-severity finding with `reason="generic_label"`.
+5. Invoices with blank or pure punctuation strings (`"-"`, `"---"`, `"."`, `"/"`, `"   "`) produce one `high`-severity finding with `reason="blank_or_punctuation"`.
+6. Invoices with control characters or newlines produce one `high`-severity finding with `reason="control_characters"`.
+7. Invoices with runaway length (> 64 characters) produce one `high`-severity finding with `reason="excessive_length"`.
+8. Invoices with absent (`None`) invoice number produce no finding.
+9. The check does not mutate the input extraction.
+10. `VerificationService.verify()` reports the finding and routes the verdict to `review_required`.
+11. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_invoice_number.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on valid and placeholder invoice numbers; push and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Vendor-specific proprietary regex pattern enforcement.
+- Domestic statutory invoice clearance checksum schemes (e.g. Mexican CFDI UUIDs).
+- Cross-vendor uniqueness constraints.
+
+### Micro-task breakdown
+
+1. Add Phase 39 specification in `docs/roadmap.md`.
+2. Record ADR 0045 in `docs/decisions/0045-invoice-number-format-verification.md`.
+3. Register ADR 0045 in the decisions index.
+4. Add `invalid_invoice_number` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `invalid_invoice_number` in `tests/test_verification_models.py`.
+6. Implement `check_invoice_number_format` in `src/veridoc/verification/invoice_number.py`.
+7. Add unit tests covering all paths and input immutability in `tests/test_verification_invoice_number.py`.
+8. Register `test_verification_invoice_number` in `docs/testing.md`.
+9. Integrate `check_invoice_number_format` into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_invoice_number.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 39 complete in `docs/roadmap.md` approval rule.
+13. Record Phase 39 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 39 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
+
+## Phase 40: line-item derived unit price arithmetic verification
+
+Phase 40 adds deterministic verification of derived line-item pricing (ADR 0046).
+In commercial invoices, OCR and vision extractors often extract `total_price` and
+`quantity` while `unit_price` is omitted on the document (or missed by the OCR model),
+or extract all three fields where `unit_price` was derived or rounded on the document.
+Phase 34 completed the derivation of omitted `total_price` from `quantity * unit_price`
+for subtotal verification. Phase 40 closes the dual path: when `total_price` and `quantity`
+are present (`quantity > 0`) but `unit_price` is omitted, the implied unit price is
+`total_price / quantity`; when `unit_price` is also present alongside `quantity` and
+`total_price`, any fractional discrepancy between `quantity * unit_price` and `total_price`
+is evaluated against rounding tolerances. Phase 40 formalizes and strengthens line-item
+price consistency, ensuring that when unit price is omitted, downstream reconciliation and
+historical unit price outlier analysis (e.g., `check_line_item_statistics`) can reliably evaluate
+unit economics, and flagging any unphysical zero/negative quantity divisions before arithmetic evaluation.
+
+### Objective
+
+Extend deterministic line-item arithmetic in `veridoc.verification.arithmetic` so that:
+1. When a line item provides `total_price` and `quantity` (`quantity > 0`) but omits `unit_price`,
+   no false arithmetic errors are raised, and the derived unit price is accessible for verification.
+2. In `check_line_item_amounts`, line items with present `quantity`, `unit_price`, and `total_price`
+   continue strict tolerance-bounded verification.
+3. In `check_line_item_occurrence` and `check_line_item_statistics` (historical analysis), line items
+   with omitted `unit_price` but valid `quantity > 0` and `total_price` utilize the derived unit price
+   `total_price / quantity` for historical unit price outlier comparisons, rather than silently skipping
+   unit price outlier detection.
+4. If `quantity == 0` when deriving unit price, no division by zero occurs (already flagged by Phase 25).
+5. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Scope
+
+- Helper `derive_unit_price(quantity: Decimal, total_price: Decimal) -> Decimal` with bounded decimal division (rounding to 4 decimal places).
+- Verification and historical statistics integration in `src/veridoc/verification/line_items.py` to evaluate derived unit prices for lines with omitted `unit_price`.
+- Unit tests covering derived unit price calculation, precision, zero quantity handling, and historical price outlier detection with derived unit prices.
+- ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md` and registered in `docs/decisions/README.md`.
+- Documentation (`docs/ROADMAP.md`, `docs/PROGRESS.md`, `docs/testing.md`, `docs/architecture.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md`).
+
+### Acceptance criteria
+
+1. `derive_unit_price` safely calculates `total_price / quantity` rounded to 4 decimal places when `quantity > 0`.
+2. When `quantity <= 0`, `derive_unit_price` returns `None` without raising `DivisionByZero` or `InvalidOperation`.
+3. Invoices with line items having omitted `unit_price` but valid `total_price` and `quantity > 0` participate in historical line-item unit price outlier detection (`historical_line_item_price_outlier`).
+4. If a derived unit price deviates significantly from historical mean (z-score >= 3.0), `historical_line_item_price_outlier` is emitted with details indicating derived unit price.
+5. Invoices with already present `unit_price` continue using the explicit `unit_price` without behavior change.
+6. Input extractions and historical records remain immutable.
+7. `VerificationService.verify()` and the complete processing pipeline run cleanly with 100% green tests.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_arithmetic.py tests/test_verification_line_items.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`, and isolated smoke tests.
+- Push phase branch and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Modifying the immutable `InvoiceLineItem` schema or mutating extracted data.
+- Enforcing mandatory `unit_price` on all line items (summary lines remain valid under Phase 34).
+- External currency conversion or catalog lookups.
+
+### Micro-task breakdown
+
+1. Add Phase 40 specification in `docs/ROADMAP.md`.
+2. Record ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md`.
+3. Register ADR 0046 in `docs/decisions/README.md`.
+4. Implement `derive_unit_price` in `src/veridoc/verification/arithmetic.py`.
+5. Add unit tests for `derive_unit_price` in `tests/test_verification_arithmetic.py`.
+6. Integrate derived unit price into `check_line_item_statistics` in `src/veridoc/verification/line_items.py`.
+7. Add tests for derived unit price historical outlier detection in `tests/test_verification_line_items.py`.
+8. Update `docs/testing.md` and documentation files.
+9. Record Phase 40 completion snapshot in `docs/release-evidence.md`.
+10. Update `docs/PROGRESS.md`.
+11. Push micro-commits, open draft PR, monitor and verify remote CI.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 33 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 40 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,

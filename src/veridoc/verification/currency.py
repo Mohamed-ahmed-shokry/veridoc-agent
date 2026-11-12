@@ -1,0 +1,235 @@
+"""Deterministic ISO 4217 currency code verification."""
+
+from __future__ import annotations
+
+from typing import Final
+
+from veridoc.extraction.models import InvoiceExtraction
+from veridoc.verification.models import VerificationFinding
+
+# Authoritative set of active ISO 4217 three-letter alphabetic currency codes.
+ISO_4217_CURRENCY_CODES: Final[frozenset[str]] = frozenset(
+    {
+        "AED",
+        "AFN",
+        "ALL",
+        "AMD",
+        "ANG",
+        "AOA",
+        "ARS",
+        "AUD",
+        "AWG",
+        "AZN",
+        "BAM",
+        "BBD",
+        "BDT",
+        "BGN",
+        "BHD",
+        "BIF",
+        "BMD",
+        "BND",
+        "BOB",
+        "BOV",
+        "BRL",
+        "BSD",
+        "BTN",
+        "BWP",
+        "BYN",
+        "BZD",
+        "CAD",
+        "CDF",
+        "CHE",
+        "CHF",
+        "CHW",
+        "CLF",
+        "CLP",
+        "CNY",
+        "COP",
+        "COU",
+        "CRC",
+        "CUC",
+        "CUP",
+        "CVE",
+        "CZK",
+        "DJF",
+        "DKK",
+        "DOP",
+        "DZD",
+        "EGP",
+        "ERN",
+        "ETB",
+        "EUR",
+        "FJD",
+        "FKP",
+        "GBP",
+        "GEL",
+        "GHS",
+        "GIP",
+        "GMD",
+        "GNF",
+        "GTQ",
+        "GYD",
+        "HKD",
+        "HNL",
+        "HTG",
+        "HUF",
+        "IDR",
+        "ILS",
+        "INR",
+        "IQD",
+        "IRR",
+        "ISK",
+        "JMD",
+        "JOD",
+        "JPY",
+        "KES",
+        "KGS",
+        "KHR",
+        "KMF",
+        "KPW",
+        "KRW",
+        "KWD",
+        "KYD",
+        "KZT",
+        "LAK",
+        "LBP",
+        "LKR",
+        "LRD",
+        "LSL",
+        "LYD",
+        "MAD",
+        "MDL",
+        "MGA",
+        "MKD",
+        "MMK",
+        "MNT",
+        "MOP",
+        "MRU",
+        "MUR",
+        "MVR",
+        "MWK",
+        "MXN",
+        "MXV",
+        "MYR",
+        "MZN",
+        "NAD",
+        "NGN",
+        "NIO",
+        "NOK",
+        "NPR",
+        "NZD",
+        "OMR",
+        "PAB",
+        "PEN",
+        "PGK",
+        "PHP",
+        "PKR",
+        "PLN",
+        "PYG",
+        "QAR",
+        "RON",
+        "RSD",
+        "RUB",
+        "RWF",
+        "SAR",
+        "SBD",
+        "SCR",
+        "SDG",
+        "SEK",
+        "SGD",
+        "SHP",
+        "SLE",
+        "SLL",
+        "SOS",
+        "SRD",
+        "SSP",
+        "STN",
+        "SVC",
+        "SYP",
+        "SZL",
+        "THB",
+        "TJS",
+        "TMT",
+        "TND",
+        "TOP",
+        "TRY",
+        "TTD",
+        "TWD",
+        "TZS",
+        "UAH",
+        "UGX",
+        "USD",
+        "USN",
+        "UYI",
+        "UYU",
+        "UYW",
+        "UZS",
+        "VED",
+        "VES",
+        "VND",
+        "VUV",
+        "WST",
+        "XAF",
+        "XAG",
+        "XAU",
+        "XBA",
+        "XBB",
+        "XBC",
+        "XBD",
+        "XCD",
+        "XDR",
+        "XOF",
+        "XPD",
+        "XPF",
+        "XPT",
+        "XSU",
+        "XTS",
+        "XUA",
+        "YER",
+        "ZAR",
+        "ZMW",
+        "ZWL",
+        "ZWG",
+    }
+)
+
+
+def check_currency_code(
+    invoice: InvoiceExtraction,
+) -> list[VerificationFinding]:
+    """Flag invoices whose currency code is not a valid ISO 4217 standard currency.
+
+    Args:
+        invoice: The extracted invoice data to verify.
+
+    Returns:
+        A list containing one ``invalid_currency`` finding with ``severity="medium"``
+        if ``invoice.currency`` is present and unrecognized, or an empty list
+        otherwise.
+    """
+    raw_currency = invoice.currency
+    if raw_currency is None:
+        return []
+
+    normalized = raw_currency.strip().upper()
+    if not normalized:
+        return []
+
+    if normalized in ISO_4217_CURRENCY_CODES:
+        return []
+
+    return [
+        VerificationFinding(
+            finding_type="invalid_currency",
+            severity="medium",
+            explanation=(
+                f"The invoice currency code '{normalized}' is not a recognized "
+                "ISO 4217 standard currency."
+            ),
+            comparison_source="invoice_fields",
+            deterministic_rule="currency in ISO 4217 active alphabetic codes",
+            observed_value=normalized,
+            expected_value="valid ISO 4217 currency code",
+            details={"field": "currency", "currency": normalized},
+        )
+    ]

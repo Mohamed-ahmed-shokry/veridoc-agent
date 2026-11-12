@@ -51,6 +51,12 @@ FindingType = Literal[
     "unsupported_document_type",
     "extraction_uncertainty",
     "missing_required_field",
+    "incomplete_line_item",
+    "invalid_bank_account",
+    "invalid_tax_id",
+    "invalid_currency",
+    "excessive_tax",
+    "invalid_invoice_number",
 ]
 
 
