@@ -244,9 +244,11 @@ vendor VAT identifier format verification
 ISO 4217 currency code verification
 ([ADR 0043](decisions/0043-iso-4217-currency-code-verification.md)),
 excessive tax amount verification
-([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)), and
+([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)),
 invoice number format and placeholder verification
-([ADR 0045](decisions/0045-invoice-number-format-verification.md)).
+([ADR 0045](decisions/0045-invoice-number-format-verification.md)), and
+line-item derived unit price arithmetic verification
+([ADR 0046](decisions/0046-line-item-derived-unit-price-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
