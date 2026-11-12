@@ -46,6 +46,7 @@ boundaries only and require separate approval before implementation.
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 | 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
+| 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | In progress |
 
 ## Phase 7: release engineering
 
@@ -2468,6 +2469,96 @@ Extend deterministic line-item arithmetic in `veridoc.verification.arithmetic` s
 9. Record Phase 40 completion snapshot in `docs/release-evidence.md`.
 10. Update `docs/PROGRESS.md`.
 11. Push micro-commits, open draft PR, monitor and verify remote CI.
+
+## Phase 41: cross-field vendor country and bank account consistency verification
+
+Phase 41 adds deterministic cross-field geographic consistency verification between
+the extracted vendor VAT tax identifier prefix and the vendor bank account IBAN
+country code (ADR 0047). In accounts payable fraud and invoice redirection attacks,
+adversaries or compromised suppliers often present legitimate-looking local invoices
+with a genuine domestic VAT registration number (e.g. German `DE` or French `FR`)
+while redirecting payment funds to an offshore bank account in an unrelated country
+(e.g. Cyprus `CY` or Malta `MT`). While Phase 35 verifies that the IBAN has a valid
+checksum and Phase 36 verifies that the VAT number has a valid structure, neither check
+cross-references the geographic identities embedded within those fields on the document.
+Phase 41 closes this gap deterministically without external network lookups: when both
+`vendor_tax_id` (with a recognized 2-letter country prefix) and `vendor_bank_account`
+(with a recognized 2-letter IBAN country prefix) are present on the invoice, the two
+country prefixes must match (with standard cross-border exceptions such as `GB` and `XI`
+for Northern Ireland, or `EL` and `GR` for Greece). When a geographic divergence is detected,
+a `high`-severity `tax_id_bank_country_mismatch` finding is emitted, routing the invoice
+to human review (`review_required`).
+
+### Objective
+
+Establish deterministic cross-field geographic verification between `vendor_tax_id` and
+`vendor_bank_account`:
+1. When both fields are present and carry recognized country prefixes, compare their
+   canonical ISO country codes.
+2. If the country codes diverge (e.g. `DE` VAT with `CY` IBAN), emit one `high`-severity
+   `tax_id_bank_country_mismatch` finding with structured details (`tax_country`, `bank_country`,
+   `vendor_tax_id`, `vendor_bank_account`).
+3. Allow recognized equivalence mappings: `EL` (VAT prefix for Greece) matches `GR` (IBAN prefix
+   for Greece), and `XI` (Northern Ireland VAT) matches `GB` (UK IBAN).
+4. When either field is absent, blank, or does not carry a recognized country prefix (e.g. domestic
+   account or non-prefixed tax ID), produce no finding (handled independently by Phase 35/36).
+5. Input extractions remain strictly immutable.
+6. `VerificationService.verify()` routes the finding to `review_required`.
+7. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Scope
+
+- `tax_id_bank_country_mismatch` added to `FindingType` in `veridoc.verification.models`.
+- Pure rule `check_tax_id_bank_country_consistency(invoice: InvoiceExtraction)` in
+  `src/veridoc/verification/country_consistency.py`.
+- Recognized country equivalence mappings (`EL` <-> `GR`, `XI` <-> `GB`).
+- Structured details: `tax_country`, `bank_country`, `vendor_tax_id`, `vendor_bank_account`.
+- Integration into `VerificationService.verify()` immediately following `check_tax_id_format`.
+- ADR 0047 in `docs/decisions/0047-cross-field-tax-id-bank-country-consistency.md` and registered in `docs/decisions/README.md`.
+- Documentation (`docs/ROADMAP.md`, `docs/PROGRESS.md`, `docs/testing.md`, `docs/architecture.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md`).
+
+### Acceptance criteria
+
+1. `tax_id_bank_country_mismatch` is accepted by `VerificationFinding`.
+2. Invoices where the VAT country prefix and IBAN country prefix match (e.g. `DE` / `DE`, `FR` / `FR`, `GB` / `GB`) produce no finding.
+3. Invoices with equivalent cross-border mappings (`EL` VAT with `GR` IBAN, `XI` VAT with `GB` IBAN) produce no finding.
+4. Invoices where the VAT country prefix and IBAN country prefix diverge (e.g. `FR` VAT with `CY` IBAN) produce one `high`-severity finding with `tax_country="FR"` and `bank_country="CY"`.
+5. Invoices where either `vendor_tax_id` or `vendor_bank_account` is absent, blank, or has an unrecognized prefix produce no finding.
+6. The check does not mutate the input extraction.
+7. `VerificationService.verify()` reports the finding and routes the verdict to `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_country_consistency.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`, and isolated smoke tests.
+- Push phase branch and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Validating multi-currency foreign exchange bank accounts where supplier policy explicitly permits foreign banks.
+- Querying external registries or banking routing directories.
+- Evaluating non-European domestic accounts without ISO country codes.
+
+### Micro-task breakdown
+
+1. Add Phase 41 specification in `docs/ROADMAP.md`.
+2. Record ADR 0047 in `docs/decisions/0047-cross-field-tax-id-bank-country-consistency.md`.
+3. Register ADR 0047 in `docs/decisions/README.md`.
+4. Add `tax_id_bank_country_mismatch` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `tax_id_bank_country_mismatch` in `tests/test_verification_models.py`.
+6. Implement `check_tax_id_bank_country_consistency` in `src/veridoc/verification/country_consistency.py`.
+7. Add unit tests covering matching, divergence, equivalence, absent fields, and immutability in `tests/test_verification_country_consistency.py`.
+8. Register `test_verification_country_consistency` in `docs/testing.md`.
+9. Integrate `check_tax_id_bank_country_consistency` into `VerificationService.verify()`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_country_consistency.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 41 complete in `docs/roadmap.md` approval rule and phase table.
+13. Record Phase 41 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 41 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
 
 ## Approval rule
 
