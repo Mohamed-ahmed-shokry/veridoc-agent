@@ -322,4 +322,3 @@ def test_line_item_statistics_derives_unit_price_when_omitted() -> None:
     assert finding.expected_value == "100.00"
     assert finding.details["derived_unit_price"] is True
     assert finding.details["line_item_key"] == "product:consulting"
-
