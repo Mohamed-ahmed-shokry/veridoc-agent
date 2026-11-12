@@ -45,6 +45,7 @@ boundaries only and require separate approval before implementation.
 | 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
+| 40 | Line-item derived unit price arithmetic verification (ADR 0046) | In progress |
 
 ## Phase 7: release engineering
 
@@ -2390,6 +2391,83 @@ handled by Phase 33 required-field completeness).
 13. Record Phase 39 completion snapshot in `docs/release-evidence.md`.
 14. Record Phase 39 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, open draft PR, monitor and verify remote CI.
+
+## Phase 40: line-item derived unit price arithmetic verification
+
+Phase 40 adds deterministic verification of derived line-item pricing (ADR 0046).
+In commercial invoices, OCR and vision extractors often extract `total_price` and
+`quantity` while `unit_price` is omitted on the document (or missed by the OCR model),
+or extract all three fields where `unit_price` was derived or rounded on the document.
+Phase 34 completed the derivation of omitted `total_price` from `quantity * unit_price`
+for subtotal verification. Phase 40 closes the dual path: when `total_price` and `quantity`
+are present (`quantity > 0`) but `unit_price` is omitted, the implied unit price is
+`total_price / quantity`; when `unit_price` is also present alongside `quantity` and
+`total_price`, any fractional discrepancy between `quantity * unit_price` and `total_price`
+is evaluated against rounding tolerances. Phase 40 formalizes and strengthens line-item
+price consistency, ensuring that when unit price is omitted, downstream reconciliation and
+historical unit price outlier analysis (e.g., `check_line_item_statistics`) can reliably evaluate
+unit economics, and flagging any unphysical zero/negative quantity divisions before arithmetic evaluation.
+
+### Objective
+
+Extend deterministic line-item arithmetic in `veridoc.verification.arithmetic` so that:
+1. When a line item provides `total_price` and `quantity` (`quantity > 0`) but omits `unit_price`,
+   no false arithmetic errors are raised, and the derived unit price is accessible for verification.
+2. In `check_line_item_amounts`, line items with present `quantity`, `unit_price`, and `total_price`
+   continue strict tolerance-bounded verification.
+3. In `check_line_item_occurrence` and `check_line_item_statistics` (historical analysis), line items
+   with omitted `unit_price` but valid `quantity > 0` and `total_price` utilize the derived unit price
+   `total_price / quantity` for historical unit price outlier comparisons, rather than silently skipping
+   unit price outlier detection.
+4. If `quantity == 0` when deriving unit price, no division by zero occurs (already flagged by Phase 25).
+5. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Scope
+
+- Helper `derive_unit_price(quantity: Decimal, total_price: Decimal) -> Decimal` with bounded decimal division (rounding to 4 decimal places).
+- Verification and historical statistics integration in `src/veridoc/verification/line_items.py` to evaluate derived unit prices for lines with omitted `unit_price`.
+- Unit tests covering derived unit price calculation, precision, zero quantity handling, and historical price outlier detection with derived unit prices.
+- ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md` and registered in `docs/decisions/README.md`.
+- Documentation (`docs/ROADMAP.md`, `docs/PROGRESS.md`, `docs/testing.md`, `docs/architecture.md`, `README.md`, `CHANGELOG.md`, `AGENTS.md`).
+
+### Acceptance criteria
+
+1. `derive_unit_price` safely calculates `total_price / quantity` rounded to 4 decimal places when `quantity > 0`.
+2. When `quantity <= 0`, `derive_unit_price` returns `None` without raising `DivisionByZero` or `InvalidOperation`.
+3. Invoices with line items having omitted `unit_price` but valid `total_price` and `quantity > 0` participate in historical line-item unit price outlier detection (`historical_line_item_price_outlier`).
+4. If a derived unit price deviates significantly from historical mean (z-score >= 3.0), `historical_line_item_price_outlier` is emitted with details indicating derived unit price.
+5. Invoices with already present `unit_price` continue using the explicit `unit_price` without behavior change.
+6. Input extractions and historical records remain immutable.
+7. `VerificationService.verify()` and the complete processing pipeline run cleanly with 100% green tests.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_arithmetic.py tests/test_verification_line_items.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`, `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`, and isolated smoke tests.
+- Push phase branch and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Modifying the immutable `InvoiceLineItem` schema or mutating extracted data.
+- Enforcing mandatory `unit_price` on all line items (summary lines remain valid under Phase 34).
+- External currency conversion or catalog lookups.
+
+### Micro-task breakdown
+
+1. Add Phase 40 specification in `docs/ROADMAP.md`.
+2. Record ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md`.
+3. Register ADR 0046 in `docs/decisions/README.md`.
+4. Implement `derive_unit_price` in `src/veridoc/verification/arithmetic.py`.
+5. Add unit tests for `derive_unit_price` in `tests/test_verification_arithmetic.py`.
+6. Integrate derived unit price into `check_line_item_statistics` in `src/veridoc/verification/line_items.py`.
+7. Add tests for derived unit price historical outlier detection in `tests/test_verification_line_items.py`.
+8. Update `docs/testing.md` and documentation files.
+9. Record Phase 40 completion snapshot in `docs/release-evidence.md`.
+10. Update `docs/PROGRESS.md`.
+11. Push micro-commits, open draft PR, monitor and verify remote CI.
 
 ## Approval rule
 
