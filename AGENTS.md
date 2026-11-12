@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 39 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 40 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -320,6 +320,10 @@ implementation remains deliberately small:
   labels, control characters and line breaks, blank/punctuation-only values, excessive
   length bounds, clean identifier acceptance, absent invoice number passthrough, input
   immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_arithmetic.py` and `tests/test_verification_line_items.py`
+  cover Phase 40 deterministic line-item derived unit price arithmetic verification (ADR 0046):
+  exact division, fractional 4-decimal precision, None/zero/negative quantity handling,
+  safe calculation without division exceptions, and derived unit price historical outlier detection.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
