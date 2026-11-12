@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 41 cross-field vendor tax ID and bank account country consistency verification (`tax_id_bank_country_mismatch`):
+  - Architecture Decision Record 0047 documenting deterministic cross-field geographic consistency verification between the extracted vendor VAT tax identifier prefix and the remit-to bank IBAN country code, including geographic equivalence mappings (`EL` <-> `GR`, `XI` <-> `GB`).
+  - `tax_id_bank_country_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_tax_id_bank_country_consistency()` in `veridoc.verification.country_consistency`. Emits one `high`-severity finding when both a vendor tax ID prefix (2 uppercase ASCII letters) and an IBAN-shaped remit-to bank account country (first 2 uppercase letters followed by 2 digits) are present, but their canonical country codes disagree. Structured details carry `field="vendor_tax_id"`, `tax_id_country`, `bank_account_country`, `tax_id`, and `bank_account`. Safely handles absent, empty, or non-IBAN fields without emitting findings.
+  - Integrated `check_tax_id_bank_country_consistency(invoice)` into `VerificationService.verify()` following `check_tax_id_format`.
+  - 22 focused unit, normalization, geographic equivalence, immutability, and service integration tests in `tests/test_verification_country_consistency.py`.
+
 - Phase 40 line-item derived unit price arithmetic verification:
   - Architecture Decision Record 0046 documenting deterministic line-item derived unit price calculation and its application to historical unit price outlier analysis.
   - Implemented pure helper `derive_unit_price(quantity, total_price)` in `veridoc.verification.arithmetic`. Evaluates `total_price / quantity` rounded to 4 decimal places (`0.0001`) when `quantity > 0`; returns `None` safely when either argument is absent or `quantity <= 0` without raising division exceptions.

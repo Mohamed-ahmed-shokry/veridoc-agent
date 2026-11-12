@@ -47,7 +47,7 @@ audit log with request linkage and before/after images, readable through
 in-transaction atomicity. Phase 20 adds review operator inspection commands,
 session lifecycle management (listing, immediate revocation, and pruning),
 automated session maintenance in `veridoc-backup`, and DOM-safe status and
-assignee filtering in the review console. Phase 21 through 36 expand deterministic
+assignee filtering in the review console. Phase 21 through 41 expand deterministic
 fraud, validation, arithmetic, payment, credit, completeness, and uncertainty rules: stale invoice detection (ADR 0028), future invoice date
 detection (ADR 0029), duplicate line item detection (ADR 0030), non-positive invoice
 total detection (ADR 0031), non-positive line item amount detection (ADR 0032),
@@ -57,7 +57,9 @@ quality gate restoration, excessive credit window bounds (ADR 0036), document ty
 extraction uncertainty verification (ADR 0038), required invoice field completeness
 verification (ADR 0039), line item completeness with derived subtotal
 verification (ADR 0040), vendor bank account checksum verification (ADR 0041), vendor
-VAT identifier format verification (ADR 0042), and ISO 4217 currency code verification (ADR 0043).
+VAT identifier format verification (ADR 0042), ISO 4217 currency code verification (ADR 0043),
+excessive tax amount verification (ADR 0044), invoice number format and placeholder verification (ADR 0045),
+line-item derived unit price arithmetic verification (ADR 0046), and cross-field vendor tax ID and bank account country consistency verification (ADR 0047).
 
 ## Implemented capabilities
 
@@ -139,7 +141,8 @@ VAT identifier format verification (ADR 0042), and ISO 4217 currency code verifi
 - deterministic ISO 4217 currency code verification validating 3-letter currency codes against standard active currencies ([ADR 0043](docs/decisions/0043-iso-4217-currency-code-verification.md));
 - deterministic excessive tax amount verification detecting tax liabilities that exceed the pre-tax subtotal or payable invoice total ([ADR 0044](docs/decisions/0044-excessive-tax-amount-verification.md));
 - deterministic invoice number format and placeholder verification detecting generic placeholders, labels, and corrupted syntax ([ADR 0045](docs/decisions/0045-invoice-number-format-verification.md));
-- deterministic line-item derived unit price arithmetic verification and historical price outlier evaluation ([ADR 0046](docs/decisions/0046-line-item-derived-unit-price-verification.md)); and
+- deterministic line-item derived unit price arithmetic verification and historical price outlier evaluation ([ADR 0046](docs/decisions/0046-line-item-derived-unit-price-verification.md));
+- deterministic cross-field vendor tax ID and bank account country consistency verification detecting geographic mismatches between remit-to bank IBAN country and vendor tax identifier country ([ADR 0047](docs/decisions/0047-cross-field-tax-id-bank-country-consistency.md)); and
 - authenticated review console integration rendering vendor entity resolution badges, bank mismatch warnings, and status/assignee filtering safely without `innerHTML`.
 
 ## Quick start
@@ -593,7 +596,7 @@ See the [project roadmap](docs/roadmap.md) for deliverables and history.
 - [Data and security](docs/data-and-security.md): fixture, secret, logging,
   upload, temporary-file, and retention rules.
 - [API](docs/api.md): implemented endpoints, limits, examples, and errors.
-- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 28 scope, Phase 14 blocked, and approval boundaries.
+- [Roadmap](docs/roadmap.md): completed Phase 0 through Phase 13 and Phase 15 through Phase 41 scope, Phase 14 blocked, and approval boundaries.
 - [Phase 9 delivery plan](docs/phase-9-plan.md): implemented design, decisions,
   atomic delivery record, verified gates, and the later-phase approval boundary.
 - [Operations runbook](docs/runbook.md): deployment operations, container management,

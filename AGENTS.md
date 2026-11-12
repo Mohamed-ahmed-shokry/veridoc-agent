@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 40 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 41 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -324,6 +324,10 @@ implementation remains deliberately small:
   cover Phase 40 deterministic line-item derived unit price arithmetic verification (ADR 0046):
   exact division, fractional 4-decimal precision, None/zero/negative quantity handling,
   safe calculation without division exceptions, and derived unit price historical outlier detection.
+- `tests/test_verification_country_consistency.py` covers Phase 41 deterministic
+  cross-field vendor tax ID and bank account country consistency verification (ADR 0047):
+  canonical country codes, geographic equivalence mappings (EL/GR, XI/GB), absent/blank/non-IBAN
+  passthrough, input immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible

@@ -396,3 +396,26 @@ def test_verification_finding_accepts_invalid_invoice_number() -> None:
     assert finding.finding_type == "invalid_invoice_number"
     assert finding.severity == "high"
     assert finding.details["reason"] == "placeholder"
+
+
+def test_verification_finding_accepts_tax_id_bank_country_mismatch() -> None:
+    finding = VerificationFinding(
+        finding_type="tax_id_bank_country_mismatch",
+        severity="high",
+        explanation="Vendor tax country 'DE' does not match bank country 'CY'.",
+        comparison_source="invoice_fields",
+        deterministic_rule="tax_country == bank_country",
+        observed_value="CY",
+        expected_value="DE",
+        details={
+            "field": "vendor_bank_account",
+            "tax_country": "DE",
+            "bank_country": "CY",
+            "vendor_tax_id": "DE123456789",
+            "vendor_bank_account": "CY17002001280000001201234567",
+        },
+    )
+    assert finding.finding_type == "tax_id_bank_country_mismatch"
+    assert finding.severity == "high"
+    assert finding.details["tax_country"] == "DE"
+    assert finding.details["bank_country"] == "CY"

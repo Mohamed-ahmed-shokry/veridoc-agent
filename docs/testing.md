@@ -156,6 +156,7 @@ tests/
 ├── test_verification_currency.py    Phase 37 ISO 4217 currency code rules and paths
 ├── test_verification_tax_bounds.py  Phase 38 excessive tax amount rules and paths
 ├── test_verification_invoice_number.py Phase 39 invoice number format rules and paths
+├── test_verification_country_consistency.py Phase 41 cross-field tax and bank country consistency rules and paths
 ├── test_distribution_check.py       release archive safety checks
 ├── test_documentation.py            Markdown links and test inventory
 └── test_fixtures.py               fixture determinism

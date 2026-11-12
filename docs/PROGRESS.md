@@ -1,70 +1,72 @@
-# Phase 40 Progress Record: Line-Item Derived Unit Price Arithmetic Verification
+# Phase 41 Progress Record: Cross-Field Vendor Country and Bank Account Consistency Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 40
-- **Goal:** Introduce deterministic line-item derived unit price arithmetic verification (ADR 0046), enabling safe unit price derivation from `total_price / quantity` with 4-decimal precision when `unit_price` is omitted on line items, and integrating derived pricing into historical unit price outlier analysis.
+- **Phase:** Phase 41
+- **Goal:** Implement deterministic cross-field geographic consistency verification (ADR 0047) between extracted vendor tax identification prefixes and remit-to bank account IBAN country codes, with domain-accurate equivalence handling (`EL` <-> `GR`, `XI` <-> `GB`) to detect invoice redirection fraud and geographic anomalies without requiring network access or external registries.
 - **Status:** Complete
-- **Branch:** `phase/line-item-unit-price-derivation`
-- **Draft PR:** [#19](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/19)
-- **Base:** `phase/invoice-number-verification` (stacked on Phase 39)
+- **Branch:** `phase/cross-field-tax-country-verification`
+- **Draft PR:** [#20](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/20)
+- **Base:** `main`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 40 specification in `docs/roadmap.md` | Completed | `2b3d6a3` |
-| 2 | Record ADR 0046 in `docs/decisions/0046-line-item-derived-unit-price-verification.md` | Completed | `96fc0c2` |
-| 3 | Register ADR 0046 in decisions index | Completed | `6d853ee` |
-| 4 | Implement `derive_unit_price` helper in `src/veridoc/verification/arithmetic.py` | Completed | `59283f5` |
-| 5 | Add unit tests for `derive_unit_price` in `tests/test_verification_arithmetic.py` | Completed | `9a2efd7` |
-| 6 | Integrate derived unit price into `check_line_item_statistics` in `src/veridoc/verification/line_items.py` | Completed | `055c051` |
-| 7 | Add unit tests for derived unit price historical outlier detection in `tests/test_verification_line_items.py` | Completed | `8118d23` |
-| 8 | Fix EOF whitespace and format issues across touched files | Completed | `7200468`, `27106b2`, `be9897c`, `c0e57a4` |
-| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `26d5fd0`, `f10a878`, `64e2bad`, `80e3527` |
-| 10 | Mark Phase 40 complete in `docs/roadmap.md` approval rule and phase table | Completed | `f818637` |
-| 11 | Record Phase 40 completion snapshot in `docs/release-evidence.md` | Completed | `5e249d4` |
-| 12 | Finalize progress record with validation evidence | Completed | this commit |
+| 1 | Define Phase 41 specification in `docs/roadmap.md` | Completed | `3cf6e5e` |
+| 2 | Record ADR 0047 in `docs/decisions/0047-cross-field-tax-id-bank-country-consistency.md` | Completed | `4bee8dc` |
+| 3 | Register ADR 0047 in decisions index `docs/decisions/README.md` | Completed | `a57af88` |
+| 4 | Add `tax_id_bank_country_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `580d1fe` |
+| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `d8f2172` |
+| 6 | Implement `check_tax_id_bank_country_consistency` in `src/veridoc/verification/country_consistency.py` | Completed | `996ccf6` |
+| 7 | Add unit tests covering matching, divergence, equivalence, absent fields, and immutability in `tests/test_verification_country_consistency.py` | Completed | `16f848e` |
+| 8 | Register `test_verification_country_consistency` in `docs/testing.md` | Completed | `fc77084` |
+| 9 | Integrate `check_tax_id_bank_country_consistency` into `VerificationService.verify()` | Completed | `2f55de3` |
+| 10 | Add `VerificationService` integration and verdict tests in `tests/test_verification_country_consistency.py` | Completed | `d5f37a7` |
+| 11 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `7c51483`, `7ba4756`, `aa4bf9e`, `48ee731` |
+| 12 | Mark Phase 41 complete in `docs/roadmap.md` approval rule and phase table | Completed | `3318212` |
+| 13 | Record Phase 41 completion snapshot in `docs/release-evidence.md` | Completed | `978d9ea` |
+| 14 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `derive_unit_price` safely calculates `total_price / quantity` rounded to 4 decimal places when `quantity > 0` | Verified | `tests/test_verification_arithmetic.py` passed |
-| 2 | When `quantity <= 0`, `derive_unit_price` returns `None` without raising `DivisionByZero` or `InvalidOperation` | Verified | `tests/test_verification_arithmetic.py` passed |
-| 3 | Invoices with line items having omitted `unit_price` but valid `total_price` and `quantity > 0` participate in historical line-item unit price outlier detection | Verified | `tests/test_verification_line_items.py` passed |
-| 4 | If a derived unit price deviates significantly from historical mean (z-score >= 3.0), `historical_line_item_price_outlier` is emitted with details indicating derived unit price | Verified | `tests/test_verification_line_items.py` passed |
-| 5 | Invoices with already present `unit_price` continue using the explicit `unit_price` without behavior change | Verified | Existing test suite passed with 0 regressions |
-| 6 | Input extractions and historical records remain immutable | Verified | Test assertions confirm zero mutations |
-| 7 | `VerificationService.verify()` and the complete processing pipeline run cleanly with 100% green tests | Verified | 1615 tests passed with 94.15% branch coverage |
-| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Remote CI run 43229676738 passed quality job in 1m41s |
+| 1 | `tax_id_bank_country_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed |
+| 2 | Tax ID 2-letter country prefix is extracted and normalized; IBAN 2-letter prefix is extracted and normalized | Verified | `tests/test_verification_country_consistency.py` passed |
+| 3 | Recognized geographic equivalences (`EL` <-> `GR`, `XI` <-> `GB`) map to canonical country codes and do not trigger findings | Verified | `tests/test_verification_country_consistency.py` passed |
+| 4 | When country codes diverge, emits one `high`-severity `tax_id_bank_country_mismatch` finding with structured details | Verified | `tests/test_verification_country_consistency.py` passed |
+| 5 | When tax ID is absent, bank account is absent, or bank account is not IBAN-shaped, rule safely emits zero findings | Verified | `tests/test_verification_country_consistency.py` passed |
+| 6 | Input extraction models remain completely immutable | Verified | `tests/test_verification_country_consistency.py` passed |
+| 7 | `VerificationService.verify()` invokes rule and routes conflicting invoices to `review_required` | Verified | `tests/test_verification_country_consistency.py` passed |
+| 8 | All local and remote CI checks run cleanly with 100% green status | Verified | Remote CI run 43319112460 passed quality job in 1m19s |
 
 ## Decision Log
 
-### Decision 1: Pure helper with bounded decimal quantization
-- **Context:** In commercial invoices, `unit_price` is frequently omitted or uncaptured while line `quantity` and `total_price` are available. A naive division could raise `DivisionByZero` or `InvalidOperation` when quantities are zero or negative, or produce unbounded floating point representations.
-- **Decision:** Implement `derive_unit_price(quantity, total_price)` returning `Decimal | None` quantized to `Decimal("0.0001")` (4 decimal places standard in commercial pricing). If either argument is `None` or `quantity <= 0`, return `None` safely.
-- **Alternatives Considered:** Returning full floating point or 2 decimal places. Rejected: 4 decimal places accommodates high-precision fractional unit rates standard in enterprise AP/ERP systems.
-- **Blast Radius & Reversibility:** Pure function, zero side effects.
+### Decision 1: Pure deterministic rule with geographic equivalence mapping
+- **Context:** European VAT prefixes generally match ISO 3166-1 alpha-2 codes used by IBAN, but exceptions exist: Greece uses `EL` for VAT and `GR` for IBAN; Northern Ireland uses `XI` for VAT under the Northern Ireland Protocol while operating under UK `GB` banking infrastructure.
+- **Decision:** Implement a canonical country mapping dictionary `_CANONICAL_COUNTRY_MAP = {"EL": "GR", "XI": "GB"}`. Both VAT and IBAN country codes are canonicalized before comparison, ensuring legitimate Greek and Northern Irish invoices are never falsely flagged.
+- **Alternatives Considered:** Raw equality check `vat[:2] == iban[:2]`. Rejected: would cause 100% false-positive rate on Greek and Northern Irish invoices.
+- **Blast Radius & Reversibility:** Pure function, localized to `src/veridoc/verification/country_consistency.py`.
 
-### Decision 2: Transparent outlier evaluation with explicit provenance tag
-- **Context:** `check_line_item_statistics` previously skipped unit price outlier detection if `line_item.unit_price is None`.
-- **Decision:** Fall back to `derive_unit_price(line_item.quantity, line_item.total_price)`. If an outlier is detected, tag `details["derived_unit_price"] = True` so review operators and audit trails distinguish explicit vs derived unit prices.
-- **Alternatives Considered:** Mutating the extracted line item to inject `unit_price`. Rejected: violates extraction schema immutability.
+### Decision 2: High severity finding classification
+- **Context:** A mismatch between the vendor's tax jurisdiction and their remit-to bank account country is a classic indicator of invoice redirection fraud (e.g. a German invoice instructing payment to a Polish or UK bank account).
+- **Decision:** Assign `severity="high"` to `tax_id_bank_country_mismatch`. Under deterministic verdict derivation, a high-severity finding automatically routes the invoice verdict to `review_required`, preventing unearned clear verdicts.
+- **Alternatives Considered:** Medium or low severity. Rejected: fraudulent bank redirection is a critical financial risk requiring mandatory human review.
 
 ## Validation & CI Log
 
 - `git diff --check "$(git hash-object -t tree /dev/null)" HEAD`: Clean (0 errors)
-- `uv lock --check`: Passed
-- `uv run pip-audit`: Passed (0 vulnerabilities)
-- `uv run ruff check .`: Passed (All checks passed)
-- `uv run ruff format --check .`: Passed (326 files formatted)
-- `uv run mypy`: Passed (0 issues in 124 files)
-- `uv run pytest --cov=veridoc`: Passed (1615 passed, 94.15% branch coverage)
+- `uv lock --check`: Passed (Resolved 103 packages in 2ms)
+- `uv run pip-audit`: Passed (0 vulnerabilities; `veridoc` skipped)
+- `uv run ruff check .`: Passed (All checks passed!)
+- `uv run ruff format --check .`: Passed (329 files formatted)
+- `uv run mypy`: Passed (0 issues across 125 source files)
+- `uv run pytest --cov=veridoc`: Passed (1638 passed, 94.18% branch coverage, 90.0% floor)
 - `uv run pytest tests/test_documentation.py`: Passed (3 passed)
-- `uv build --clear`: Built wheel and sdist
-- `uv run twine check dist/*`: Both passed
-- `uv run python scripts/check_distribution.py`: Both passed
-- Isolated wheel smoke test: Passed
-- Isolated sdist smoke test: Passed
-- Remote CI run: [43229676738](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43229676738) (Quality job passed in 1m41s)
+- `uv build --clear`: Built `veridoc-0.1.0-py3-none-any.whl` and `veridoc-0.1.0.tar.gz`
+- `uv run twine check dist/*`: Both distributions passed metadata validation
+- `uv run python scripts/check_distribution.py`: Both archives passed content, entry-point, and path safety
+- Isolated wheel smoke test: Passed isolated install and API smoke test
+- Isolated sdist smoke test: Passed isolated build, install, and API smoke test
+- Remote GitHub Actions CI run: [43319112460](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43319112460) (Quality job passed in 1m19s)
