@@ -376,3 +376,23 @@ def test_verification_finding_accepts_excessive_tax() -> None:
     assert finding.severity == "high"
     assert finding.details["tax"] == "150.00"
     assert finding.details["subtotal"] == "100.00"
+
+
+def test_verification_finding_accepts_invalid_invoice_number() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_invoice_number",
+        severity="high",
+        explanation="The invoice number is a placeholder ('N/A').",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.invoice_number is a valid alphanumeric identifier and not a placeholder",
+        observed_value="N/A",
+        expected_value="valid invoice number",
+        details={
+            "field": "invoice_number",
+            "invoice_number": "N/A",
+            "reason": "placeholder",
+        },
+    )
+    assert finding.finding_type == "invalid_invoice_number"
+    assert finding.severity == "high"
+    assert finding.details["reason"] == "placeholder"

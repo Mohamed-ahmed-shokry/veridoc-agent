@@ -242,9 +242,11 @@ vendor bank account checksum verification
 vendor VAT identifier format verification
 ([ADR 0042](decisions/0042-vendor-vat-identifier-format-verification.md)),
 ISO 4217 currency code verification
-([ADR 0043](decisions/0043-iso-4217-currency-code-verification.md)), and
+([ADR 0043](decisions/0043-iso-4217-currency-code-verification.md)),
 excessive tax amount verification
-([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)).
+([ADR 0044](decisions/0044-excessive-tax-amount-verification.md)), and
+invoice number format and placeholder verification
+([ADR 0045](decisions/0045-invoice-number-format-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -255,8 +257,10 @@ the check. Bank account checksum verification enforces ISO 13616 country lengths
 and mod-97 integrity for IBAN-shaped remit-to accounts independently of master
 data, VAT identifier verification enforces the published per-country structure
 for recognized prefixes independently of master data, currency code verification
-enforces standard active ISO 4217 alphabetic currency codes, and excessive tax
-verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals.
+enforces standard active ISO 4217 alphabetic currency codes, excessive tax
+verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals,
+and invoice number format verification rejects placeholders, generic labels, control
+characters, blank/punctuation-only values, and excessive-length identifiers.
 
 ## Typed explanation flow
 

@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 39 invoice number format and placeholder verification (`invalid_invoice_number`):
+  - Architecture Decision Record 0045 documenting deterministic verification of invoice number syntax, length bounds, and placeholder/label detection.
+  - `invalid_invoice_number` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_invoice_number_format()` in `veridoc.verification.invoice_number`. Emits one `high`-severity finding when `invoice_number` matches a placeholder token (e.g. `N/A`, `NONE`, `NULL`), generic field label (e.g. `INVOICE`, `INV #`, `BILL NO`), blank or punctuation-only string, control characters/newlines, or exceeds 64 characters. Structured details carry `field`, `invoice_number`, and `reason`. Absent (`None`) invoice numbers produce no finding (deferred to required-field completeness).
+  - Integrated `check_invoice_number_format(invoice)` into `VerificationService.verify()` following required field completeness.
+  - 66 focused unit, categorization, immutability, and service integration tests in `tests/test_verification_invoice_number.py`.
+
 - Phase 38 excessive tax amount verification (`excessive_tax`):
   - Architecture Decision Record 0044 documenting deterministic verification of invoice tax amounts against pre-tax subtotals and payable invoice totals.
   - `excessive_tax` added to the `FindingType` literal union in `veridoc.verification.models`.

@@ -44,6 +44,7 @@ boundaries only and require separate approval before implementation.
 | 36 | Vendor VAT identifier format verification (ADR 0042) | Complete |
 | 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
+| 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2309,9 +2310,90 @@ no finding.
 14. Record Phase 38 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, open draft PR, monitor and verify remote CI.
 
+## Phase 39: invoice number format and placeholder verification
+
+Phase 39 adds deterministic verification of invoice number syntax, length, and
+placeholder detection (ADR 0045). In commercial accounts payable (AP) and ERP
+reconciliation, `invoice_number` is the core transaction identifier. Vision/OCR
+models frequently transcribe generic field labels (e.g. `INVOICE`, `INV#`,
+`BILL NO`), placeholder tokens (`N/A`, `NONE`, `NULL`, `UNKNOWN`, `TBD`), pure
+punctuation (`-`, `/`, `.`), multi-line blocks with control characters, or
+runaway paragraphs (> 64 characters) into the invoice number field. When unflagged,
+such extractions corrupt accounts-payable ledgers and defeat duplicate invoice
+detection.
+
+### Objective
+
+An invoice whose extracted `invoice_number` is a generic placeholder, field
+label, blank or punctuation-only string, contains control characters or newlines,
+or exceeds 64 characters yields a `high`-severity `invalid_invoice_number`
+finding and routes to `review_required` in `VerificationService`. Genuine
+commercial invoice numbers (e.g. `INV-2026-001`, `987654`, `A/102-B`) and absent
+(`None`) invoice numbers produce no finding (omitted invoice number is cleanly
+handled by Phase 33 required-field completeness).
+
+### Scope
+
+- `invalid_invoice_number` added to `FindingType` in `veridoc.verification.models`;
+- pure `check_invoice_number_format(invoice: InvoiceExtraction)` in
+  `veridoc.verification.invoice_number`;
+- comprehensive canonical placeholder set and label pattern matching;
+- structured details: `"field": "invoice_number"`, `"invoice_number"`, and `"reason"`;
+- `VerificationService.verify()` integration;
+- ADR 0045, decisions index, testing/architecture/AGENTS/README/CHANGELOG,
+  release evidence, and progress record updates.
+
+### Acceptance criteria
+
+1. `invalid_invoice_number` appears in `FindingType` and is accepted by `VerificationFinding`.
+2. Valid commercial invoice numbers (e.g. `INV-2026-001`, `987654`, `A/102-B`) produce no finding.
+3. Invoices with placeholder numbers (`N/A`, `NONE`, `NULL`, `UNKNOWN`, `TBD`, `PENDING`, `VOID`, `SAMPLE`) produce one `high`-severity finding with `reason="placeholder"`.
+4. Invoices with generic header labels (`INVOICE`, `INVOICE NUMBER`, `INV #`, `BILL NO`, `NUMBER`) produce one `high`-severity finding with `reason="generic_label"`.
+5. Invoices with blank or pure punctuation strings (`"-"`, `"---"`, `"."`, `"/"`, `"   "`) produce one `high`-severity finding with `reason="blank_or_punctuation"`.
+6. Invoices with control characters or newlines produce one `high`-severity finding with `reason="control_characters"`.
+7. Invoices with runaway length (> 64 characters) produce one `high`-severity finding with `reason="excessive_length"`.
+8. Invoices with absent (`None`) invoice number produce no finding.
+9. The check does not mutate the input extraction.
+10. `VerificationService.verify()` reports the finding and routes the verdict to `review_required`.
+11. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- `uv run pytest tests/test_verification_invoice_number.py tests/test_verification_models.py tests/test_documentation.py`
+- `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy`
+- `uv run pytest --cov=veridoc`
+- `uv lock --check`, `uv run pip-audit`, `uv build --clear`,
+  `uv run twine check dist/*`, `uv run python scripts/check_distribution.py`,
+  and the isolated wheel/sdist smoke tests.
+- End to end: run `VerificationService` on valid and placeholder invoice numbers; push and verify GitHub Actions CI is green.
+
+### Exclusions
+
+- Vendor-specific proprietary regex pattern enforcement.
+- Domestic statutory invoice clearance checksum schemes (e.g. Mexican CFDI UUIDs).
+- Cross-vendor uniqueness constraints.
+
+### Micro-task breakdown
+
+1. Add Phase 39 specification in `docs/roadmap.md`.
+2. Record ADR 0045 in `docs/decisions/0045-invoice-number-format-verification.md`.
+3. Register ADR 0045 in the decisions index.
+4. Add `invalid_invoice_number` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `invalid_invoice_number` in `tests/test_verification_models.py`.
+6. Implement `check_invoice_number_format` in `src/veridoc/verification/invoice_number.py`.
+7. Add unit tests covering all paths and input immutability in `tests/test_verification_invoice_number.py`.
+8. Register `test_verification_invoice_number` in `docs/testing.md`.
+9. Integrate `check_invoice_number_format` into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_invoice_number.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 39 complete in `docs/roadmap.md` approval rule.
+13. Record Phase 39 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 39 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 38 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 39 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
