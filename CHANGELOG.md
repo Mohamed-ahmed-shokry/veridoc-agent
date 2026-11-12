@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 40 line-item derived unit price arithmetic verification:
+  - Architecture Decision Record 0046 documenting deterministic line-item derived unit price calculation and its application to historical unit price outlier analysis.
+  - Implemented pure helper `derive_unit_price(quantity, total_price)` in `veridoc.verification.arithmetic`. Evaluates `total_price / quantity` rounded to 4 decimal places (`0.0001`) when `quantity > 0`; returns `None` safely when either argument is absent or `quantity <= 0` without raising division exceptions.
+  - Integrated `derive_unit_price()` into `check_line_item_statistics()` in `veridoc.verification.line_items` to evaluate derived unit prices for items omitting `unit_price`, emitting `historical_line_item_price_outlier` with `derived_unit_price: True` in finding details when z-score deviates significantly from vendor history.
+  - Unit tests covering exact division, 4-decimal precision, None/zero/negative quantity handling, and historical outlier detection with derived unit prices.
+
 - Phase 39 invoice number format and placeholder verification (`invalid_invoice_number`):
   - Architecture Decision Record 0045 documenting deterministic verification of invoice number syntax, length bounds, and placeholder/label detection.
   - `invalid_invoice_number` added to the `FindingType` literal union in `veridoc.verification.models`.
