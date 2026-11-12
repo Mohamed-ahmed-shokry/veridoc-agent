@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 37 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 38 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -310,6 +310,11 @@ implementation remains deliberately small:
   currency code verification (ADR 0043): all table currency codes, spacing and case
   normalization, unrecognized code findings, absent and empty acceptance, input
   immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_tax_bounds.py` covers Phase 38 deterministic excessive tax
+  amount verification (ADR 0044): valid tax ratios, tax exceeding subtotal, tax
+  exceeding total with omitted subtotal, absent/zero/negative tax acceptance, non-positive
+  subtotal/total passthrough, custom tax rates, input immutability, `VerificationService`
+  integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
