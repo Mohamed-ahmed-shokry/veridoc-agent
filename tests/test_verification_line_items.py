@@ -269,3 +269,57 @@ def test_line_item_statistics_handles_uniform_history_deterministically() -> Non
         finding.details["line_item_key"] == "product:consulting" for finding in findings
     )
     assert all(finding.details["line_item_index"] == 0 for finding in findings)
+
+
+def test_line_item_statistics_derives_unit_price_when_omitted() -> None:
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number=f"INV-{index}",
+            currency="USD",
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="CONSULTING",
+                    quantity="2",
+                    unit_price="100.00",
+                )
+            ],
+        )
+        for index in range(1, 4)
+    ]
+    # Unit price omitted, total_price=200.00, quantity=2 => derived unit price = 100.00
+    matching_derived = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="2",
+                total_price="200.00",
+            )
+        ],
+    )
+    assert check_line_item_statistics(matching_derived, history) == []
+
+    # Outlier: total_price=1000.00, quantity=2 => derived unit price = 500.00 != 100.00
+    outlier_derived = InvoiceExtraction(
+        document_type="invoice",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="CONSULTING",
+                quantity="2",
+                total_price="1000.00",
+            )
+        ],
+    )
+    findings = check_line_item_statistics(outlier_derived, history)
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "historical_line_item_price_outlier"
+    assert finding.severity == "high"
+    assert finding.observed_value == "500.0000"
+    assert finding.expected_value == "100.00"
+    assert finding.details["derived_unit_price"] is True
+    assert finding.details["line_item_key"] == "product:consulting"
+
