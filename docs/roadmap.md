@@ -45,7 +45,7 @@ boundaries only and require separate approval before implementation.
 | 37 | ISO 4217 currency code verification (ADR 0043) | Complete |
 | 38 | Excessive tax amount verification (ADR 0044) | Complete |
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
-| 40 | Line-item derived unit price arithmetic verification (ADR 0046) | In progress |
+| 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2471,7 +2471,7 @@ Extend deterministic line-item arithmetic in `veridoc.verification.arithmetic` s
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 39 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 40 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
