@@ -62,3 +62,5 @@ Accepted decisions:
 - [0043: ISO 4217 currency code verification](0043-iso-4217-currency-code-verification.md)
 - [0044: Excessive tax amount verification](0044-excessive-tax-amount-verification.md)
 - [0045: Invoice number format and placeholder verification](0045-invoice-number-format-verification.md)
+- [0046: Line-item derived unit price arithmetic verification](0046-line-item-derived-unit-price-verification.md)
+
