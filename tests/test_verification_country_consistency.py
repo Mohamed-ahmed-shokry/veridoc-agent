@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+
 import pytest
 
 from veridoc.extraction.models import InvoiceExtraction
@@ -36,7 +37,10 @@ def _invoice(
         ("de123456789", "de89370400440532013000"),
         # Geographic equivalents
         ("EL123456789", "GR1601101250000000012300505"),  # Greece: EL VAT <-> GR IBAN
-        ("XI123456789", "GB29NWBK60161331926819"),  # Northern Ireland: XI VAT <-> GB IBAN
+        (
+            "XI123456789",
+            "GB29NWBK60161331926819",
+        ),  # Northern Ireland: XI VAT <-> GB IBAN
     ],
 )
 def test_country_consistency_accepts_matching_and_equivalent_countries(
@@ -117,3 +121,47 @@ def test_country_consistency_does_not_mutate_input() -> None:
     snapshot = copy.deepcopy(invoice)
     check_tax_id_bank_country_consistency(invoice)
     assert invoice == snapshot
+
+
+def test_verification_service_routes_tax_bank_mismatch_to_review_required() -> None:
+    from decimal import Decimal
+
+    from veridoc.persistence.protocol import InvoiceRepository
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.references import HistoricalInvoice, PurchaseOrder
+    from veridoc.verification.service import VerificationService
+
+    class _StubRepo(InvoiceRepository):
+        def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
+            return []
+
+        def get_purchase_order(
+            self, vendor_key: str, purchase_order_number: str
+        ) -> PurchaseOrder | None:
+            return None
+
+    # Fully valid invoice except for tax country (DE) vs bank country (CY)
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        invoice_number="INV-2026-001",
+        invoice_date="2026-11-01",
+        currency="EUR",
+        subtotal=Decimal("100.00"),
+        tax=Decimal("19.00"),
+        total=Decimal("119.00"),
+        vendor_tax_id="DE123456789",
+        vendor_bank_account="CY17002001280000001201234567",
+    )
+    service = VerificationService(repository=_StubRepo())
+    result = service.verify(invoice)
+
+    finding_types = [f.finding_type for f in result.findings]
+    assert "tax_id_bank_country_mismatch" in finding_types
+
+    mismatch_finding = next(
+        f for f in result.findings if f.finding_type == "tax_id_bank_country_mismatch"
+    )
+    assert mismatch_finding.severity == "high"
+
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
