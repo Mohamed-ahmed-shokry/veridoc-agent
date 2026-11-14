@@ -439,3 +439,45 @@ def test_verification_finding_accepts_invalid_purchase_order_number() -> None:
     assert finding.finding_type == "invalid_purchase_order_number"
     assert finding.severity == "medium"
     assert finding.details["reason"] == "placeholder"
+
+
+def test_verification_finding_accepts_low_ocr_confidence() -> None:
+    finding = VerificationFinding(
+        finding_type="low_ocr_confidence",
+        severity="medium",
+        explanation="OCR confidence (58.5%) is below the minimum threshold (70.0%).",
+        comparison_source="invoice_fields",
+        deterministic_rule="ocr_confidence >= 70.0",
+        observed_value="58.5",
+        expected_value=">= 70.0",
+        details={
+            "field": "ocr_confidence",
+            "confidence": 58.5,
+            "threshold": 70.0,
+        },
+    )
+    assert finding.finding_type == "low_ocr_confidence"
+    assert finding.severity == "medium"
+    assert finding.details["confidence"] == 58.5
+
+
+def test_verification_finding_accepts_low_extraction_confidence() -> None:
+    finding = VerificationFinding(
+        finding_type="low_extraction_confidence",
+        severity="medium",
+        explanation=(
+            "Extraction confidence (61.0%) is below the minimum threshold (70.0%)."
+        ),
+        comparison_source="invoice_fields",
+        deterministic_rule="extraction_confidence >= 70.0",
+        observed_value="61.0",
+        expected_value=">= 70.0",
+        details={
+            "field": "extraction_confidence",
+            "confidence": 61.0,
+            "threshold": 70.0,
+        },
+    )
+    assert finding.finding_type == "low_extraction_confidence"
+    assert finding.severity == "medium"
+    assert finding.details["confidence"] == 61.0
