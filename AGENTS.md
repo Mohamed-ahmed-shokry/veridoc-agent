@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 42 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 43 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -333,6 +333,11 @@ implementation remains deliberately small:
   generic labels, control characters, blank/punctuation-only values, excessive length bounds,
   clean identifier acceptance, absent purchase order number passthrough, input immutability,
   `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_confidence.py` covers Phase 43 deterministic OCR and
+  extraction confidence threshold verification (ADR 0049): absent confidence passthrough,
+  threshold boundary acceptance (`>= 70.0`), low OCR/extraction confidence findings,
+  deterministic ordering, custom thresholds, invalid threshold validation, input
+  immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
