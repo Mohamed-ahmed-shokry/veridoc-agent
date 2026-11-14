@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 41 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 42 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -328,6 +328,11 @@ implementation remains deliberately small:
   cross-field vendor tax ID and bank account country consistency verification (ADR 0047):
   canonical country codes, geographic equivalence mappings (EL/GR, XI/GB), absent/blank/non-IBAN
   passthrough, input immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_purchase_order_number.py` covers Phase 42 deterministic
+  purchase order number format and placeholder verification (ADR 0048): placeholder tokens,
+  generic labels, control characters, blank/punctuation-only values, excessive length bounds,
+  clean identifier acceptance, absent purchase order number passthrough, input immutability,
+  `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
