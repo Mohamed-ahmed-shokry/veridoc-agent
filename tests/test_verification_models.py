@@ -439,4 +439,3 @@ def test_verification_finding_accepts_invalid_purchase_order_number() -> None:
     assert finding.finding_type == "invalid_purchase_order_number"
     assert finding.severity == "medium"
     assert finding.details["reason"] == "placeholder"
-
