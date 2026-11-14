@@ -58,6 +58,7 @@ FindingType = Literal[
     "excessive_tax",
     "invalid_invoice_number",
     "tax_id_bank_country_mismatch",
+    "invalid_purchase_order_number",
 ]
 
 
