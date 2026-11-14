@@ -64,3 +64,4 @@ Accepted decisions:
 - [0045: Invoice number format and placeholder verification](0045-invoice-number-format-verification.md)
 - [0046: Line-item derived unit price arithmetic verification](0046-line-item-derived-unit-price-verification.md)
 - [0047: Cross-field vendor country and bank account consistency verification](0047-cross-field-tax-id-bank-country-consistency.md)
+- [0048: Purchase order number format and placeholder verification](0048-purchase-order-number-format-verification.md)

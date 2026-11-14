@@ -8,6 +8,14 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 42 purchase order number format and placeholder verification (`invalid_purchase_order_number`):
+  - Architecture Decision Record 0048 documenting deterministic verification of purchase order number syntax, length bounds, placeholder/label detection, and integration with downstream purchase order matching.
+  - `invalid_purchase_order_number` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_purchase_order_number_format()` and pure validation helper `is_valid_purchase_order_number()` in `veridoc.verification.purchase_order_number`. Emits one `medium`-severity finding when `purchase_order_number` matches a placeholder token (e.g. `N/A`, `NONE`, `NULL`, `TBD`, `PENDING`, `NO PO`), generic field label (e.g. `PO`, `PO #`, `PURCHASE ORDER`, `P.O.`), blank or punctuation-only string, control characters/newlines, or exceeds 64 characters. Structured details carry `field="purchase_order_number"`, `purchase_order_number`, and `reason`. Absent (`None`) purchase order numbers produce zero findings.
+  - Integrated `check_purchase_order_number_format(invoice)` into `VerificationService.verify()` following invoice number format checks.
+  - Updated `check_purchase_order` and `check_purchase_order_ceiling` in `veridoc.verification.purchase_orders` to bypass repository queries when the extracted PO number format is invalid, preventing misleading `purchase_order_mismatch` findings on placeholder tokens.
+  - 80 focused unit, categorization, boundary, immutability, and service integration tests in `tests/test_verification_purchase_order_number.py`, plus PO bypass tests in `tests/test_verification_purchase_orders.py`.
+
 - Phase 41 cross-field vendor tax ID and bank account country consistency verification (`tax_id_bank_country_mismatch`):
   - Architecture Decision Record 0047 documenting deterministic cross-field geographic consistency verification between the extracted vendor VAT tax identifier prefix and the remit-to bank IBAN country code, including geographic equivalence mappings (`EL` <-> `GR`, `XI` <-> `GB`).
   - `tax_id_bank_country_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.

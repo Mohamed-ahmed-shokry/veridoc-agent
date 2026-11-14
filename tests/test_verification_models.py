@@ -419,3 +419,23 @@ def test_verification_finding_accepts_tax_id_bank_country_mismatch() -> None:
     assert finding.severity == "high"
     assert finding.details["tax_country"] == "DE"
     assert finding.details["bank_country"] == "CY"
+
+
+def test_verification_finding_accepts_invalid_purchase_order_number() -> None:
+    finding = VerificationFinding(
+        finding_type="invalid_purchase_order_number",
+        severity="medium",
+        explanation="The purchase order number is a placeholder ('N/A').",
+        comparison_source="invoice_fields",
+        deterministic_rule="invoice.purchase_order_number is a valid alphanumeric identifier and not a placeholder",
+        observed_value="N/A",
+        expected_value="valid purchase order number",
+        details={
+            "field": "purchase_order_number",
+            "purchase_order_number": "N/A",
+            "reason": "placeholder",
+        },
+    )
+    assert finding.finding_type == "invalid_purchase_order_number"
+    assert finding.severity == "medium"
+    assert finding.details["reason"] == "placeholder"
