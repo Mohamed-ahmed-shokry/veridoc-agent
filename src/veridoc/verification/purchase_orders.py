@@ -8,6 +8,9 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
 from veridoc.verification.line_items import line_item_key
 from veridoc.verification.models import VerificationFinding
+from veridoc.verification.purchase_order_number import (
+    is_valid_purchase_order_number,
+)
 from veridoc.verification.references import (
     HistoricalInvoice,
     PurchaseOrder,
@@ -21,7 +24,11 @@ def check_purchase_order(
 ) -> list[VerificationFinding]:
     """Compare extracted invoice facts with their referenced purchase order."""
     vendor_key = vendor_key_for(invoice)
-    if vendor_key is None or invoice.purchase_order_number is None:
+    if (
+        vendor_key is None
+        or invoice.purchase_order_number is None
+        or not is_valid_purchase_order_number(invoice.purchase_order_number)
+    ):
         return []
     purchase_order = repository.get_purchase_order(
         vendor_key, invoice.purchase_order_number
@@ -78,7 +85,11 @@ def check_purchase_order_ceiling(
 ) -> list[VerificationFinding]:
     """Flag split over-billing when prior invoices plus this one exceed the PO."""
     vendor_key = vendor_key_for(invoice)
-    if vendor_key is None or invoice.purchase_order_number is None:
+    if (
+        vendor_key is None
+        or invoice.purchase_order_number is None
+        or not is_valid_purchase_order_number(invoice.purchase_order_number)
+    ):
         return []
     purchase_order = repository.get_purchase_order(
         vendor_key, invoice.purchase_order_number
