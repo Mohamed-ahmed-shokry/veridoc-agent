@@ -226,3 +226,62 @@ def test_check_purchase_order_number_preserves_input_immutability() -> None:
     assert len(findings) == 1
     assert invoice.model_dump() == original_dict
     assert MAX_PURCHASE_ORDER_NUMBER_LENGTH == 64
+
+
+# ---------------------------------------------------------------------------
+# Service Integration & Verdict
+# ---------------------------------------------------------------------------
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_reports_invalid_purchase_order_number() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice("N/A"))
+    findings = [
+        f for f in result.findings if f.finding_type == "invalid_purchase_order_number"
+    ]
+
+    assert len(findings) == 1
+    assert findings[0].severity == "medium"
+    assert findings[0].details["reason"] == "placeholder"
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_accepts_valid_purchase_order_number() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice("PO-12345"))
+    findings = [
+        f for f in result.findings if f.finding_type == "invalid_purchase_order_number"
+    ]
+
+    assert findings == []
+
+
+def test_verification_service_accepts_absent_purchase_order_number() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+
+    result = service.verify(_invoice(None))
+    findings = [
+        f for f in result.findings if f.finding_type == "invalid_purchase_order_number"
+    ]
+
+    assert findings == []
