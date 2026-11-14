@@ -1,72 +1,81 @@
-# Phase 41 Progress Record: Cross-Field Vendor Country and Bank Account Consistency Verification
+# Phase 42 Progress Record: Purchase Order Number Format and Placeholder Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 41
-- **Goal:** Implement deterministic cross-field geographic consistency verification (ADR 0047) between extracted vendor tax identification prefixes and remit-to bank account IBAN country codes, with domain-accurate equivalence handling (`EL` <-> `GR`, `XI` <-> `GB`) to detect invoice redirection fraud and geographic anomalies without requiring network access or external registries.
+- **Phase:** Phase 42
+- **Goal:** Implement deterministic verification of extracted `purchase_order_number` syntax, length bounds, and placeholder/label detection (ADR 0048) to prevent generic placeholder tokens (e.g. `N/A`, `NONE`, `NULL`, `TBD`, `NO PO`), generic column headers/labels (e.g. `PO`, `PURCHASE ORDER`), control characters, and runaway OCR paragraphs (> 64 characters) from corrupting downstream two-way/three-way matching or causing spurious mismatches.
 - **Status:** Complete
-- **Branch:** `phase/cross-field-tax-country-verification`
-- **Draft PR:** [#20](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/20)
+- **Branch:** `phase/purchase-order-number-verification`
+- **Draft PR:** [#21](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/21)
 - **Base:** `main`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 41 specification in `docs/roadmap.md` | Completed | `3cf6e5e` |
-| 2 | Record ADR 0047 in `docs/decisions/0047-cross-field-tax-id-bank-country-consistency.md` | Completed | `4bee8dc` |
-| 3 | Register ADR 0047 in decisions index `docs/decisions/README.md` | Completed | `a57af88` |
-| 4 | Add `tax_id_bank_country_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `580d1fe` |
-| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `d8f2172` |
-| 6 | Implement `check_tax_id_bank_country_consistency` in `src/veridoc/verification/country_consistency.py` | Completed | `996ccf6` |
-| 7 | Add unit tests covering matching, divergence, equivalence, absent fields, and immutability in `tests/test_verification_country_consistency.py` | Completed | `16f848e` |
-| 8 | Register `test_verification_country_consistency` in `docs/testing.md` | Completed | `fc77084` |
-| 9 | Integrate `check_tax_id_bank_country_consistency` into `VerificationService.verify()` | Completed | `2f55de3` |
-| 10 | Add `VerificationService` integration and verdict tests in `tests/test_verification_country_consistency.py` | Completed | `d5f37a7` |
-| 11 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `7c51483`, `7ba4756`, `aa4bf9e`, `48ee731` |
-| 12 | Mark Phase 41 complete in `docs/roadmap.md` approval rule and phase table | Completed | `3318212` |
-| 13 | Record Phase 41 completion snapshot in `docs/release-evidence.md` | Completed | `978d9ea` |
-| 14 | Finalize progress record with validation evidence | Completed | this commit |
+| 1 | Define Phase 42 specification in `docs/roadmap.md` | Completed | `f8cda1c` |
+| 2 | Record ADR 0048 in `docs/decisions/0048-purchase-order-number-format-verification.md` | Completed | `ce73497` |
+| 3 | Register ADR 0048 in decisions index `docs/decisions/README.md` | Completed | `bb36a25` |
+| 4 | Add `invalid_purchase_order_number` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `cf8f601` |
+| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `d889fa1`, `ed917e2` |
+| 6 | Implement `check_purchase_order_number_format` and helper in `src/veridoc/verification/purchase_order_number.py` | Completed | `2f747ea` |
+| 7 | Add unit tests covering placeholder, label, control character, punctuation, and length paths in `tests/test_verification_purchase_order_number.py` | Completed | `cf17781` |
+| 8 | Register `test_verification_purchase_order_number` in `docs/testing.md` | Completed | `cebf037` |
+| 9 | Integrate `check_purchase_order_number_format` into `VerificationService.verify()` | Completed | `ecff261` |
+| 10 | Add `VerificationService` integration and verdict tests in `tests/test_verification_purchase_order_number.py` | Completed | `e0c31bb` |
+| 11 | Avoid redundant PO lookup when purchase order number format is invalid | Completed | `efd8a60`, `9ea23db` |
+| 12 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `319c76c`, `686e89a`, `4a378ac`, `131f809` |
+| 13 | Mark Phase 42 complete in `docs/roadmap.md` approval rule and phase table | Completed | `f240186` |
+| 14 | Record Phase 42 completion snapshot in `docs/release-evidence.md` | Completed | `b26404f` |
+| 15 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `tax_id_bank_country_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed |
-| 2 | Tax ID 2-letter country prefix is extracted and normalized; IBAN 2-letter prefix is extracted and normalized | Verified | `tests/test_verification_country_consistency.py` passed |
-| 3 | Recognized geographic equivalences (`EL` <-> `GR`, `XI` <-> `GB`) map to canonical country codes and do not trigger findings | Verified | `tests/test_verification_country_consistency.py` passed |
-| 4 | When country codes diverge, emits one `high`-severity `tax_id_bank_country_mismatch` finding with structured details | Verified | `tests/test_verification_country_consistency.py` passed |
-| 5 | When tax ID is absent, bank account is absent, or bank account is not IBAN-shaped, rule safely emits zero findings | Verified | `tests/test_verification_country_consistency.py` passed |
-| 6 | Input extraction models remain completely immutable | Verified | `tests/test_verification_country_consistency.py` passed |
-| 7 | `VerificationService.verify()` invokes rule and routes conflicting invoices to `review_required` | Verified | `tests/test_verification_country_consistency.py` passed |
-| 8 | All local and remote CI checks run cleanly with 100% green status | Verified | Remote CI run 43319112460 passed quality job in 1m19s |
+| 1 | `invalid_purchase_order_number` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed |
+| 2 | When `purchase_order_number` is `None`, zero findings are emitted | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 3 | When `purchase_order_number` contains control characters or line breaks, emits finding with `reason="control_characters"` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 4 | When `purchase_order_number` contains only whitespace or punctuation, emits finding with `reason="blank_or_punctuation"` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 5 | When `purchase_order_number` exceeds 64 characters, emits finding with `reason="excessive_length"` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 6 | When `purchase_order_number` matches a placeholder token, emits finding with `reason="placeholder"` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 7 | When `purchase_order_number` matches a generic label token, emits finding with `reason="generic_label"` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 8 | Valid purchase order numbers (e.g. `PO-12345`, `4500012345`) emit zero findings | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 9 | Input invoice extractions remain strictly immutable | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 10 | `VerificationService.verify()` runs check and routes invoices with invalid PO numbers to `review_required` | Verified | `tests/test_verification_purchase_order_number.py` passed |
+| 11 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Remote CI run 43591632069 passed quality job in 1m31s |
 
 ## Decision Log
 
-### Decision 1: Pure deterministic rule with geographic equivalence mapping
-- **Context:** European VAT prefixes generally match ISO 3166-1 alpha-2 codes used by IBAN, but exceptions exist: Greece uses `EL` for VAT and `GR` for IBAN; Northern Ireland uses `XI` for VAT under the Northern Ireland Protocol while operating under UK `GB` banking infrastructure.
-- **Decision:** Implement a canonical country mapping dictionary `_CANONICAL_COUNTRY_MAP = {"EL": "GR", "XI": "GB"}`. Both VAT and IBAN country codes are canonicalized before comparison, ensuring legitimate Greek and Northern Irish invoices are never falsely flagged.
-- **Alternatives Considered:** Raw equality check `vat[:2] == iban[:2]`. Rejected: would cause 100% false-positive rate on Greek and Northern Irish invoices.
-- **Blast Radius & Reversibility:** Pure function, localized to `src/veridoc/verification/country_consistency.py`.
+### Decision 1: Dedicated validation rule with categorized reasons
+- **Context:** In multimodal extraction, models frequently capture non-identifying values (placeholders like `"N/A"`, labels like `"PO"`, control characters, runaway sentences) into `purchase_order_number`.
+- **Decision:** Implement `check_purchase_order_number_format(invoice, max_length=64)` emitting `invalid_purchase_order_number` with categorized reasons (`placeholder`, `generic_label`, `control_characters`, `blank_or_punctuation`, `excessive_length`) and structured details.
+- **Alternatives Considered:** Reusing `invalid_invoice_number`. Rejected: purchase order is a distinct entity and optional field with different business lifecycle, downstream reconciliation, and severity profile.
+- **Blast Radius & Reversibility:** Pure function, zero side effects.
 
-### Decision 2: High severity finding classification
-- **Context:** A mismatch between the vendor's tax jurisdiction and their remit-to bank account country is a classic indicator of invoice redirection fraud (e.g. a German invoice instructing payment to a Polish or UK bank account).
-- **Decision:** Assign `severity="high"` to `tax_id_bank_country_mismatch`. Under deterministic verdict derivation, a high-severity finding automatically routes the invoice verdict to `review_required`, preventing unearned clear verdicts.
-- **Alternatives Considered:** Medium or low severity. Rejected: fraudulent bank redirection is a critical financial risk requiring mandatory human review.
+### Decision 2: Medium severity classification
+- **Context:** Unlike invoice numbers (which are legally mandatory for tax and payment disbursement), purchase orders are optional on non-PO invoices (e.g. utility bills, subscriptions).
+- **Decision:** Assign `severity="medium"` to `invalid_purchase_order_number`. It flags the corrupt extracted reference and routes the verdict to `review_required` while properly distinguishing document reference defects from critical payment-level risks (e.g. `invalid_bank_account` or `invalid_invoice_number` which carry `high` severity).
+- **Alternatives Considered:** High severity. Rejected: reserving high severity for mandatory payment coordinates and fraud indicators preserves appropriate severity hierarchy.
+
+### Decision 3: Bypass repository query on invalid PO syntax
+- **Context:** When `invoice.purchase_order_number` is `"N/A"`, downstream `check_purchase_order` attempts to query SQLite for a PO named `"N/A"`, fails to find it, and reports `purchase_order_mismatch` ("No matching purchase order was found for the extracted PO number").
+- **Decision:** When `not is_valid_purchase_order_number(invoice.purchase_order_number)`, `check_purchase_order` returns `[]`. This prevents misleading mismatch findings on placeholder strings and ensures the true issue (`invalid_purchase_order_number`) is reported without clutter.
+- **Alternatives Considered:** Allowing both findings. Rejected: redundant and confuses review operators.
 
 ## Validation & CI Log
 
 - `git diff --check "$(git hash-object -t tree /dev/null)" HEAD`: Clean (0 errors)
-- `uv lock --check`: Passed (Resolved 103 packages in 2ms)
+- `uv lock --check`: Passed (Resolved 103 packages in 3ms)
 - `uv run pip-audit`: Passed (0 vulnerabilities; `veridoc` skipped)
 - `uv run ruff check .`: Passed (All checks passed!)
-- `uv run ruff format --check .`: Passed (329 files formatted)
-- `uv run mypy`: Passed (0 issues across 125 source files)
-- `uv run pytest --cov=veridoc`: Passed (1638 passed, 94.18% branch coverage, 90.0% floor)
+- `uv run ruff format --check .`: Passed (332 files formatted)
+- `uv run mypy`: Passed (0 issues across 126 source files)
+- `uv run pytest --cov=veridoc`: Passed (1721 passed, 94.22% branch coverage, 90.0% floor)
 - `uv run pytest tests/test_documentation.py`: Passed (3 passed)
 - `uv build --clear`: Built `veridoc-0.1.0-py3-none-any.whl` and `veridoc-0.1.0.tar.gz`
 - `uv run twine check dist/*`: Both distributions passed metadata validation
 - `uv run python scripts/check_distribution.py`: Both archives passed content, entry-point, and path safety
 - Isolated wheel smoke test: Passed isolated install and API smoke test
 - Isolated sdist smoke test: Passed isolated build, install, and API smoke test
-- Remote GitHub Actions CI run: [43319112460](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43319112460) (Quality job passed in 1m19s)
+- Remote GitHub Actions CI run: [43591632069](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/actions/runs/43591632069) (Quality job passed in 1m31s)

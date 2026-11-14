@@ -257,3 +257,30 @@ def test_purchase_order_ceiling_skips_without_prior_invoices() -> None:
     )
 
     assert check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), []) == []
+
+
+def test_check_purchase_order_skips_on_invalid_po_number() -> None:
+    """Placeholder PO numbers are not queried against the repository."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="N/A",
+        currency="USD",
+        total="100.00",
+    )
+    assert check_purchase_order(invoice, PurchaseOrderRepository()) == []
+
+
+def test_check_purchase_order_ceiling_skips_on_invalid_po_number() -> None:
+    """Placeholder PO numbers do not evaluate against PO ceilings."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="N/A",
+        currency="USD",
+        total="8200.00",
+    )
+    history = [_prior_invoice("INV-101", "3000.00")]
+    assert (
+        check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history) == []
+    )

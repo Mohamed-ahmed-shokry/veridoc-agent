@@ -32,6 +32,9 @@ from veridoc.verification.line_items import (
 )
 from veridoc.verification.models import VerificationFinding, VerificationResult
 from veridoc.verification.payment_terms import check_payment_terms_due_date
+from veridoc.verification.purchase_order_number import (
+    check_purchase_order_number_format,
+)
 from veridoc.verification.purchase_orders import (
     check_purchase_order,
     check_purchase_order_ceiling,
@@ -72,6 +75,7 @@ class VerificationService:
         """Return all applicable deterministic findings for one invoice."""
         findings = check_required_fields(invoice)
         findings.extend(check_invoice_number_format(invoice))
+        findings.extend(check_purchase_order_number_format(invoice))
         findings.extend(check_line_item_completeness(invoice))
         findings.extend(check_bank_account_checksum(invoice))
         findings.extend(check_tax_id_format(invoice))

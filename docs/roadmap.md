@@ -47,6 +47,7 @@ boundaries only and require separate approval before implementation.
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 | 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
 | 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | Complete |
+| 42 | Purchase order number format and placeholder verification (ADR 0048) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2560,9 +2561,80 @@ Establish deterministic cross-field geographic verification between `vendor_tax_
 14. Record Phase 41 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, open draft PR, monitor and verify remote CI.
 
+## Phase 42: purchase order number format and placeholder verification
+
+Phase 42 adds deterministic verification of purchase order number syntax, length bounds, and placeholder/label detection (ADR 0048).
+
+### Objective
+
+In accounts payable and ERP systems, `purchase_order_number` references an authorizing commercial purchase contract. When present on an invoice, it serves as the key for two-way and three-way purchase order matching and provides an anchor that exempts genuine contracts from stale-invoice flags.
+
+Vision and OCR extraction models frequently capture generic placeholder tokens (e.g. `N/A`, `NONE`, `NULL`, `TBD`, `PENDING`, `NO PO`), generic column headers/labels (e.g. `PO`, `PO #`, `PO NO`, `PURCHASE ORDER`), control characters or newlines, pure punctuation (e.g. `-`, `---`, `...`), or runaway multi-line text paragraphs (> 64 characters) when a purchase order number is omitted or misaligned on the document.
+
+Phase 42 implements deterministic verification of extracted `purchase_order_number` values:
+1. When `purchase_order_number` is present and matches a placeholder token, generic label, control character/newline sequence, punctuation-only string, or exceeds 64 characters, emit one `medium`-severity `invalid_purchase_order_number` finding with structured details (`field`, `purchase_order_number`, `reason`).
+2. When `purchase_order_number` is absent (`None`), emit zero findings (non-PO invoices are valid commercial documents and are handled by downstream PO matching policies).
+3. Provide `is_valid_purchase_order_number(raw_value)` helper to prevent placeholder strings from acting as false PO anchors in downstream rules.
+4. Integrate into `VerificationService.verify()`, evaluating `check_purchase_order_number_format(invoice)` alongside invoice number checks.
+
+### Scope
+
+- Architecture Decision Record 0048.
+- Add `invalid_purchase_order_number` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Pure rule `check_purchase_order_number_format(invoice, max_length=64)` and helper `is_valid_purchase_order_number(raw_value)` in `src/veridoc/verification/purchase_order_number.py`.
+- Unit tests in `tests/test_verification_purchase_order_number.py`.
+- Integration into `VerificationService.verify()`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `invalid_purchase_order_number` is a recognized `FindingType` literal union member.
+2. When `purchase_order_number` is `None`, zero findings are emitted.
+3. When `purchase_order_number` contains control characters or line breaks, emits `invalid_purchase_order_number` with `reason="control_characters"`.
+4. When `purchase_order_number` contains only whitespace or punctuation, emits `invalid_purchase_order_number` with `reason="blank_or_punctuation"`.
+5. When `purchase_order_number` exceeds 64 characters, emits `invalid_purchase_order_number` with `reason="excessive_length"`.
+6. When `purchase_order_number` matches a placeholder token (case- and whitespace-insensitive), emits `invalid_purchase_order_number` with `reason="placeholder"`.
+7. When `purchase_order_number` matches a generic label token (case- and whitespace-insensitive), emits `invalid_purchase_order_number` with `reason="generic_label"`.
+8. Valid purchase order numbers (e.g. `PO-12345`, `PO/2026/099`, `4500012345`, `ENG-PO-882`) emit zero findings.
+9. Input invoice extractions remain strictly immutable.
+10. `VerificationService.verify()` runs the check and routes invoices with invalid PO numbers to `review_required`.
+11. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Unit tests covering every placeholder token, generic label, control character, punctuation string, length boundary (64 vs 65 characters), and custom `max_length`.
+- Immutability tests asserting extractions are not mutated.
+- Integration tests in `tests/test_verification_purchase_order_number.py` verifying `VerificationService` verdict routing.
+- Full local CI-parity suite: `ruff check`, `ruff format --check`, `mypy`, `pytest --cov=veridoc` (>= 90% floor), `twine check`, `check_distribution.py`, and isolated smoke tests.
+- Remote GitHub Actions CI green across all jobs.
+
+### Exclusions
+
+- Enforcing mandatory purchase orders on all invoices (non-PO invoices are valid in standard business operations).
+- Modifying repository persistence schemas (database columns already store valid strings).
+- External procurement system API queries.
+
+### Micro-task breakdown
+
+1. Add Phase 42 specification in `docs/roadmap.md`.
+2. Record ADR 0048 in `docs/decisions/0048-purchase-order-number-format-verification.md`.
+3. Register ADR 0048 in `docs/decisions/README.md`.
+4. Add `invalid_purchase_order_number` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test for `invalid_purchase_order_number` in `tests/test_verification_models.py`.
+6. Implement `check_purchase_order_number_format` and helper in `src/veridoc/verification/purchase_order_number.py`.
+7. Add unit tests covering placeholder, label, control character, punctuation, and length paths in `tests/test_verification_purchase_order_number.py`.
+8. Register `test_verification_purchase_order_number` in `docs/testing.md`.
+9. Integrate `check_purchase_order_number_format` into `VerificationService.verify()`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_purchase_order_number.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 42 complete in `docs/roadmap.md` approval rule and phase table.
+13. Record Phase 42 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 42 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, open draft PR, monitor and verify remote CI.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 41 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 42 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
