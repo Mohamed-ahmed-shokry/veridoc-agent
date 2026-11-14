@@ -1729,4 +1729,4 @@ Verified results:
 | `uv run python scripts/check_distribution.py` | Both archives passed content, entry-point, and path-safety validation |
 | Isolated wheel smoke test | Passed isolated installation and API verification |
 | Isolated sdist smoke test | Passed isolated build, installation, and API verification |
-| Remote GitHub Actions CI (`ci.yml`) | Pending final push on HEAD (verified after commit) |
+| Remote GitHub Actions CI (`ci.yml`) | Green (run 43650066845 passed quality job in 1m30s; final doc update re-verified on push) |
