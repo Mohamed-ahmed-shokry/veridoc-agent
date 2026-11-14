@@ -47,7 +47,7 @@ boundaries only and require separate approval before implementation.
 | 39 | Invoice number format & placeholder verification (ADR 0045) | Complete |
 | 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
 | 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | Complete |
-| 42 | Purchase order number format and placeholder verification (ADR 0048) | In progress |
+| 42 | Purchase order number format and placeholder verification (ADR 0048) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2634,7 +2634,7 @@ Phase 42 implements deterministic verification of extracted `purchase_order_numb
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 41 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 42 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
