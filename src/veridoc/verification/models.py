@@ -59,6 +59,8 @@ FindingType = Literal[
     "invalid_invoice_number",
     "tax_id_bank_country_mismatch",
     "invalid_purchase_order_number",
+    "low_ocr_confidence",
+    "low_extraction_confidence",
 ]
 
 
