@@ -2632,6 +2632,74 @@ Phase 42 implements deterministic verification of extracted `purchase_order_numb
 14. Record Phase 42 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, open draft PR, monitor and verify remote CI.
 
+## Phase 43: OCR and extraction confidence threshold verification
+
+Phase 43 adds deterministic verification of upstream `ocr_confidence` and `extraction_confidence` scores against configurable minimum confidence thresholds (ADR 0049).
+
+### Objective
+
+`InvoiceExtraction` carries two percentage confidence scores (`ocr_confidence` and `extraction_confidence`, bounded `[0, 100]`). Previously, `VerificationService` never inspected these confidence scores: a severely degraded scan (e.g., `ocr_confidence = 32.0`) or low-confidence structured extraction (`extraction_confidence = 40.0`) could receive an unearned `clear` verdict whenever extracted fields happened to satisfy arithmetic and format checks.
+
+Phase 43 implements deterministic confidence threshold verification:
+1. When `ocr_confidence` is present and strictly below `min_ocr_confidence` (default `70.0`), emit one `medium`-severity `low_ocr_confidence` finding with structured details (`field`, `confidence`, `threshold`).
+2. When `extraction_confidence` is present and strictly below `min_extraction_confidence` (default `70.0`), emit one `medium`-severity `low_extraction_confidence` finding with structured details (`field`, `confidence`, `threshold`).
+3. When either confidence field is `None` or greater than or equal to its threshold, emit zero findings for that field.
+4. Integrate `check_confidence_thresholds(invoice)` into `VerificationService.verify()`, routing low-confidence invoices to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0049.
+- Add `low_ocr_confidence` and `low_extraction_confidence` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Constants `DEFAULT_MIN_OCR_CONFIDENCE = 70.0` and `DEFAULT_MIN_EXTRACTION_CONFIDENCE = 70.0` and pure rule `check_confidence_thresholds(invoice, min_ocr_confidence=70.0, min_extraction_confidence=70.0)` in `src/veridoc/verification/confidence.py`.
+- Unit and integration tests in `tests/test_verification_confidence.py`.
+- Integration into `VerificationService.verify()`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `low_ocr_confidence` and `low_extraction_confidence` are recognized `FindingType` literal union members.
+2. When `ocr_confidence` and `extraction_confidence` are both `None`, zero findings are emitted.
+3. When `ocr_confidence` and `extraction_confidence` meet or exceed `70.0` (including exact boundary `70.0` and `100.0`), zero findings are emitted.
+4. When `ocr_confidence < 70.0` (including `0.0` and `69.99`), emits `low_ocr_confidence` with `severity="medium"` and structured details.
+5. When `extraction_confidence < 70.0` (including `0.0` and `69.99`), emits `low_extraction_confidence` with `severity="medium"` and structured details.
+6. When both scores are below threshold, emits both findings in deterministic order (`low_ocr_confidence` before `low_extraction_confidence`).
+7. Custom threshold parameters (`min_ocr_confidence`, `min_extraction_confidence`) are respected, and invalid non-finite or out-of-bounds values are handled safely.
+8. Input invoice extractions remain strictly immutable.
+9. `VerificationService.verify()` runs the check and routes invoices with low confidence to `review_required`.
+10. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_confidence.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Modifying `InvoiceExtraction` schema or extraction provider prompts.
+- Modifying OCR engine confidence calculation or persistence schemas.
+- Automatically rejecting low-confidence documents at ingestion (they must route to human review).
+
+### Micro-task breakdown
+
+1. Add Phase 43 specification to `docs/roadmap.md`.
+2. Record ADR 0049 in `docs/decisions/0049-ocr-and-extraction-confidence-verification.md`.
+3. Register ADR 0049 in `docs/decisions/README.md`.
+4. Add `low_ocr_confidence` and `low_extraction_confidence` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance tests in `tests/test_verification_models.py`.
+6. Implement `DEFAULT_MIN_OCR_CONFIDENCE`, `DEFAULT_MIN_EXTRACTION_CONFIDENCE`, and `check_confidence_thresholds` in `src/veridoc/verification/confidence.py`.
+7. Add unit tests covering all threshold, boundary, both-low, custom-threshold, and immutability paths in `tests/test_verification_confidence.py`.
+8. Register `test_verification_confidence` in `docs/testing.md`.
+9. Integrate `check_confidence_thresholds` into `VerificationService.verify()`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_confidence.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 43 complete in `docs/roadmap.md` approval rule and phase table.
+13. Record Phase 43 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 43 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, verify remote CI is 100% green.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 42 are complete. Phase 14 is

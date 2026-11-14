@@ -65,3 +65,4 @@ Accepted decisions:
 - [0046: Line-item derived unit price arithmetic verification](0046-line-item-derived-unit-price-verification.md)
 - [0047: Cross-field vendor country and bank account consistency verification](0047-cross-field-tax-id-bank-country-consistency.md)
 - [0048: Purchase order number format and placeholder verification](0048-purchase-order-number-format-verification.md)
+- [0049: OCR and extraction confidence threshold verification](0049-ocr-and-extraction-confidence-verification.md)

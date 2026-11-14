@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 43 OCR and extraction confidence threshold verification (`low_ocr_confidence`, `low_extraction_confidence`):
+  - Architecture Decision Record 0049 documenting deterministic verification of upstream `ocr_confidence` and `extraction_confidence` scores against configurable minimum confidence thresholds (default `70.0%`).
+  - `low_ocr_confidence` and `low_extraction_confidence` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_confidence_thresholds()` in `veridoc.verification.confidence` with `DEFAULT_MIN_OCR_CONFIDENCE = 70.0` and `DEFAULT_MIN_EXTRACTION_CONFIDENCE = 70.0`. Emits `medium`-severity findings when populated confidence values fall strictly below threshold, with structured `details` (`field`, `confidence`, `threshold`), while passing absent (`None`) or threshold-meeting scores.
+  - Integrated `check_confidence_thresholds(invoice)` into `VerificationService.verify()` following `check_extraction_uncertainties`.
+  - 22 focused unit, boundary, immutability, and service integration tests in `tests/test_verification_confidence.py`.
+
 - Phase 42 purchase order number format and placeholder verification (`invalid_purchase_order_number`):
   - Architecture Decision Record 0048 documenting deterministic verification of purchase order number syntax, length bounds, placeholder/label detection, and integration with downstream purchase order matching.
   - `invalid_purchase_order_number` added to the `FindingType` literal union in `veridoc.verification.models`.

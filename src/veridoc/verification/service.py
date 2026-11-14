@@ -11,6 +11,7 @@ from veridoc.vendors.protocol import VendorRepository
 from veridoc.verification.arithmetic import check_arithmetic
 from veridoc.verification.bank_account import check_bank_account_checksum
 from veridoc.verification.completeness import check_required_fields
+from veridoc.verification.confidence import check_confidence_thresholds
 from veridoc.verification.country_consistency import (
     check_tax_id_bank_country_consistency,
 )
@@ -95,6 +96,7 @@ class VerificationService:
         findings.extend(check_excessive_due_date_window(invoice))
         findings.extend(check_document_type(invoice))
         findings.extend(check_extraction_uncertainties(invoice))
+        findings.extend(check_confidence_thresholds(invoice))
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)
