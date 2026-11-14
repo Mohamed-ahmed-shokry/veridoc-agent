@@ -152,3 +152,49 @@ def test_check_confidence_thresholds_does_not_mutate_invoice() -> None:
     snapshot = invoice.model_copy(deep=True)
     _ = check_confidence_thresholds(invoice)
     assert invoice == snapshot
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_routes_low_confidence_invoice_to_review() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+    result = service.verify(
+        _complete_invoice(ocr_confidence=64.0, extraction_confidence=68.5)
+    )
+    confidence_findings = [
+        f
+        for f in result.findings
+        if f.finding_type in {"low_ocr_confidence", "low_extraction_confidence"}
+    ]
+    assert [f.finding_type for f in confidence_findings] == [
+        "low_ocr_confidence",
+        "low_extraction_confidence",
+    ]
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_passes_high_confidence_invoice() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+    result = service.verify(
+        _complete_invoice(ocr_confidence=91.0, extraction_confidence=88.0)
+    )
+    confidence_findings = [
+        f
+        for f in result.findings
+        if f.finding_type in {"low_ocr_confidence", "low_extraction_confidence"}
+    ]
+    assert confidence_findings == []
