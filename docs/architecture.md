@@ -250,9 +250,11 @@ invoice number format and placeholder verification
 line-item derived unit price arithmetic verification
 ([ADR 0046](decisions/0046-line-item-derived-unit-price-verification.md)),
 cross-field vendor tax ID and bank account country consistency verification
-([ADR 0047](decisions/0047-cross-field-tax-id-bank-country-consistency.md)), and
+([ADR 0047](decisions/0047-cross-field-tax-id-bank-country-consistency.md)),
 purchase order number format and placeholder verification
-([ADR 0048](decisions/0048-purchase-order-number-format-verification.md)).
+([ADR 0048](decisions/0048-purchase-order-number-format-verification.md)), and
+OCR and extraction confidence threshold verification
+([ADR 0049](decisions/0049-ocr-and-extraction-confidence-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -268,9 +270,10 @@ country (accounting for geographic equivalents such as Greece EL/GR and Northern
 currency code verification enforces standard active ISO 4217 alphabetic currency codes,
 excessive tax verification ensures extracted tax amounts do not exceed pre-tax subtotals or totals,
 invoice number format verification rejects placeholders, generic labels, control
-characters, blank/punctuation-only values, and excessive-length identifiers, and
+characters, blank/punctuation-only values, and excessive-length identifiers,
 purchase order number format verification flags placeholders, generic labels, control
-characters, blank/punctuation-only values, and excessive-length identifiers when a PO reference is present.
+characters, blank/punctuation-only values, and excessive-length identifiers when a PO reference is present, and
+confidence threshold verification routes invoices whose `ocr_confidence` or `extraction_confidence` falls below `70.0%` to human review.
 
 ## Typed explanation flow
 
