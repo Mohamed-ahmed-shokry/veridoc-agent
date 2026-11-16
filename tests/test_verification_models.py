@@ -481,3 +481,22 @@ def test_verification_finding_accepts_low_extraction_confidence() -> None:
     assert finding.finding_type == "low_extraction_confidence"
     assert finding.severity == "medium"
     assert finding.details["confidence"] == 61.0
+
+
+def test_verification_finding_accepts_ungrounded_extracted_field() -> None:
+    finding = VerificationFinding(
+        finding_type="ungrounded_extracted_field",
+        severity="medium",
+        explanation="Extracted field 'total' lacks supporting page or OCR evidence.",
+        comparison_source="invoice_fields",
+        deterministic_rule="populated critical fields must carry valid EvidenceReference entries",
+        observed_value="110.00",
+        expected_value="non-empty evidence reference",
+        details={
+            "field": "total",
+            "reason": "missing_evidence",
+        },
+    )
+    assert finding.finding_type == "ungrounded_extracted_field"
+    assert finding.severity == "medium"
+    assert finding.details["field"] == "total"
