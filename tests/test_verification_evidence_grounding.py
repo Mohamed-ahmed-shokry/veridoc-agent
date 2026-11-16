@@ -161,3 +161,42 @@ def test_check_evidence_grounding_does_not_mutate_invoice() -> None:
     snapshot = invoice.model_copy(deep=True)
     _ = check_evidence_grounding(invoice)
     assert invoice == snapshot
+
+
+class _FakeInvoiceRepository:
+    """Minimal repository fake for service integration tests."""
+
+    def list_vendor_invoices(self, vendor_key: str) -> list[object]:
+        return []
+
+    def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+        return None
+
+
+def test_verification_service_routes_partially_grounded_invoice_to_review() -> None:
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+    result = service.verify(_grounded_invoice(omit_header_evidence=("total",)))
+    grounding_findings = [
+        f for f in result.findings if f.finding_type == "ungrounded_extracted_field"
+    ]
+    assert len(grounding_findings) == 1
+    assert grounding_findings[0].details == {
+        "field": "total",
+        "reason": "missing_evidence",
+    }
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"
+
+
+def test_verification_service_passes_fully_grounded_invoice() -> None:
+    from veridoc.verification.service import VerificationService
+
+    service = VerificationService(repository=_FakeInvoiceRepository())  # type: ignore[arg-type]
+    result = service.verify(_grounded_invoice())
+    grounding_findings = [
+        f for f in result.findings if f.finding_type == "ungrounded_extracted_field"
+    ]
+    assert grounding_findings == []
