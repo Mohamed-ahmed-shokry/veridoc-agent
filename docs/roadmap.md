@@ -48,6 +48,8 @@ boundaries only and require separate approval before implementation.
 | 40 | Line-item derived unit price arithmetic verification (ADR 0046) | Complete |
 | 41 | Cross-field vendor country and bank account consistency verification (ADR 0047) | Complete |
 | 42 | Purchase order number format and placeholder verification (ADR 0048) | Complete |
+| 43 | OCR and extraction confidence threshold verification (ADR 0049) | Complete |
+| 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2700,9 +2702,77 @@ Phase 43 implements deterministic confidence threshold verification:
 14. Record Phase 43 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, verify remote CI is 100% green.
 
+## Phase 44: extraction evidence grounding verification
+
+Phase 44 adds deterministic verification of field-level and line-item-level `EvidenceReference` provenance when upstream extraction operates in evidence-grounded mode (ADR 0050).
+
+### Objective
+
+`InvoiceExtraction` carries `evidence: dict[str, list[EvidenceReference]]` and per-line `InvoiceLineItem.evidence: list[EvidenceReference]`. Previously, `VerificationService` never inspected provenance references: when a grounding-capable extractor provided evidence for some fields while leaving populated critical header fields (`invoice_number`, `invoice_date`, `currency`, `total`) or line items ungrounded, the ungrounded values could still clear verification silently.
+
+Phase 44 implements deterministic evidence grounding verification:
+1. When an extraction carries no evidence anywhere (`not invoice.evidence` and all line items have empty `evidence`), emit zero findings (evidence-free synthetic fixture or non-grounding adapter passthrough).
+2. When any evidence is present on the extraction, emit one `medium`-severity `ungrounded_extracted_field` finding for each populated critical header field (`invoice_number`, `invoice_date`, `currency`, `total`) lacking a valid `EvidenceReference` (`page_number >= 1` and non-blank `text_span` when `text_span` is provided).
+3. In evidence-grounded mode, emit one `medium`-severity `ungrounded_extracted_field` finding for each line item in `invoice.line_items` lacking a valid `EvidenceReference`.
+4. Integrate `check_evidence_grounding(invoice)` into `VerificationService.verify()`, routing partially grounded extractions to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0050.
+- Add `ungrounded_extracted_field` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Constant `REQUIRED_GROUNDED_HEADER_FIELDS` and pure rule `check_evidence_grounding(invoice)` in `src/veridoc/verification/evidence_grounding.py`.
+- Unit and integration tests in `tests/test_verification_evidence_grounding.py`.
+- Integration into `VerificationService.verify()`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `ungrounded_extracted_field` is a recognized `FindingType` literal union member.
+2. When `invoice.evidence` is empty and all `line_items` have empty `evidence`, zero findings are emitted.
+3. When all populated critical header fields (`invoice_number`, `invoice_date`, `currency`, `total`) and all line items carry valid `EvidenceReference` entries, zero findings are emitted.
+4. When evidence is present on the extraction, each populated critical header field lacking valid evidence emits one `ungrounded_extracted_field` finding (`severity="medium"`, `comparison_source="invoice_fields"`) in fixed field order.
+5. Absent (`None`) optional header fields do not require evidence even in grounded mode.
+6. When evidence is present on the extraction, each line item lacking valid evidence emits one `ungrounded_extracted_field` finding (`severity="medium"`, `comparison_source="invoice_line_items"`, `line_item_index` in `details`) in line-item order.
+7. An `EvidenceReference` with a whitespace-only `text_span` (when `text_span is not None`) does not satisfy grounding.
+8. Input invoice extractions remain strictly immutable.
+9. `VerificationService.verify()` runs the check and routes partially grounded invoices to `review_required`.
+10. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_evidence_grounding.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Requiring evidence when an upstream adapter emits no evidence map at all.
+- Verifying OCR substring exactness against raw page text (handled by evaluation metrics).
+- Modifying `InvoiceExtraction` or `EvidenceReference` schemas.
+
+### Micro-task breakdown
+
+1. Add Phase 44 specification to `docs/roadmap.md`.
+2. Record ADR 0050 in `docs/decisions/0050-extraction-evidence-grounding-verification.md`.
+3. Register ADR 0050 in `docs/decisions/README.md`.
+4. Add `ungrounded_extracted_field` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test in `tests/test_verification_models.py`.
+6. Implement `REQUIRED_GROUNDED_HEADER_FIELDS` and `check_evidence_grounding` in `src/veridoc/verification/evidence_grounding.py`.
+7. Add unit tests covering all grounding, partial-grounding, whitespace `text_span`, line-item, and immutability paths in `tests/test_verification_evidence_grounding.py`.
+8. Register `test_verification_evidence_grounding` in `docs/testing.md`.
+9. Integrate `check_evidence_grounding` into `VerificationService.verify()`.
+10. Add `VerificationService` integration and verdict tests in `tests/test_verification_evidence_grounding.py`.
+11. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+12. Mark Phase 44 complete in `docs/roadmap.md` approval rule and phase table.
+13. Record Phase 44 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 44 progress in `docs/PROGRESS.md`.
+15. Push micro-commits, verify remote CI is 100% green.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 42 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 44 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,

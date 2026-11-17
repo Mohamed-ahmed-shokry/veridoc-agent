@@ -252,9 +252,11 @@ line-item derived unit price arithmetic verification
 cross-field vendor tax ID and bank account country consistency verification
 ([ADR 0047](decisions/0047-cross-field-tax-id-bank-country-consistency.md)),
 purchase order number format and placeholder verification
-([ADR 0048](decisions/0048-purchase-order-number-format-verification.md)), and
+([ADR 0048](decisions/0048-purchase-order-number-format-verification.md)),
 OCR and extraction confidence threshold verification
-([ADR 0049](decisions/0049-ocr-and-extraction-confidence-verification.md)).
+([ADR 0049](decisions/0049-ocr-and-extraction-confidence-verification.md)), and
+extraction evidence grounding verification
+([ADR 0050](decisions/0050-extraction-evidence-grounding-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -272,8 +274,9 @@ excessive tax verification ensures extracted tax amounts do not exceed pre-tax s
 invoice number format verification rejects placeholders, generic labels, control
 characters, blank/punctuation-only values, and excessive-length identifiers,
 purchase order number format verification flags placeholders, generic labels, control
-characters, blank/punctuation-only values, and excessive-length identifiers when a PO reference is present, and
-confidence threshold verification routes invoices whose `ocr_confidence` or `extraction_confidence` falls below `70.0%` to human review.
+characters, blank/punctuation-only values, and excessive-length identifiers when a PO reference is present,
+confidence threshold verification routes invoices whose `ocr_confidence` or `extraction_confidence` falls below `70.0%` to human review, and
+evidence grounding verification flags ungrounded critical header fields or line items whenever an extraction operates in evidence-grounded mode.
 
 ## Typed explanation flow
 

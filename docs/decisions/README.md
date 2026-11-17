@@ -66,3 +66,4 @@ Accepted decisions:
 - [0047: Cross-field vendor country and bank account consistency verification](0047-cross-field-tax-id-bank-country-consistency.md)
 - [0048: Purchase order number format and placeholder verification](0048-purchase-order-number-format-verification.md)
 - [0049: OCR and extraction confidence threshold verification](0049-ocr-and-extraction-confidence-verification.md)
+- [0050: Extraction evidence grounding verification](0050-extraction-evidence-grounding-verification.md)

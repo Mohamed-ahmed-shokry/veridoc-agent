@@ -61,6 +61,7 @@ FindingType = Literal[
     "invalid_purchase_order_number",
     "low_ocr_confidence",
     "low_extraction_confidence",
+    "ungrounded_extracted_field",
 ]
 
 

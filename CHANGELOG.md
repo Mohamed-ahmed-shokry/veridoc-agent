@@ -8,6 +8,13 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 44 extraction evidence grounding verification (`ungrounded_extracted_field`):
+  - Architecture Decision Record 0050 documenting deterministic verification of field-level and line-item-level `EvidenceReference` provenance when upstream extraction operates in evidence-grounded mode.
+  - `ungrounded_extracted_field` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_evidence_grounding()` in `veridoc.verification.evidence_grounding` with `REQUIRED_GROUNDED_HEADER_FIELDS = ("invoice_number", "invoice_date", "currency", "total")`. Emits `medium`-severity findings when evidence is present on the extraction but populated critical header fields or line items lack a valid `EvidenceReference` (`page_number >= 1` and non-blank `text_span` when provided), while passing evidence-free extractions unchanged.
+  - Integrated `check_evidence_grounding(invoice)` into `VerificationService.verify()`.
+  - 16 focused unit, boundary, immutability, and service integration tests in `tests/test_verification_evidence_grounding.py`.
+
 - Phase 43 OCR and extraction confidence threshold verification (`low_ocr_confidence`, `low_extraction_confidence`):
   - Architecture Decision Record 0049 documenting deterministic verification of upstream `ocr_confidence` and `extraction_confidence` scores against configurable minimum confidence thresholds (default `70.0%`).
   - `low_ocr_confidence` and `low_extraction_confidence` added to the `FindingType` literal union in `veridoc.verification.models`.

@@ -19,6 +19,7 @@ from veridoc.verification.currency import check_currency_code
 from veridoc.verification.document_type import check_document_type
 from veridoc.verification.due_date_bounds import check_excessive_due_date_window
 from veridoc.verification.duplicate_line_items import check_duplicate_line_items
+from veridoc.verification.evidence_grounding import check_evidence_grounding
 from veridoc.verification.field_history import check_payment_terms
 from veridoc.verification.future_dates import check_future_invoice_date
 from veridoc.verification.header_amounts import check_header_amounts
@@ -97,6 +98,7 @@ class VerificationService:
         findings.extend(check_document_type(invoice))
         findings.extend(check_extraction_uncertainties(invoice))
         findings.extend(check_confidence_thresholds(invoice))
+        findings.extend(check_evidence_grounding(invoice))
         vendor_key = vendor_key_for(invoice)
         history = (
             self._repository.list_vendor_invoices(vendor_key)

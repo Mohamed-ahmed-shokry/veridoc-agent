@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 43 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 44 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -338,6 +338,11 @@ implementation remains deliberately small:
   threshold boundary acceptance (`>= 70.0`), low OCR/extraction confidence findings,
   deterministic ordering, custom thresholds, invalid threshold validation, input
   immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_evidence_grounding.py` covers Phase 44 deterministic
+  extraction evidence grounding verification (ADR 0050): evidence-free passthrough,
+  fully grounded acceptance, missing header field evidence, absent optional field
+  exemption, ungrounded line items, whitespace `text_span` and page-zero rejection,
+  input immutability, `VerificationService` integration, and verdict derivation.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
