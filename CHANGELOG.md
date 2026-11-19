@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 45 vendor name and registry consistency verification (`vendor_name_mismatch`):
+  - Architecture Decision Record 0051 documenting deterministic verification that extracted `vendor_name` matches the resolved `VendorEntity`'s registered `legal_name` or `aliases` when entity resolution succeeds via tax ID, bank account, or canonical identifier.
+  - `vendor_name_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_vendor_name()` in `veridoc.verification.vendor_rules` reusing `derive_canonical_vendor_key()` and `calculate_token_similarity()`, and wired it into `check_vendor_registry()`. Emits one `medium`-severity finding when a resolved vendor's `legal_name` and `aliases` fall below `fuzzy_threshold=0.85` against `invoice.vendor_name`.
+  - Added unit, alias/fuzzy-match, immutability, and `VerificationService` integration tests in `tests/test_verification_vendor_rules.py` and `tests/test_verification_models.py`.
+
 - Phase 44 extraction evidence grounding verification (`ungrounded_extracted_field`):
   - Architecture Decision Record 0050 documenting deterministic verification of field-level and line-item-level `EvidenceReference` provenance when upstream extraction operates in evidence-grounded mode.
   - `ungrounded_extracted_field` added to the `FindingType` literal union in `veridoc.verification.models`.
