@@ -50,6 +50,7 @@ boundaries only and require separate approval before implementation.
 | 42 | Purchase order number format and placeholder verification (ADR 0048) | Complete |
 | 43 | OCR and extraction confidence threshold verification (ADR 0049) | Complete |
 | 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
+| 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2835,7 +2836,7 @@ Phase 45 implements deterministic vendor name consistency verification:
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 44 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 45 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
