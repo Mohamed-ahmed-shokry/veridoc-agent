@@ -33,6 +33,7 @@ def check_vendor_registry(
     findings.extend(check_vendor_status(resolution, vendor))
     findings.extend(check_vendor_bank_account(resolution, invoice, vendor))
     findings.extend(check_vendor_tax_id(resolution, invoice, vendor))
+    findings.extend(check_vendor_name(resolution, invoice, vendor))
     return findings, resolution
 
 
