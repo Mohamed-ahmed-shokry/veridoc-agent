@@ -500,3 +500,27 @@ def test_verification_finding_accepts_ungrounded_extracted_field() -> None:
     assert finding.finding_type == "ungrounded_extracted_field"
     assert finding.severity == "medium"
     assert finding.details["field"] == "total"
+
+
+def test_verification_finding_accepts_vendor_name_mismatch() -> None:
+    finding = VerificationFinding(
+        finding_type="vendor_name_mismatch",
+        severity="medium",
+        explanation=(
+            "Extracted vendor name 'Shell Consulting LLC' does not match registered "
+            "legal name or aliases for vendor 'Acme Corporation Ltd'."
+        ),
+        comparison_source="vendor_registry",
+        deterministic_rule="invoice vendor_name must align with resolved vendor legal name or aliases",
+        observed_value="Shell Consulting LLC",
+        expected_value="Acme Corporation Ltd",
+        details={
+            "extracted_vendor_name": "Shell Consulting LLC",
+            "resolved_legal_name": "Acme Corporation Ltd",
+            "vendor_id": "v-acme",
+            "best_similarity_score": 0.22,
+        },
+    )
+    assert finding.finding_type == "vendor_name_mismatch"
+    assert finding.severity == "medium"
+    assert finding.details["vendor_id"] == "v-acme"
