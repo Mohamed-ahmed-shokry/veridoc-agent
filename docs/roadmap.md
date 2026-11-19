@@ -2770,6 +2770,69 @@ Phase 44 implements deterministic evidence grounding verification:
 14. Record Phase 44 progress in `docs/PROGRESS.md`.
 15. Push micro-commits, verify remote CI is 100% green.
 
+## Phase 45: vendor name and registry consistency verification
+
+Phase 45 adds deterministic verification that an extracted `vendor_name` is consistent with the resolved `VendorEntity`'s registered `legal_name` and `aliases` when vendor entity resolution succeeds via tax ID, bank account, or canonical identifier (ADR 0051).
+
+### Objective
+
+In Veridoc's multi-attribute vendor entity resolution (`veridoc.vendors.resolution.resolve_vendor`), exact tax ID (`exact_tax`) and exact bank account (`exact_bank`) matches take precedence over name matching. Consequently, if an invoice carries a registered vendor's tax ID or bank account alongside an unrelated or spoofed `vendor_name` (e.g., `"Shell Consulting LLC"` instead of `"Acme Corporation Ltd"`), entity resolution still resolves to Acme Corporation Ltd and `check_vendor_registry` previously emitted zero findings.
+
+Phase 45 implements deterministic vendor name consistency verification:
+1. When `resolution` is unresolved, `vendor` is `None`, or `invoice.vendor_name` is absent/blank, emit zero findings.
+2. When `invoice.vendor_name` matches `vendor.canonical_key`, any canonicalized alias in `vendor.aliases`, or achieves `calculate_token_similarity >= fuzzy_threshold` (default `0.85`) against `vendor.legal_name` or any alias, emit zero findings.
+3. Otherwise, emit one `medium`-severity `vendor_name_mismatch` finding with `comparison_source="vendor_registry"` and structured details (`extracted_vendor_name`, `resolved_legal_name`, `vendor_id`, `best_similarity_score`).
+4. Invoke `check_vendor_name(resolution, invoice, vendor)` inside `check_vendor_registry()`, routing mismatched invoices to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0051.
+- Add `vendor_name_mismatch` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Pure rule `check_vendor_name(resolution, invoice, vendor, *, fuzzy_threshold=0.85)` in `src/veridoc/verification/vendor_rules.py`, called by `check_vendor_registry()`.
+- Unit and integration tests in `tests/test_verification_vendor_rules.py` and `tests/test_verification_models.py`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `vendor_name_mismatch` is a recognized `FindingType` literal union member.
+2. When `resolution` is `None` or unresolved, `vendor` is `None`, or `invoice.vendor_name` is absent/blank, zero findings are emitted.
+3. Exact `legal_name` matches (case-, punctuation-, and whitespace-insensitive) emit zero findings.
+4. Registered `aliases` matches (canonical or fuzzy token similarity `>= 0.85`) emit zero findings.
+5. Token-reordered or minor-typo `vendor_name` variants with similarity `>= 0.85` emit zero findings.
+6. Materially divergent `vendor_name` values when resolved via `exact_tax`, `exact_bank`, or `vendor_identifier` emit one `vendor_name_mismatch` finding (`severity="medium"`, `comparison_source="vendor_registry"`) with structured details.
+7. Input invoice extractions and vendor entities remain strictly immutable.
+8. `check_vendor_registry()` and `VerificationService.verify()` surface `vendor_name_mismatch` and route violating invoices to `review_required`.
+9. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_vendor_rules.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Altering `resolve_vendor` priority ordering or fuzzy matching thresholds in `veridoc.vendors.resolution`.
+- Modifying `VendorEntity` or persistence schemas.
+
+### Micro-task breakdown
+
+1. Add Phase 45 specification to `docs/roadmap.md`.
+2. Record ADR 0051 in `docs/decisions/0051-vendor-name-consistency-verification.md`.
+3. Register ADR 0051 in `docs/decisions/README.md`.
+4. Add `vendor_name_mismatch` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test in `tests/test_verification_models.py`.
+6. Implement `check_vendor_name` in `src/veridoc/verification/vendor_rules.py`.
+7. Integrate `check_vendor_name` into `check_vendor_registry` in `src/veridoc/verification/vendor_rules.py`.
+8. Add unit and `VerificationService` integration tests in `tests/test_verification_vendor_rules.py`.
+9. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+10. Mark Phase 45 complete in `docs/roadmap.md` approval rule and phase table.
+11. Record Phase 45 completion snapshot in `docs/release-evidence.md`.
+12. Record Phase 45 progress in `docs/PROGRESS.md`.
+13. Push micro-commits, verify remote CI is 100% green.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 44 are complete. Phase 14 is
