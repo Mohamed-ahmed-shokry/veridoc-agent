@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 44 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 45 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -343,6 +343,11 @@ implementation remains deliberately small:
   fully grounded acceptance, missing header field evidence, absent optional field
   exemption, ungrounded line items, whitespace `text_span` and page-zero rejection,
   input immutability, `VerificationService` integration, and verdict derivation.
+- `tests/test_verification_vendor_rules.py` covers Phase 12 vendor and bank account
+  reconciliation rules as well as Phase 45 deterministic vendor name consistency
+  verification (ADR 0051): legal name, registered alias, token-reordered fuzzy
+  matching, tax/bank-resolved name mismatch, absent/unresolved passthrough, and
+  `VerificationService` integration.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible
