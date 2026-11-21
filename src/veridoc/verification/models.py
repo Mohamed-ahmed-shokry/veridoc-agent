@@ -62,6 +62,7 @@ FindingType = Literal[
     "low_ocr_confidence",
     "low_extraction_confidence",
     "ungrounded_extracted_field",
+    "vendor_name_mismatch",
 ]
 
 

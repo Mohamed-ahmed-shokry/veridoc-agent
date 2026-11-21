@@ -12,6 +12,7 @@ from veridoc.vendors.models import (
 )
 from veridoc.verification.service import VerificationService
 from veridoc.verification.vendor_rules import (
+    check_vendor_name,
     check_vendor_registration,
     check_vendor_registry,
 )
@@ -190,3 +191,93 @@ def test_verification_service_integrates_vendor_rules(tmp_path: Path) -> None:
     assert any(
         f.finding_type == "vendor_bank_account_mismatch" for f in fraud_result.findings
     )
+
+
+def test_check_vendor_name_mismatch_via_exact_tax_resolution(tmp_path: Path) -> None:
+    repo = _setup_repository(tmp_path)
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Shell Consulting LLC",
+        vendor_tax_id="GB123456789",
+    )
+    findings, resolution = check_vendor_registry(invoice, repo)
+    assert resolution is not None
+    assert resolution.resolved_vendor_id == "vnd_001"
+    assert resolution.confidence == "exact_tax"
+
+    name_findings = [f for f in findings if f.finding_type == "vendor_name_mismatch"]
+    assert len(name_findings) == 1
+    finding = name_findings[0]
+    assert finding.severity == "medium"
+    assert finding.comparison_source == "vendor_registry"
+    assert finding.observed_value == "Shell Consulting LLC"
+    assert finding.expected_value == "Acme Corporation Ltd"
+    assert finding.details["vendor_id"] == "vnd_001"
+
+
+def test_check_vendor_name_mismatch_via_exact_bank_resolution(tmp_path: Path) -> None:
+    repo = _setup_repository(tmp_path)
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Unrelated Trading Co",
+        vendor_bank_account="12345678",
+    )
+    findings, resolution = check_vendor_registry(invoice, repo)
+    assert resolution is not None
+    assert resolution.confidence == "exact_bank"
+    assert [f.finding_type for f in findings] == ["vendor_name_mismatch"]
+
+
+def test_check_vendor_name_accepts_registered_alias_and_reordered_tokens(
+    tmp_path: Path,
+) -> None:
+    repo = _setup_repository(tmp_path)
+    for matching_name in ("Acme Corp", "Corporation Acme Ltd"):
+        invoice = InvoiceExtraction(
+            document_type="invoice",
+            vendor_name=matching_name,
+            vendor_tax_id="GB123456789",
+        )
+        findings, _ = check_vendor_registry(invoice, repo)
+        assert [f for f in findings if f.finding_type == "vendor_name_mismatch"] == []
+
+
+def test_check_vendor_name_ignores_absent_or_unresolved(tmp_path: Path) -> None:
+    repo = _setup_repository(tmp_path)
+    for blank_name in (None, "   ", "---"):
+        invoice = InvoiceExtraction(
+            document_type="invoice",
+            vendor_name=blank_name,
+            vendor_tax_id="GB123456789",
+        )
+        findings, _ = check_vendor_registry(invoice, repo)
+        assert [f for f in findings if f.finding_type == "vendor_name_mismatch"] == []
+
+    assert (
+        check_vendor_name(
+            None,
+            InvoiceExtraction(document_type="invoice", vendor_name="Any"),
+            None,
+        )
+        == []
+    )
+
+
+def test_verification_service_routes_vendor_name_mismatch_to_review(
+    tmp_path: Path,
+) -> None:
+    from veridoc.processing.verdict import derive_verdict
+
+    repo = _setup_repository(tmp_path)
+    service = VerificationService(repo)
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Shell Consulting LLC",
+        vendor_tax_id="GB123456789",
+    )
+    snapshot = invoice.model_copy(deep=True)
+    result = service.verify(invoice)
+    assert invoice == snapshot
+    assert any(f.finding_type == "vendor_name_mismatch" for f in result.findings)
+    verdict = derive_verdict(result)
+    assert verdict.status == "review_required"

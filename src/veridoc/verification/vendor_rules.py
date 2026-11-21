@@ -6,11 +6,12 @@ from veridoc.extraction.models import InvoiceExtraction
 from veridoc.vendors.models import (
     VendorEntity,
     VendorResolutionResult,
+    derive_canonical_vendor_key,
     normalize_bank_account,
     normalize_tax_id,
 )
 from veridoc.vendors.protocol import VendorRepository
-from veridoc.vendors.resolution import resolve_vendor
+from veridoc.vendors.resolution import calculate_token_similarity, resolve_vendor
 from veridoc.verification.models import VerificationFinding
 
 
@@ -32,6 +33,7 @@ def check_vendor_registry(
     findings.extend(check_vendor_status(resolution, vendor))
     findings.extend(check_vendor_bank_account(resolution, invoice, vendor))
     findings.extend(check_vendor_tax_id(resolution, invoice, vendor))
+    findings.extend(check_vendor_name(resolution, invoice, vendor))
     return findings, resolution
 
 
@@ -201,6 +203,63 @@ def check_vendor_tax_id(
             details={
                 "extracted_tax_id": invoice.vendor_tax_id,
                 "vendor_id": vendor.vendor_id,
+            },
+        )
+    ]
+
+
+def check_vendor_name(
+    resolution: VendorResolutionResult | None,
+    invoice: InvoiceExtraction,
+    vendor: VendorEntity | None,
+    *,
+    fuzzy_threshold: float = 0.85,
+) -> list[VerificationFinding]:
+    """Flag invoices whose extracted vendor_name diverges from the resolved vendor."""
+    if (
+        resolution is None
+        or not resolution.resolved_vendor_id
+        or vendor is None
+        or not invoice.vendor_name
+        or not invoice.vendor_name.strip()
+    ):
+        return []
+
+    extracted_canonical = derive_canonical_vendor_key(invoice.vendor_name)
+    if not extracted_canonical:
+        return []
+
+    known_names = [vendor.legal_name, *vendor.aliases]
+    if extracted_canonical == vendor.canonical_key or any(
+        derive_canonical_vendor_key(name) == extracted_canonical for name in known_names
+    ):
+        return []
+
+    best_score = max(
+        calculate_token_similarity(invoice.vendor_name, name) for name in known_names
+    )
+    if best_score >= fuzzy_threshold:
+        return []
+
+    return [
+        VerificationFinding(
+            finding_type="vendor_name_mismatch",
+            severity="medium",
+            explanation=(
+                f"Extracted vendor name '{invoice.vendor_name}' does not match "
+                f"registered legal name or aliases for vendor '{vendor.legal_name}'."
+            ),
+            comparison_source="vendor_registry",
+            deterministic_rule=(
+                "invoice vendor_name must align with resolved vendor legal name or aliases"
+            ),
+            observed_value=invoice.vendor_name,
+            expected_value=vendor.legal_name,
+            details={
+                "extracted_vendor_name": invoice.vendor_name,
+                "resolved_legal_name": vendor.legal_name,
+                "vendor_id": vendor.vendor_id,
+                "best_similarity_score": round(best_score, 4),
             },
         )
     ]
