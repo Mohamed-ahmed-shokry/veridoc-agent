@@ -51,6 +51,7 @@ boundaries only and require separate approval before implementation.
 | 43 | OCR and extraction confidence threshold verification (ADR 0049) | Complete |
 | 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
 | 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
+| 46 | Historical currency consistency verification (ADR 0052) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2899,7 +2900,7 @@ Phase 46 implements deterministic historical currency consistency verification:
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 45 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 46 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
