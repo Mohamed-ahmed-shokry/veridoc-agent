@@ -524,3 +524,28 @@ def test_verification_finding_accepts_vendor_name_mismatch() -> None:
     assert finding.finding_type == "vendor_name_mismatch"
     assert finding.severity == "medium"
     assert finding.details["vendor_id"] == "v-acme"
+
+
+def test_verification_finding_accepts_historical_currency_mismatch() -> None:
+    finding = VerificationFinding(
+        finding_type="historical_currency_mismatch",
+        severity="medium",
+        explanation=(
+            "Invoice currency 'EUR' differs from the vendor's consistent "
+            "historical invoicing currency 'USD'."
+        ),
+        comparison_source="vendor_history",
+        deterministic_rule="currency == historical_consistent_currency",
+        observed_value="EUR",
+        expected_value="USD",
+        historical_sample_size=3,
+        details={
+            "field": "currency",
+            "observed_currency": "EUR",
+            "expected_currency": "USD",
+        },
+    )
+    assert finding.finding_type == "historical_currency_mismatch"
+    assert finding.severity == "medium"
+    assert finding.historical_sample_size == 3
+    assert finding.details["expected_currency"] == "USD"
