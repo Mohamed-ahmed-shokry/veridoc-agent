@@ -82,9 +82,18 @@ def test_historical_currency_accepts_consistent_and_ignores_sparse_or_mixed() ->
         == []
     )
     assert (
-        check_historical_currency(usd_invoice, _currency_history(" usd ", "USD", "Usd"))
+        check_historical_currency(usd_invoice, _currency_history("USD", "USD", "USD"))
         == []
     )
+    unvalidated_history = [
+        HistoricalInvoice.model_construct(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-1",
+            currency=" usd ",
+        ),
+        *_currency_history("USD", "USD"),
+    ]
+    assert check_historical_currency(usd_invoice, unvalidated_history) == []
 
 
 def test_historical_currency_flags_mismatch_against_consistent_history() -> None:
