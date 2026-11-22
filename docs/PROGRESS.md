@@ -1,58 +1,58 @@
-# Phase 45 Progress Record: Vendor Name and Registry Consistency Verification
+# Phase 46 Progress Record: Historical Currency Consistency Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 45
-- **Goal:** Implement deterministic verification that extracted `vendor_name` is consistent with the resolved `VendorEntity`'s registered `legal_name` and `aliases` when entity resolution succeeds via tax ID, bank account, or canonical identifier (ADR 0051).
+- **Phase:** Phase 46
+- **Goal:** Implement deterministic verification that an invoice's extracted `currency` matches the vendor's consistent historical invoicing currency when at least `MINIMUM_HISTORY_SAMPLE_SIZE` (3) prior invoices share one currency (ADR 0052).
 - **Status:** Complete
-- **Branch:** `phase/vendor-name-consistency-verification`
-- **Draft PR:** [#24](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/24)
+- **Branch:** `phase/historical-currency-consistency`
+- **Draft PR:** [#25](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/25)
 - **Base:** `main`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 45 specification in `docs/roadmap.md` | Completed | `9702417` |
-| 2 | Record ADR 0051 in `docs/decisions/0051-vendor-name-consistency-verification.md` | Completed | `2924715` |
-| 3 | Register ADR 0051 in `docs/decisions/README.md` | Completed | `b735690` |
-| 4 | Add `vendor_name_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `029f847` |
-| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `6adf0b5` |
-| 6 | Implement `check_vendor_name` in `src/veridoc/verification/vendor_rules.py` | Completed | `9a479ae` |
-| 7 | Integrate `check_vendor_name` into `check_vendor_registry` | Completed | `aa7444b` |
-| 8 | Add unit and `VerificationService` integration tests in `tests/test_verification_vendor_rules.py` | Completed | `164bcab` |
-| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `acfb11b`, `085c475`, `a1592da`, `ae46e9b` |
-| 10 | Mark Phase 45 complete in `docs/roadmap.md` approval rule and phase table | Completed | `5d681ba` |
-| 11 | Record Phase 45 completion snapshot in `docs/release-evidence.md` | Completed | `c112b9b` |
+| 1 | Define Phase 46 specification in `docs/roadmap.md` | Completed | `25b43a2` |
+| 2 | Record ADR 0052 in `docs/decisions/0052-historical-currency-consistency-verification.md` | Completed | `4bb4b8f` |
+| 3 | Register ADR 0052 in `docs/decisions/README.md` | Completed | `1829fff` |
+| 4 | Add `historical_currency_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `c5907f0` |
+| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `211afc0` |
+| 6 | Implement `check_historical_currency` in `src/veridoc/verification/field_history.py` | Completed | `cc0b01a` |
+| 7 | Integrate `check_historical_currency` into `VerificationService.verify()` | Completed | `71c0b15` |
+| 8 | Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py` | Completed | `0e78477`, `683d40e` |
+| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `829b2ec`, `8390098`, `ab4d0bd`, `bdd819c` |
+| 10 | Mark Phase 46 complete in `docs/roadmap.md` approval rule and phase table | Completed | `bae2363` |
+| 11 | Record Phase 46 completion snapshot in `docs/release-evidence.md` | Completed | `4938c02` |
 | 12 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `vendor_name_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (26 passed) |
-| 2 | Unresolved, `vendor=None`, or absent/blank `vendor_name` emits `[]` | Verified | `tests/test_verification_vendor_rules.py` passed (12 passed) |
-| 3 | Exact `legal_name` matches emit `[]` | Verified | `tests/test_verification_vendor_rules.py` passed |
-| 4 | Registered `aliases` matches emit `[]` | Verified | `tests/test_verification_vendor_rules.py` passed |
-| 5 | Token-reordered or fuzzy matches (`>= 0.85`) emit `[]` | Verified | `tests/test_verification_vendor_rules.py` passed |
-| 6 | Divergent `vendor_name` on tax/bank/ID-resolved vendor emits `vendor_name_mismatch` (`medium`) | Verified | `tests/test_verification_vendor_rules.py` passed |
-| 7 | Input `InvoiceExtraction` and `VendorEntity` remain strictly immutable | Verified | `tests/test_verification_vendor_rules.py` passed |
-| 8 | `check_vendor_registry()` and `VerificationService.verify()` route to `review_required` | Verified | `tests/test_verification_vendor_rules.py` + end-to-end SQLite check passed |
-| 9 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1768 passed, 94.29% coverage); remote CI verified after push |
+| 1 | `historical_currency_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (27 passed) |
+| 2 | Absent `invoice.currency` (`None`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed (6 passed) |
+| 3 | Sparse history (< 3 currency observations) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 4 | Multi-currency history emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 5 | Consistent currency match (including normalization) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 6 | Currency mismatch against consistent history emits `historical_currency_mismatch` (`medium`) | Verified | `tests/test_verification_field_history.py` passed |
+| 7 | Input `InvoiceExtraction` and `history` remain strictly immutable | Verified | `tests/test_verification_field_history.py` passed |
+| 8 | `VerificationService.verify()` routes mismatched invoices to `review_required` | Verified | `tests/test_verification_field_history.py` + end-to-end SQLite check passed |
+| 9 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1772 passed, 94.31% coverage); remote CI verified after push |
 
 ## Decision Log
 
-### Decision 1: Reuse `calculate_token_similarity` and `derive_canonical_vendor_key`
-- **Context:** `veridoc.vendors.resolution` already implements token-sorted fuzzy similarity (`calculate_token_similarity`) with `fuzzy_threshold=0.85` and `veridoc.vendors.models` implements `derive_canonical_vendor_key`.
-- **Decision:** Reuse both functions directly in `check_vendor_name` rather than duplicating string normalization or similarity logic.
-- **Alternatives Considered:** Writing a separate Levenshtein/substring helper in `vendor_rules.py`. Rejected: violates DRY and risks divergence between resolution and verification thresholds.
-- **Blast Radius & Reversibility:** Pure function in `veridoc.verification.vendor_rules`.
+### Decision 1: Do not emit duplicate `insufficient_history` in `check_historical_currency`
+- **Context:** Both `check_historical_total` and `check_payment_terms` already emit `insufficient_history` (`info`) when fewer than `MINIMUM_HISTORY_SAMPLE_SIZE` (3) observations exist.
+- **Decision:** Return `[]` when fewer than 3 historical currency observations exist, avoiding duplicate `insufficient_history` noise.
+- **Alternatives Considered:** Emitting an additional `insufficient_history` finding for currency. Rejected: clutters review UI and breaks existing tests that assert exact `insufficient_history` counts.
+- **Blast Radius & Reversibility:** Pure function in `veridoc.verification.field_history`.
 
-### Decision 2: Medium severity for `vendor_name_mismatch`
-- **Context:** Trade names, DBA names, or abbreviated supplier names not yet added to `aliases` can differ from legal names without indicating fraud, whereas bank/tax mismatches are `high` severity.
-- **Decision:** Assign `severity="medium"`, which routes the invoice to `review_required` while reserving `high` for direct payment/tax coordinate contradictions.
-- **Alternatives Considered:** `high` severity. Rejected: preserves the established severity hierarchy.
-- **Blast Radius & Reversibility:** Single literal in `check_vendor_name`.
+### Decision 2: Skip multi-currency vendors (`len(set(historical_currencies)) != 1`)
+- **Context:** International suppliers may legitimately bill in multiple currencies (e.g., USD and EUR).
+- **Decision:** Only flag `historical_currency_mismatch` when all prior currency observations (sample size >= 3) share a single consistent currency.
+- **Alternatives Considered:** Majority-vote currency threshold. Rejected: would cause false positives for legitimate dual-currency vendors.
+- **Blast Radius & Reversibility:** Single condition in `check_historical_currency`.
 
 ## Validation & CI Log
 
@@ -60,9 +60,9 @@
 - `uv lock --check`: Passed (Resolved 103 packages)
 - `uv run pip-audit`: Passed (0 vulnerabilities; `veridoc` skipped)
 - `uv run ruff check .`: Passed (All checks passed!)
-- `uv run ruff format --check .`: Passed (339 files formatted)
+- `uv run ruff format --check .`: Passed (340 files formatted)
 - `uv run mypy`: Passed (0 issues across 128 source files)
-- `uv run pytest --cov=veridoc`: Passed (1768 passed in 38.57s, 94.29% branch coverage, 90.0% floor)
+- `uv run pytest --cov=veridoc`: Passed (1772 passed in 83.21s, 94.31% branch coverage, 90.0% floor)
 - `uv run pytest tests/test_documentation.py`: Passed (3 passed)
 - `uv build --clear`: Built `veridoc-0.1.0-py3-none-any.whl` and `veridoc-0.1.0.tar.gz`
 - `uv run twine check dist/*`: Both distributions passed metadata validation
