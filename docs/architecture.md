@@ -256,9 +256,11 @@ purchase order number format and placeholder verification
 OCR and extraction confidence threshold verification
 ([ADR 0049](decisions/0049-ocr-and-extraction-confidence-verification.md)),
 extraction evidence grounding verification
-([ADR 0050](decisions/0050-extraction-evidence-grounding-verification.md)), and
+([ADR 0050](decisions/0050-extraction-evidence-grounding-verification.md)),
 vendor name and registry consistency verification
-([ADR 0051](decisions/0051-vendor-name-consistency-verification.md)).
+([ADR 0051](decisions/0051-vendor-name-consistency-verification.md)), and
+historical currency consistency verification
+([ADR 0052](decisions/0052-historical-currency-consistency-verification.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -278,8 +280,9 @@ characters, blank/punctuation-only values, and excessive-length identifiers,
 purchase order number format verification flags placeholders, generic labels, control
 characters, blank/punctuation-only values, and excessive-length identifiers when a PO reference is present,
 confidence threshold verification routes invoices whose `ocr_confidence` or `extraction_confidence` falls below `70.0%` to human review,
-evidence grounding verification flags ungrounded critical header fields or line items whenever an extraction operates in evidence-grounded mode, and
-vendor name consistency verification flags extracted `vendor_name` values that diverge from the resolved vendor's registered legal name and aliases.
+evidence grounding verification flags ungrounded critical header fields or line items whenever an extraction operates in evidence-grounded mode,
+vendor name consistency verification flags extracted `vendor_name` values that diverge from the resolved vendor's registered legal name and aliases, and
+historical currency consistency verification flags invoices whose currency differs from an established single-currency vendor's prior history.
 
 ## Typed explanation flow
 
