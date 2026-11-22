@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.history import MINIMUM_HISTORY_SAMPLE_SIZE
 from veridoc.verification.models import VerificationFinding
@@ -71,6 +73,51 @@ def _insufficient_history(
             details={
                 "metric": "payment_terms",
                 "required_sample_size": MINIMUM_HISTORY_SAMPLE_SIZE,
+            },
+        )
+    ]
+
+
+def check_historical_currency(
+    invoice: InvoiceExtraction, history: Sequence[HistoricalInvoice]
+) -> list[VerificationFinding]:
+    """Flag invoices whose currency diverges from a vendor's consistent history."""
+    if invoice.currency is None or not invoice.currency.strip():
+        return []
+
+    historical_currencies = [
+        historical_invoice.currency.strip().upper()
+        for historical_invoice in history
+        if historical_invoice.currency is not None
+        and historical_invoice.currency.strip()
+    ]
+    if len(historical_currencies) < MINIMUM_HISTORY_SAMPLE_SIZE:
+        return []
+    if len(set(historical_currencies)) != 1:
+        return []
+
+    expected_currency = historical_currencies[0]
+    observed_currency = invoice.currency.strip().upper()
+    if observed_currency == expected_currency:
+        return []
+
+    return [
+        VerificationFinding(
+            finding_type="historical_currency_mismatch",
+            severity="medium",
+            explanation=(
+                f"Invoice currency '{observed_currency}' differs from the vendor's "
+                f"consistent historical invoicing currency '{expected_currency}'."
+            ),
+            comparison_source="vendor_history",
+            deterministic_rule="currency == historical_consistent_currency",
+            observed_value=observed_currency,
+            expected_value=expected_currency,
+            historical_sample_size=len(historical_currencies),
+            details={
+                "field": "currency",
+                "observed_currency": observed_currency,
+                "expected_currency": expected_currency,
             },
         )
     ]
