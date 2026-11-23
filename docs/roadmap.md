@@ -52,6 +52,7 @@ boundaries only and require separate approval before implementation.
 | 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
 | 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
 | 46 | Historical currency consistency verification (ADR 0052) | Complete |
+| 47 | Historical effective tax rate consistency verification (ADR 0053) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2965,7 +2966,7 @@ Phase 47 implements deterministic historical effective tax rate verification:
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 46 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 47 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
