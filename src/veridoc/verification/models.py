@@ -63,6 +63,7 @@ FindingType = Literal[
     "low_extraction_confidence",
     "ungrounded_extracted_field",
     "vendor_name_mismatch",
+    "historical_currency_mismatch",
 ]
 
 

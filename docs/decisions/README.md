@@ -68,3 +68,4 @@ Accepted decisions:
 - [0049: OCR and extraction confidence threshold verification](0049-ocr-and-extraction-confidence-verification.md)
 - [0050: Extraction evidence grounding verification](0050-extraction-evidence-grounding-verification.md)
 - [0051: Vendor name and registry consistency verification](0051-vendor-name-consistency-verification.md)
+- [0052: Historical currency consistency verification](0052-historical-currency-consistency-verification.md)

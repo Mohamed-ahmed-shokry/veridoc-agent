@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 45 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 46 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -348,6 +348,11 @@ implementation remains deliberately small:
   verification (ADR 0051): legal name, registered alias, token-reordered fuzzy
   matching, tax/bank-resolved name mismatch, absent/unresolved passthrough, and
   `VerificationService` integration.
+- `tests/test_verification_field_history.py` covers historical payment-term
+  consistency checks as well as Phase 46 deterministic historical currency
+  consistency verification (ADR 0052): consistent single-currency acceptance,
+  sparse/multi-currency/absent passthrough, currency mismatch detection, input
+  immutability, and `VerificationService` integration.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible

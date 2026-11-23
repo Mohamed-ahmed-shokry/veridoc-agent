@@ -20,7 +20,10 @@ from veridoc.verification.document_type import check_document_type
 from veridoc.verification.due_date_bounds import check_excessive_due_date_window
 from veridoc.verification.duplicate_line_items import check_duplicate_line_items
 from veridoc.verification.evidence_grounding import check_evidence_grounding
-from veridoc.verification.field_history import check_payment_terms
+from veridoc.verification.field_history import (
+    check_historical_currency,
+    check_payment_terms,
+)
 from veridoc.verification.future_dates import check_future_invoice_date
 from veridoc.verification.header_amounts import check_header_amounts
 from veridoc.verification.history import check_historical_total
@@ -117,6 +120,7 @@ class VerificationService:
             findings.extend(_missing_vendor_history_finding(invoice))
             return VerificationResult(findings=findings, vendor_resolution=resolution)
 
+        findings.extend(check_historical_currency(invoice, history))
         findings.extend(check_historical_total(invoice, history))
         findings.extend(check_line_item_occurrence(invoice, history))
         findings.extend(check_line_item_statistics(invoice, history))

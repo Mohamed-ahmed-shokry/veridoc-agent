@@ -51,6 +51,7 @@ boundaries only and require separate approval before implementation.
 | 43 | OCR and extraction confidence threshold verification (ADR 0049) | Complete |
 | 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
 | 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
+| 46 | Historical currency consistency verification (ADR 0052) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2834,9 +2835,72 @@ Phase 45 implements deterministic vendor name consistency verification:
 12. Record Phase 45 progress in `docs/PROGRESS.md`.
 13. Push micro-commits, verify remote CI is 100% green.
 
+## Phase 46: historical currency consistency verification
+
+Phase 46 adds deterministic verification that an invoice's extracted `currency` matches the vendor's established historical invoicing currency whenever at least `MINIMUM_HISTORY_SAMPLE_SIZE` (3) prior invoices share a single consistent currency (ADR 0052).
+
+### Objective
+
+Historical statistical checks (`check_historical_total`, `check_line_item_statistics`, `check_payment_terms`) filter vendor history by `historical_invoice.currency == invoice.currency`. Consequently, when an OCR symbol misread (`EUR` vs `USD`) or an unexpected billing-currency change occurs for a single-currency vendor, those checks find zero same-currency history and silently emit only `insufficient_history` (`info`), failing to flag the currency anomaly itself.
+
+Phase 46 implements deterministic historical currency consistency verification:
+1. When `invoice.currency` is `None`, or when fewer than `MINIMUM_HISTORY_SAMPLE_SIZE` (3) historical invoices carry a non-blank currency, or when historical invoices span multiple currencies, emit zero findings.
+2. When at least 3 historical invoices share a single consistent currency and `invoice.currency` differs (case- and whitespace-normalized), emit one `medium`-severity `historical_currency_mismatch` finding with `comparison_source="vendor_history"`, `historical_sample_size`, `observed_value`, `expected_value`, and structured details (`field`, `observed_currency`, `expected_currency`).
+3. Integrate `check_historical_currency(invoice, history)` into `VerificationService.verify()`, routing unexpected currency changes to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0052.
+- Add `historical_currency_mismatch` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Pure rule `check_historical_currency(invoice, history)` in `src/veridoc/verification/field_history.py`.
+- Integration into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+- Unit and integration tests in `tests/test_verification_field_history.py` and `tests/test_verification_models.py`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `historical_currency_mismatch` is a recognized `FindingType` literal union member.
+2. When `invoice.currency` is `None`, zero findings are emitted.
+3. When fewer than 3 historical invoices have a non-blank currency, zero findings are emitted.
+4. When historical invoices span multiple distinct currencies, zero findings are emitted.
+5. When at least 3 historical invoices share one currency and `invoice.currency` matches (including case normalization), zero findings are emitted.
+6. When at least 3 historical invoices share one currency and `invoice.currency` differs, emits one `historical_currency_mismatch` finding (`severity="medium"`, `comparison_source="vendor_history"`, `historical_sample_size`, and structured details).
+7. Input invoice extractions and historical sequences remain strictly immutable.
+8. `VerificationService.verify()` runs `check_historical_currency` and routes mismatched invoices to `review_required`.
+9. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_field_history.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Multi-currency FX conversion or exchange-rate lookups.
+- Emitting duplicate `insufficient_history` findings (already owned by `check_historical_total` and `check_payment_terms`).
+
+### Micro-task breakdown
+
+1. Add Phase 46 specification to `docs/roadmap.md`.
+2. Record ADR 0052 in `docs/decisions/0052-historical-currency-consistency-verification.md`.
+3. Register ADR 0052 in `docs/decisions/README.md`.
+4. Add `historical_currency_mismatch` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test in `tests/test_verification_models.py`.
+6. Implement `check_historical_currency` in `src/veridoc/verification/field_history.py`.
+7. Integrate `check_historical_currency` into `VerificationService.verify()`.
+8. Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py`.
+9. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+10. Mark Phase 46 complete in `docs/roadmap.md` approval rule and phase table.
+11. Record Phase 46 completion snapshot in `docs/release-evidence.md`.
+12. Record Phase 46 progress in `docs/PROGRESS.md`.
+13. Push micro-commits, verify remote CI is 100% green.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 45 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 46 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
