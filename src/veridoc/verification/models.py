@@ -64,6 +64,7 @@ FindingType = Literal[
     "ungrounded_extracted_field",
     "vendor_name_mismatch",
     "historical_currency_mismatch",
+    "historical_tax_rate_mismatch",
 ]
 
 
