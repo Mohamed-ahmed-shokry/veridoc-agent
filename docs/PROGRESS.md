@@ -1,58 +1,59 @@
-# Phase 46 Progress Record: Historical Currency Consistency Verification
+# Phase 47 Progress Record: Historical Effective Tax Rate Consistency Verification
 
 ## Phase Overview
 
-- **Phase:** Phase 46
-- **Goal:** Implement deterministic verification that an invoice's extracted `currency` matches the vendor's consistent historical invoicing currency when at least `MINIMUM_HISTORY_SAMPLE_SIZE` (3) prior invoices share one currency (ADR 0052).
+- **Phase:** Phase 47
+- **Goal:** Implement deterministic verification that an invoice's effective tax rate (`tax / subtotal`) aligns with the vendor's consistent same-currency historical effective tax rate within `TAX_RATE_TOLERANCE = Decimal("0.005")` (ADR 0053).
 - **Status:** Complete
-- **Branch:** `phase/historical-currency-consistency`
-- **Draft PR:** [#25](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/25)
+- **Branch:** `phase/historical-tax-rate-consistency`
+- **Draft PR:** [#26](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/26)
 - **Base:** `main`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 46 specification in `docs/roadmap.md` | Completed | `25b43a2` |
-| 2 | Record ADR 0052 in `docs/decisions/0052-historical-currency-consistency-verification.md` | Completed | `4bb4b8f` |
-| 3 | Register ADR 0052 in `docs/decisions/README.md` | Completed | `1829fff` |
-| 4 | Add `historical_currency_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `c5907f0` |
-| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `211afc0` |
-| 6 | Implement `check_historical_currency` in `src/veridoc/verification/field_history.py` | Completed | `cc0b01a` |
-| 7 | Integrate `check_historical_currency` into `VerificationService.verify()` | Completed | `71c0b15` |
-| 8 | Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py` | Completed | `0e78477`, `683d40e` |
-| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `829b2ec`, `8390098`, `ab4d0bd`, `bdd819c` |
-| 10 | Mark Phase 46 complete in `docs/roadmap.md` approval rule and phase table | Completed | `bae2363` |
-| 11 | Record Phase 46 completion snapshot in `docs/release-evidence.md` | Completed | `4938c02` |
+| 1 | Define Phase 47 specification in `docs/roadmap.md` | Completed | `0beb194` |
+| 2 | Record ADR 0053 in `docs/decisions/0053-historical-tax-rate-consistency-verification.md` | Completed | `4a9010b` |
+| 3 | Register ADR 0053 in `docs/decisions/README.md` | Completed | `698b235` |
+| 4 | Add `historical_tax_rate_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `6324764` |
+| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `330eb32` |
+| 6 | Implement `check_historical_tax_rate` in `src/veridoc/verification/field_history.py` | Completed | `78f8edd` |
+| 7 | Integrate `check_historical_tax_rate` into `VerificationService.verify()` | Completed | `75f2ad4` |
+| 8 | Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py` | Completed | `d4f9499` |
+| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `2ed158a`, `c6f7be5`, `62eeb82`, `c330041` |
+| 10 | Mark Phase 47 complete in `docs/roadmap.md` approval rule and phase table | Completed | `b2af03e` |
+| 11 | Record Phase 47 completion snapshot in `docs/release-evidence.md` | Completed | `8938407` |
 | 12 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `historical_currency_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (27 passed) |
-| 2 | Absent `invoice.currency` (`None`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed (6 passed) |
-| 3 | Sparse history (< 3 currency observations) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 4 | Multi-currency history emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 5 | Consistent currency match (including normalization) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 6 | Currency mismatch against consistent history emits `historical_currency_mismatch` (`medium`) | Verified | `tests/test_verification_field_history.py` passed |
-| 7 | Input `InvoiceExtraction` and `history` remain strictly immutable | Verified | `tests/test_verification_field_history.py` passed |
-| 8 | `VerificationService.verify()` routes mismatched invoices to `review_required` | Verified | `tests/test_verification_field_history.py` + end-to-end SQLite check passed |
-| 9 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1772 passed, 94.31% coverage); remote CI verified after push |
+| 1 | `historical_tax_rate_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (28 passed) |
+| 2 | Absent `currency`, `subtotal`, `tax`, or `subtotal <= 0` / `tax < 0` emits `[]` | Verified | `tests/test_verification_field_history.py` passed (9 passed) |
+| 3 | Sparse same-currency history (< 3 tax-rate observations) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 4 | Mixed-rate history (range `> tolerance`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 5 | Consistent rate within `tolerance` (default `0.005`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
+| 6 | Divergent rate beyond `tolerance` emits `historical_tax_rate_mismatch` (`medium`) | Verified | `tests/test_verification_field_history.py` passed |
+| 7 | Negative `tolerance` raises `ValueError` | Verified | `tests/test_verification_field_history.py` passed |
+| 8 | Input `InvoiceExtraction` and `history` remain strictly immutable | Verified | `tests/test_verification_field_history.py` passed |
+| 9 | `VerificationService.verify()` routes tax-rate mismatches to `review_required` | Verified | `tests/test_verification_field_history.py` + end-to-end SQLite check passed |
+| 10 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1776 passed, 94.29% coverage); remote CI verified after push |
 
 ## Decision Log
 
-### Decision 1: Do not emit duplicate `insufficient_history` in `check_historical_currency`
-- **Context:** Both `check_historical_total` and `check_payment_terms` already emit `insufficient_history` (`info`) when fewer than `MINIMUM_HISTORY_SAMPLE_SIZE` (3) observations exist.
-- **Decision:** Return `[]` when fewer than 3 historical currency observations exist, avoiding duplicate `insufficient_history` noise.
-- **Alternatives Considered:** Emitting an additional `insufficient_history` finding for currency. Rejected: clutters review UI and breaks existing tests that assert exact `insufficient_history` counts.
-- **Blast Radius & Reversibility:** Pure function in `veridoc.verification.field_history`.
+### Decision 1: Use `Decimal("0.005")` (0.5 percentage points) tolerance
+- **Context:** Invoice totals and taxes are rounded to 2 decimal places (`0.01`), which introduces small effective-rate variance on smaller subtotals.
+- **Decision:** Use `TAX_RATE_TOLERANCE = Decimal("0.005")` with `TAX_RATE_PRECISION = Decimal("0.0001")` so minor currency-rounding variance clears while genuine rate changes (e.g., 20% -> 19%, 20% -> 5%, or 20% -> 0%) are caught.
+- **Alternatives Considered:** Exact equality (`tolerance = 0`). Rejected: would produce false positives on standard two-decimal tax rounding.
+- **Blast Radius & Reversibility:** Configurable keyword argument in `check_historical_tax_rate`.
 
-### Decision 2: Skip multi-currency vendors (`len(set(historical_currencies)) != 1`)
-- **Context:** International suppliers may legitimately bill in multiple currencies (e.g., USD and EUR).
-- **Decision:** Only flag `historical_currency_mismatch` when all prior currency observations (sample size >= 3) share a single consistent currency.
-- **Alternatives Considered:** Majority-vote currency threshold. Rejected: would cause false positives for legitimate dual-currency vendors.
-- **Blast Radius & Reversibility:** Single condition in `check_historical_currency`.
+### Decision 2: Skip mixed-rate vendors (`max - min > tolerance`)
+- **Context:** Suppliers selling both standard-rated and zero-rated goods legitimately exhibit multiple effective tax rates across historical invoices.
+- **Decision:** Only flag `historical_tax_rate_mismatch` when all prior same-currency observations (`>= 3`) cluster within `tolerance`.
+- **Alternatives Considered:** Mean-plus-z-score outlier detection. Rejected: bimodal tax rates (e.g., 0% and 20%) have wide standard deviation and are better left unflagged unless the vendor is single-rate.
+- **Blast Radius & Reversibility:** Single guard in `check_historical_tax_rate`.
 
 ## Validation & CI Log
 
@@ -60,9 +61,9 @@
 - `uv lock --check`: Passed (Resolved 103 packages)
 - `uv run pip-audit`: Passed (0 vulnerabilities; `veridoc` skipped)
 - `uv run ruff check .`: Passed (All checks passed!)
-- `uv run ruff format --check .`: Passed (340 files formatted)
+- `uv run ruff format --check .`: Passed (341 files formatted)
 - `uv run mypy`: Passed (0 issues across 128 source files)
-- `uv run pytest --cov=veridoc`: Passed (1772 passed in 83.21s, 94.31% branch coverage, 90.0% floor)
+- `uv run pytest --cov=veridoc`: Passed (1776 passed in 42.65s, 94.29% branch coverage, 90.0% floor)
 - `uv run pytest tests/test_documentation.py`: Passed (3 passed)
 - `uv build --clear`: Built `veridoc-0.1.0-py3-none-any.whl` and `veridoc-0.1.0.tar.gz`
 - `uv run twine check dist/*`: Both distributions passed metadata validation
