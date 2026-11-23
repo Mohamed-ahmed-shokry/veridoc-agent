@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 47 historical effective tax rate consistency verification (`historical_tax_rate_mismatch`):
+  - Architecture Decision Record 0053 documenting deterministic verification that an invoice's effective tax rate (`tax / subtotal`) aligns with the vendor's consistent same-currency historical tax rate within `TAX_RATE_TOLERANCE = Decimal("0.005")`.
+  - `historical_tax_rate_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_historical_tax_rate()` in `veridoc.verification.field_history` and integrated it into `VerificationService.verify()`. Emits one `medium`-severity finding with `comparison_source="vendor_history"` and `historical_sample_size` when a consistent-rate vendor's invoice diverges beyond tolerance, while skipping absent/non-positive inputs, sparse history (< 3), and multi-rate vendors.
+  - Added unit, boundary, immutability, and `VerificationService` integration tests in `tests/test_verification_field_history.py` and `tests/test_verification_models.py`.
+
 - Phase 46 historical currency consistency verification (`historical_currency_mismatch`):
   - Architecture Decision Record 0052 documenting deterministic verification that an invoice's extracted `currency` matches the vendor's consistent historical invoicing currency when at least 3 prior invoices share a single currency.
   - `historical_currency_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
