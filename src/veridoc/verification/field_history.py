@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from decimal import Decimal, InvalidOperation
+from typing import Final
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.history import MINIMUM_HISTORY_SAMPLE_SIZE
@@ -118,6 +120,89 @@ def check_historical_currency(
                 "field": "currency",
                 "observed_currency": observed_currency,
                 "expected_currency": expected_currency,
+            },
+        )
+    ]
+
+
+TAX_RATE_TOLERANCE: Final[Decimal] = Decimal("0.005")
+TAX_RATE_PRECISION: Final[Decimal] = Decimal("0.0001")
+_PERCENT_PRECISION: Final[Decimal] = Decimal("0.01")
+
+
+def _derive_tax_rate(
+    subtotal: Decimal | None,
+    tax: Decimal | None,
+) -> Decimal | None:
+    if subtotal is None or tax is None or subtotal <= Decimal(0) or tax < Decimal(0):
+        return None
+    try:
+        return (tax / subtotal).quantize(TAX_RATE_PRECISION)
+    except (InvalidOperation, ZeroDivisionError):
+        return None
+
+
+def _format_rate_percent(rate: Decimal) -> str:
+    return f"{(rate * Decimal(100)).quantize(_PERCENT_PRECISION)}%"
+
+
+def check_historical_tax_rate(
+    invoice: InvoiceExtraction,
+    history: Sequence[HistoricalInvoice],
+    *,
+    tolerance: Decimal = TAX_RATE_TOLERANCE,
+) -> list[VerificationFinding]:
+    """Flag invoices whose effective tax rate shifts from consistent history."""
+    if tolerance < Decimal(0):
+        raise ValueError("tolerance must be non-negative.")
+    if invoice.currency is None:
+        return []
+
+    observed_rate = _derive_tax_rate(invoice.subtotal, invoice.tax)
+    if observed_rate is None:
+        return []
+
+    historical_rates: list[Decimal] = []
+    for historical_invoice in history:
+        if historical_invoice.currency != invoice.currency:
+            continue
+        rate = _derive_tax_rate(historical_invoice.subtotal, historical_invoice.tax)
+        if rate is not None:
+            historical_rates.append(rate)
+
+    if len(historical_rates) < MINIMUM_HISTORY_SAMPLE_SIZE:
+        return []
+
+    if max(historical_rates) - min(historical_rates) > tolerance:
+        return []
+
+    expected_rate = (
+        sum(historical_rates, start=Decimal(0)) / len(historical_rates)
+    ).quantize(TAX_RATE_PRECISION)
+    if abs(observed_rate - expected_rate) <= tolerance:
+        return []
+
+    observed_pct = _format_rate_percent(observed_rate)
+    expected_pct = _format_rate_percent(expected_rate)
+    return [
+        VerificationFinding(
+            finding_type="historical_tax_rate_mismatch",
+            severity="medium",
+            explanation=(
+                f"Effective tax rate {observed_pct} differs from the vendor's "
+                f"consistent historical tax rate {expected_pct}."
+            ),
+            comparison_source="vendor_history",
+            deterministic_rule=f"abs(tax / subtotal - historical_tax_rate) <= {tolerance}",
+            observed_value=observed_pct,
+            expected_value=expected_pct,
+            historical_sample_size=len(historical_rates),
+            details={
+                "field": "tax",
+                "currency": invoice.currency,
+                "observed_tax_rate": str(observed_rate),
+                "expected_tax_rate": str(expected_rate),
+                "tolerance": str(tolerance),
             },
         )
     ]
