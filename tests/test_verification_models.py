@@ -549,3 +549,30 @@ def test_verification_finding_accepts_historical_currency_mismatch() -> None:
     assert finding.severity == "medium"
     assert finding.historical_sample_size == 3
     assert finding.details["expected_currency"] == "USD"
+
+
+def test_verification_finding_accepts_historical_tax_rate_mismatch() -> None:
+    finding = VerificationFinding(
+        finding_type="historical_tax_rate_mismatch",
+        severity="medium",
+        explanation=(
+            "Effective tax rate 0.00% differs from the vendor's consistent "
+            "historical tax rate 20.00%."
+        ),
+        comparison_source="vendor_history",
+        deterministic_rule="abs(tax / subtotal - historical_tax_rate) <= 0.005",
+        observed_value="0.00%",
+        expected_value="20.00%",
+        historical_sample_size=3,
+        details={
+            "field": "tax",
+            "currency": "GBP",
+            "observed_tax_rate": "0.0000",
+            "expected_tax_rate": "0.2000",
+            "tolerance": "0.005",
+        },
+    )
+    assert finding.finding_type == "historical_tax_rate_mismatch"
+    assert finding.severity == "medium"
+    assert finding.historical_sample_size == 3
+    assert finding.details["expected_tax_rate"] == "0.2000"
