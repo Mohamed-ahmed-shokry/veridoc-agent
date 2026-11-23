@@ -52,6 +52,7 @@ boundaries only and require separate approval before implementation.
 | 44 | Extraction evidence grounding verification (ADR 0050) | Complete |
 | 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
 | 46 | Historical currency consistency verification (ADR 0052) | Complete |
+| 47 | Historical effective tax rate consistency verification (ADR 0053) | Complete |
 
 ## Phase 7: release engineering
 
@@ -2898,9 +2899,74 @@ Phase 46 implements deterministic historical currency consistency verification:
 12. Record Phase 46 progress in `docs/PROGRESS.md`.
 13. Push micro-commits, verify remote CI is 100% green.
 
+## Phase 47: historical effective tax rate consistency verification
+
+Phase 47 adds deterministic verification that an invoice's effective tax rate (`tax / subtotal`) aligns with the vendor's established same-currency historical effective tax rate whenever at least `MINIMUM_HISTORY_SAMPLE_SIZE` (3) prior invoices share a consistent rate (ADR 0053).
+
+### Objective
+
+Existing tax checks validate non-negativity (`tax >= 0`, Phase 26) and statutory upper bounds (`tax <= subtotal`, Phase 38). However, if a vendor consistently bills 20% VAT across prior invoices and an incoming invoice drops to 0% or jumps to 10% or 40% while still balancing `subtotal + tax == total`, neither header-amount checks nor historical-total checks catch the tax-rate shift.
+
+Phase 47 implements deterministic historical effective tax rate verification:
+1. When `invoice.currency`, `invoice.subtotal`, or `invoice.tax` is absent, or `subtotal <= 0`, or `tax < 0`, emit zero findings.
+2. When fewer than `MINIMUM_HISTORY_SAMPLE_SIZE` (3) same-currency historical invoices have valid `subtotal > 0` and `tax >= 0`, or when historical rates vary beyond `TAX_RATE_TOLERANCE` (`0.005`), emit zero findings.
+3. When historical rates are consistent within tolerance and `abs(observed_rate - expected_rate) > tolerance`, emit one `medium`-severity `historical_tax_rate_mismatch` finding with `comparison_source="vendor_history"`, `historical_sample_size`, formatted percentage `observed_value` / `expected_value`, and structured details (`field`, `currency`, `observed_tax_rate`, `expected_tax_rate`, `tolerance`).
+4. Integrate `check_historical_tax_rate(invoice, history)` into `VerificationService.verify()`, routing unexpected tax-rate shifts to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0053.
+- Add `historical_tax_rate_mismatch` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Constants `TAX_RATE_TOLERANCE`, `TAX_RATE_PRECISION`, and pure rule `check_historical_tax_rate(invoice, history, *, tolerance=TAX_RATE_TOLERANCE)` in `src/veridoc/verification/field_history.py`.
+- Integration into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+- Unit and integration tests in `tests/test_verification_field_history.py` and `tests/test_verification_models.py`.
+- Documentation and release evidence updates.
+
+### Acceptance criteria
+
+1. `historical_tax_rate_mismatch` is a recognized `FindingType` literal union member.
+2. Absent `currency`, `subtotal`, `tax`, or `subtotal <= 0` / `tax < 0` emits `[]`.
+3. Fewer than 3 same-currency historical tax-rate observations emit `[]`.
+4. Mixed-rate history (range `> tolerance`) emits `[]`.
+5. Consistent rate within `tolerance` (default `0.005`) emits `[]`.
+6. Divergent rate beyond `tolerance` emits one `historical_tax_rate_mismatch` finding (`severity="medium"`, `comparison_source="vendor_history"`, `historical_sample_size`, and structured details).
+7. Negative `tolerance` raises `ValueError`.
+8. Input `InvoiceExtraction` and `history` remain strictly immutable.
+9. `VerificationService.verify()` routes tax-rate mismatches to `review_required`.
+10. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_field_history.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Per-line-item tax code lookup or jurisdiction tax-table inference.
+- Emitting duplicate `insufficient_history` findings.
+
+### Micro-task breakdown
+
+1. Add Phase 47 specification to `docs/roadmap.md`.
+2. Record ADR 0053 in `docs/decisions/0053-historical-tax-rate-consistency-verification.md`.
+3. Register ADR 0053 in `docs/decisions/README.md`.
+4. Add `historical_tax_rate_mismatch` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test in `tests/test_verification_models.py`.
+6. Implement `check_historical_tax_rate` in `src/veridoc/verification/field_history.py`.
+7. Integrate `check_historical_tax_rate` into `VerificationService.verify()`.
+8. Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py`.
+9. Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`).
+10. Mark Phase 47 complete in `docs/roadmap.md` approval rule and phase table.
+11. Record Phase 47 completion snapshot in `docs/release-evidence.md`.
+12. Record Phase 47 progress in `docs/PROGRESS.md`.
+13. Push micro-commits, verify remote CI is 100% green.
+
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 46 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 47 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,

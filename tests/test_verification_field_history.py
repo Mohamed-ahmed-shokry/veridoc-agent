@@ -3,6 +3,7 @@
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.field_history import (
     check_historical_currency,
+    check_historical_tax_rate,
     check_payment_terms,
 )
 from veridoc.verification.references import HistoricalInvoice
@@ -145,5 +146,171 @@ def test_verification_service_routes_historical_currency_mismatch_to_review() ->
     result = service.verify(invoice, reference_date=date(2026, 11, 22))
     assert any(
         f.finding_type == "historical_currency_mismatch" for f in result.findings
+    )
+    assert derive_verdict(result).status == "review_required"
+
+
+def _tax_history(*pairs: tuple[str, str]) -> list[HistoricalInvoice]:
+    from decimal import Decimal
+
+    return [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number=f"INV-{index}",
+            currency="GBP",
+            subtotal=Decimal(subtotal),
+            tax=Decimal(tax),
+        )
+        for index, (subtotal, tax) in enumerate(pairs, start=1)
+    ]
+
+
+def test_historical_tax_rate_exclusions_and_tolerance() -> None:
+    from decimal import Decimal
+
+    import pytest
+
+    history = _tax_history(
+        ("100.00", "20.00"), ("200.00", "40.00"), ("150.00", "30.00")
+    )
+
+    # Missing currency, subtotal, or tax, or non-positive subtotal
+    assert (
+        check_historical_tax_rate(
+            InvoiceExtraction(
+                document_type="invoice",
+                currency=None,
+                subtotal=Decimal("100.00"),
+                tax=Decimal("20.00"),
+            ),
+            history,
+        )
+        == []
+    )
+    assert (
+        check_historical_tax_rate(
+            InvoiceExtraction(
+                document_type="invoice",
+                currency="GBP",
+                subtotal=Decimal("0.00"),
+                tax=Decimal("0.00"),
+            ),
+            history,
+        )
+        == []
+    )
+    # Sparse history (< 3)
+    assert (
+        check_historical_tax_rate(
+            InvoiceExtraction(
+                document_type="invoice",
+                currency="GBP",
+                subtotal=Decimal("100.00"),
+                tax=Decimal("0.00"),
+            ),
+            history[:2],
+        )
+        == []
+    )
+    # Mixed-rate history
+    mixed_history = _tax_history(
+        ("100.00", "10.00"), ("100.00", "20.00"), ("100.00", "20.00")
+    )
+    assert (
+        check_historical_tax_rate(
+            InvoiceExtraction(
+                document_type="invoice",
+                currency="GBP",
+                subtotal=Decimal("100.00"),
+                tax=Decimal("15.00"),
+            ),
+            mixed_history,
+        )
+        == []
+    )
+    # Within default tolerance (0.2040 vs 0.2000 <= 0.005)
+    assert (
+        check_historical_tax_rate(
+            InvoiceExtraction(
+                document_type="invoice",
+                currency="GBP",
+                subtotal=Decimal("100.00"),
+                tax=Decimal("20.40"),
+            ),
+            history,
+        )
+        == []
+    )
+    with pytest.raises(ValueError, match="tolerance"):
+        check_historical_tax_rate(
+            InvoiceExtraction(document_type="invoice", currency="GBP"),
+            history,
+            tolerance=Decimal("-0.01"),
+        )
+
+
+def test_historical_tax_rate_flags_shift_and_preserves_immutability() -> None:
+    from decimal import Decimal
+
+    history = _tax_history(
+        ("100.00", "20.00"), ("200.00", "40.00"), ("150.00", "30.00")
+    )
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        currency="GBP",
+        subtotal=Decimal("100.00"),
+        tax=Decimal("0.00"),
+    )
+    snapshot = invoice.model_copy(deep=True)
+    findings = check_historical_tax_rate(invoice, history)
+
+    assert invoice == snapshot
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "historical_tax_rate_mismatch"
+    assert finding.severity == "medium"
+    assert finding.comparison_source == "vendor_history"
+    assert finding.observed_value == "0.00%"
+    assert finding.expected_value == "20.00%"
+    assert finding.historical_sample_size == 3
+    assert finding.details == {
+        "field": "tax",
+        "currency": "GBP",
+        "observed_tax_rate": "0.0000",
+        "expected_tax_rate": "0.2000",
+        "tolerance": "0.005",
+    }
+
+
+def test_verification_service_routes_historical_tax_rate_mismatch_to_review() -> None:
+    from datetime import date
+    from decimal import Decimal
+
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    class _TaxHistoryRepo:
+        def list_vendor_invoices(self, vendor_key: str) -> list[HistoricalInvoice]:
+            return _tax_history(
+                ("100.00", "20.00"), ("200.00", "40.00"), ("150.00", "30.00")
+            )
+
+        def get_purchase_order(self, vendor_key: str, po_number: str) -> object | None:
+            return None
+
+    service = VerificationService(repository=_TaxHistoryRepo())  # type: ignore[arg-type]
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-901",
+        invoice_date=date(2026, 11, 20),
+        currency="GBP",
+        subtotal=Decimal("100.00"),
+        tax=Decimal("5.00"),
+        total=Decimal("105.00"),
+    )
+    result = service.verify(invoice, reference_date=date(2026, 11, 23))
+    assert any(
+        f.finding_type == "historical_tax_rate_mismatch" for f in result.findings
     )
     assert derive_verdict(result).status == "review_required"
