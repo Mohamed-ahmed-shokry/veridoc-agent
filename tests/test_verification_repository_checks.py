@@ -147,3 +147,27 @@ def test_potential_duplicate_flags_when_invoice_number_is_absent() -> None:
     assert findings[0].finding_type == "potential_duplicate_invoice"
     assert findings[0].details["observed_invoice_number"] is None
     assert "different invoice number" not in findings[0].explanation
+
+
+def test_potential_duplicate_skips_exact_and_normalized_same_invoice_number() -> None:
+    exact = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-001",
+        invoice_date=date(2026, 7, 1),
+        currency="USD",
+        total=Decimal("1250.00"),
+    )
+    normalized_variant = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="inv – 001",
+        invoice_date=date(2026, 7, 1),
+        currency="USD",
+        total=Decimal("1250.00"),
+    )
+
+    assert check_potential_duplicate_invoice(exact, _priced_history()) == []
+    assert (
+        check_potential_duplicate_invoice(normalized_variant, _priced_history()) == []
+    )
