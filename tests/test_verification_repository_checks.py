@@ -171,3 +171,56 @@ def test_potential_duplicate_skips_exact_and_normalized_same_invoice_number() ->
     assert (
         check_potential_duplicate_invoice(normalized_variant, _priced_history()) == []
     )
+
+
+def test_potential_duplicate_skips_missing_or_non_positive_fields() -> None:
+    history = _priced_history()
+    candidates = [
+        InvoiceExtraction(
+            document_type="invoice",
+            invoice_number="INV-002",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("1250.00"),
+        ),
+        InvoiceExtraction(
+            document_type="invoice",
+            vendor_name="Fictional Supplies",
+            invoice_number="INV-002",
+            currency="USD",
+            total=Decimal("1250.00"),
+        ),
+        InvoiceExtraction(
+            document_type="invoice",
+            vendor_name="Fictional Supplies",
+            invoice_number="INV-002",
+            invoice_date=date(2026, 7, 1),
+            total=Decimal("1250.00"),
+        ),
+        InvoiceExtraction(
+            document_type="invoice",
+            vendor_name="Fictional Supplies",
+            invoice_number="INV-002",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+        ),
+        InvoiceExtraction(
+            document_type="invoice",
+            vendor_name="Fictional Supplies",
+            invoice_number="INV-002",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("0.00"),
+        ),
+        InvoiceExtraction(
+            document_type="invoice",
+            vendor_name="Fictional Supplies",
+            invoice_number="INV-002",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("-50.00"),
+        ),
+    ]
+
+    for candidate in candidates:
+        assert check_potential_duplicate_invoice(candidate, history) == []
