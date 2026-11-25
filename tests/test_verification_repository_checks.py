@@ -296,3 +296,44 @@ def test_potential_duplicate_preserves_input_immutability() -> None:
     assert len(findings) == 1
     assert invoice.model_dump() == invoice_before
     assert [item.model_dump() for item in history] == history_before
+
+
+def test_verification_service_routes_potential_duplicate_to_review_required(
+    tmp_path,
+) -> None:
+    from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    repository = SQLiteInvoiceRepository(tmp_path / "reference.db")
+    repository.initialize()
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-001",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("1250.00"),
+        )
+    )
+    service = VerificationService(repository=repository)
+
+    resubmitted = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-001-A",
+        invoice_date=date(2026, 7, 1),
+        currency="USD",
+        total=Decimal("1250.00"),
+    )
+    result = service.verify(resubmitted, reference_date=date(2026, 7, 5))
+    finding_types = [finding.finding_type for finding in result.findings]
+    assert "potential_duplicate_invoice" in finding_types
+    assert "duplicate_invoice_number" not in finding_types
+    assert derive_verdict(result).status == "review_required"
+
+    exact_duplicate = resubmitted.model_copy(update={"invoice_number": "INV-001"})
+    exact_result = service.verify(exact_duplicate, reference_date=date(2026, 7, 5))
+    exact_types = [finding.finding_type for finding in exact_result.findings]
+    assert "duplicate_invoice_number" in exact_types
+    assert "potential_duplicate_invoice" not in exact_types
