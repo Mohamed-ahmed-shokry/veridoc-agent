@@ -224,3 +224,75 @@ def test_potential_duplicate_skips_missing_or_non_positive_fields() -> None:
 
     for candidate in candidates:
         assert check_potential_duplicate_invoice(candidate, history) == []
+
+
+def test_potential_duplicate_skips_distinct_date_currency_total_and_incomplete_history() -> (
+    None
+):
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-002",
+        invoice_date=date(2026, 7, 1),
+        currency="USD",
+        total=Decimal("1250.00"),
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-001",
+            invoice_date=date(2026, 7, 2),
+            currency="USD",
+            total=Decimal("1250.00"),
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-003",
+            invoice_date=date(2026, 7, 1),
+            currency="EUR",
+            total=Decimal("1250.00"),
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-004",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("1250.01"),
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-005",
+            invoice_date=date(2026, 7, 1),
+            currency=None,
+            total=Decimal("1250.00"),
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-006",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=None,
+        ),
+    ]
+
+    assert check_potential_duplicate_invoice(invoice, history) == []
+
+
+def test_potential_duplicate_preserves_input_immutability() -> None:
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-002",
+        invoice_date=date(2026, 7, 1),
+        currency="USD",
+        total=Decimal("1250.00"),
+    )
+    history = _priced_history()
+    invoice_before = invoice.model_dump()
+    history_before = [item.model_dump() for item in history]
+
+    findings = check_potential_duplicate_invoice(invoice, history)
+
+    assert len(findings) == 1
+    assert invoice.model_dump() == invoice_before
+    assert [item.model_dump() for item in history] == history_before
