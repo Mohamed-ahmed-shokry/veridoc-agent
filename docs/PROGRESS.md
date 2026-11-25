@@ -1,59 +1,59 @@
-# Phase 47 Progress Record: Historical Effective Tax Rate Consistency Verification
+# Phase 48 Progress Record: Potential Duplicate Invoice Detection
 
 ## Phase Overview
 
-- **Phase:** Phase 47
-- **Goal:** Implement deterministic verification that an invoice's effective tax rate (`tax / subtotal`) aligns with the vendor's consistent same-currency historical effective tax rate within `TAX_RATE_TOLERANCE = Decimal("0.005")` (ADR 0053).
+- **Phase:** Phase 48
+- **Goal:** Implement deterministic detection of potential duplicate invoices from the same vendor sharing an exact `invoice_date`, normalized `currency`, and positive `total` under a different (or absent) `invoice_number` (ADR 0054).
 - **Status:** Complete
-- **Branch:** `phase/historical-tax-rate-consistency`
-- **Draft PR:** [#26](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/26)
+- **Branch:** `phase/potential-duplicate-invoice`
+- **Draft PR:** [#27](https://github.com/Mohamed-ahmed-shokry/veridoc-agent/pull/27)
 - **Base:** `main`
 
 ## Task Status
 
 | Step | Task | Status | Commit |
 |---|---|---|---|
-| 1 | Define Phase 47 specification in `docs/roadmap.md` | Completed | `0beb194` |
-| 2 | Record ADR 0053 in `docs/decisions/0053-historical-tax-rate-consistency-verification.md` | Completed | `4a9010b` |
-| 3 | Register ADR 0053 in `docs/decisions/README.md` | Completed | `698b235` |
-| 4 | Add `historical_tax_rate_mismatch` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `6324764` |
-| 5 | Add model acceptance test in `tests/test_verification_models.py` | Completed | `330eb32` |
-| 6 | Implement `check_historical_tax_rate` in `src/veridoc/verification/field_history.py` | Completed | `78f8edd` |
-| 7 | Integrate `check_historical_tax_rate` into `VerificationService.verify()` | Completed | `75f2ad4` |
-| 8 | Add unit and `VerificationService` integration tests in `tests/test_verification_field_history.py` | Completed | `d4f9499` |
-| 9 | Update documentation (`README.md`, `CHANGELOG.md`, `docs/architecture.md`, `AGENTS.md`) | Completed | `2ed158a`, `c6f7be5`, `62eeb82`, `c330041` |
-| 10 | Mark Phase 47 complete in `docs/roadmap.md` approval rule and phase table | Completed | `b2af03e` |
-| 11 | Record Phase 47 completion snapshot in `docs/release-evidence.md` | Completed | `8938407` |
-| 12 | Finalize progress record with validation evidence | Completed | this commit |
+| 1 | Define Phase 48 specification in `docs/roadmap.md` | Completed | `da770c3` |
+| 2 | Record ADR 0054 in `docs/decisions/0054-potential-duplicate-invoice-detection.md` | Completed | `1b9e38a` |
+| 3 | Register ADR 0054 in `docs/decisions/README.md` | Completed | `f8859fd` |
+| 4 | Add `potential_duplicate_invoice` to `FindingType` in `src/veridoc/verification/models.py` | Completed | `5821923` |
+| 5 | Add model contract test in `tests/test_verification_models.py` | Completed | `5cb6a6e` |
+| 6 | Add exact date/currency/total matching helper in `src/veridoc/verification/repository_checks.py` | Completed | `4abda51` |
+| 7 | Implement `check_potential_duplicate_invoice` in `src/veridoc/verification/repository_checks.py` | Completed | `3304a6a` |
+| 8 | Add happy-path, deduplication, passthrough, non-matching, and immutability tests in `tests/test_verification_repository_checks.py` | Completed | `7f41c2c`, `fbbfa1f`, `2b0cf50`, `b1801a7` |
+| 9 | Integrate `check_potential_duplicate_invoice` into `VerificationService.verify()` | Completed | `5ca4618` |
+| 10 | Add SQLite `VerificationService` + verdict integration test in `tests/test_verification_repository_checks.py` | Completed | `5801d0a` |
+| 11 | Update documentation (`docs/architecture.md`, `CHANGELOG.md`, `README.md`, `AGENTS.md`) | Completed | `2a844e8`, `2e043fa`, `cc55eda`, `4fbf074` |
+| 12 | Mark Phase 48 complete in `docs/roadmap.md` status table and approval rule | Completed | `d2acdf1` |
+| 13 | Record Phase 48 completion snapshot in `docs/release-evidence.md` | Completed | `e8fddf5` |
+| 14 | Finalize progress record with validation evidence | Completed | this commit |
 
 ## Acceptance Criteria
 
 | # | Criterion | Status | Evidence |
 |---|---|---|---|
-| 1 | `historical_tax_rate_mismatch` is a valid `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (28 passed) |
-| 2 | Absent `currency`, `subtotal`, `tax`, or `subtotal <= 0` / `tax < 0` emits `[]` | Verified | `tests/test_verification_field_history.py` passed (9 passed) |
-| 3 | Sparse same-currency history (< 3 tax-rate observations) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 4 | Mixed-rate history (range `> tolerance`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 5 | Consistent rate within `tolerance` (default `0.005`) emits `[]` | Verified | `tests/test_verification_field_history.py` passed |
-| 6 | Divergent rate beyond `tolerance` emits `historical_tax_rate_mismatch` (`medium`) | Verified | `tests/test_verification_field_history.py` passed |
-| 7 | Negative `tolerance` raises `ValueError` | Verified | `tests/test_verification_field_history.py` passed |
-| 8 | Input `InvoiceExtraction` and `history` remain strictly immutable | Verified | `tests/test_verification_field_history.py` passed |
-| 9 | `VerificationService.verify()` routes tax-rate mismatches to `review_required` | Verified | `tests/test_verification_field_history.py` + end-to-end SQLite check passed |
-| 10 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1776 passed, 94.29% coverage); remote CI verified after push |
+| 1 | `potential_duplicate_invoice` is a recognized `FindingType` literal union member | Verified | `tests/test_verification_models.py` passed (29 passed) |
+| 2 | Absent `vendor_key`, `invoice_date`, `currency`, or `total`, or `total <= 0`, emits `[]` | Verified | `tests/test_verification_repository_checks.py` passed (11 passed) |
+| 3 | Exact and normalized canonical `invoice_number` duplicates are skipped so they are not double-flagged alongside `duplicate_invoice_number` | Verified | `tests/test_verification_repository_checks.py` passed |
+| 4 | Historical invoices differing in `invoice_date`, `currency`, or `total` emit `[]` | Verified | `tests/test_verification_repository_checks.py` passed |
+| 5 | Matching `vendor_key`, `invoice_date`, normalized `currency`, and positive `total` under a different or absent `invoice_number` emits one `medium`-severity `potential_duplicate_invoice` finding with `comparison_source="invoice_register"` and structured details | Verified | `tests/test_verification_repository_checks.py` passed (100% branch coverage on `repository_checks.py`) |
+| 6 | Input `InvoiceExtraction` and `history` remain strictly immutable | Verified | `tests/test_verification_repository_checks.py` passed |
+| 7 | `VerificationService.verify()` runs `check_potential_duplicate_invoice` and routes potential duplicates to `review_required` | Verified | SQLite `VerificationService` + `derive_verdict` integration test passed |
+| 8 | All local CI-parity checks and remote CI workflow runs pass 100% | Verified | Local CI parity green (1784 passed, 94.31% coverage); remote CI run `45664441524` green and re-verified on final HEAD |
 
 ## Decision Log
 
-### Decision 1: Use `Decimal("0.005")` (0.5 percentage points) tolerance
-- **Context:** Invoice totals and taxes are rounded to 2 decimal places (`0.01`), which introduces small effective-rate variance on smaller subtotals.
-- **Decision:** Use `TAX_RATE_TOLERANCE = Decimal("0.005")` with `TAX_RATE_PRECISION = Decimal("0.0001")` so minor currency-rounding variance clears while genuine rate changes (e.g., 20% -> 19%, 20% -> 5%, or 20% -> 0%) are caught.
-- **Alternatives Considered:** Exact equality (`tolerance = 0`). Rejected: would produce false positives on standard two-decimal tax rounding.
-- **Blast Radius & Reversibility:** Configurable keyword argument in `check_historical_tax_rate`.
+### Decision 1: Require exact `invoice_date`, normalized `currency`, and exact positive `total`
+- **Context:** Multi-day date windows or fuzzy amount tolerances could flag legitimate recurring shipments on nearby dates.
+- **Decision:** Match strictly on `(vendor_key, invoice_date, normalized_currency, total)` with `total > 0`.
+- **Alternatives Considered:** Multi-day +/- 3 day window or 1% amount tolerance. Rejected to preserve high precision and avoid false positives on routine recurring invoices.
+- **Blast Radius & Reversibility:** Pure function in `src/veridoc/verification/repository_checks.py` with zero schema changes.
 
-### Decision 2: Skip mixed-rate vendors (`max - min > tolerance`)
-- **Context:** Suppliers selling both standard-rated and zero-rated goods legitimately exhibit multiple effective tax rates across historical invoices.
-- **Decision:** Only flag `historical_tax_rate_mismatch` when all prior same-currency observations (`>= 3`) cluster within `tolerance`.
-- **Alternatives Considered:** Mean-plus-z-score outlier detection. Rejected: bimodal tax rates (e.g., 0% and 20%) have wide standard deviation and are better left unflagged unless the vendor is single-rate.
-- **Blast Radius & Reversibility:** Single guard in `check_historical_tax_rate`.
+### Decision 2: Skip exact/normalized `invoice_number` collisions and emit `severity="medium"`
+- **Context:** `check_duplicate_invoice_number` already owns exact and normalized invoice-number collisions at `severity="high"`.
+- **Decision:** Skip historical entries whose canonical `invoice_number` matches the incoming invoice, and emit `severity="medium"` for distinct/absent invoice numbers so both route to `review_required` without duplicate findings.
+- **Alternatives Considered:** Always emitting both findings or using `severity="high"`. Rejected to prevent redundant reviewer alerts and to distinguish circumstantial date/amount collisions from identical invoice numbers.
+- **Blast Radius & Reversibility:** Single guard in `check_potential_duplicate_invoice`.
 
 ## Validation & CI Log
 
@@ -61,12 +61,13 @@
 - `uv lock --check`: Passed (Resolved 103 packages)
 - `uv run pip-audit`: Passed (0 vulnerabilities; `veridoc` skipped)
 - `uv run ruff check .`: Passed (All checks passed!)
-- `uv run ruff format --check .`: Passed (341 files formatted)
+- `uv run ruff format --check .`: Passed (342 files already formatted)
 - `uv run mypy`: Passed (0 issues across 128 source files)
-- `uv run pytest --cov=veridoc`: Passed (1776 passed in 42.65s, 94.29% branch coverage, 90.0% floor)
+- `uv run pytest --cov=veridoc`: Passed (1784 passed in 27.26s, 94.31% branch coverage, 90.0% floor)
 - `uv run pytest tests/test_documentation.py`: Passed (3 passed)
 - `uv build --clear`: Built `veridoc-0.1.0-py3-none-any.whl` and `veridoc-0.1.0.tar.gz`
 - `uv run twine check dist/*`: Both distributions passed metadata validation
 - `uv run python scripts/check_distribution.py`: Both archives passed content, entry-point, and path safety
 - Isolated wheel smoke test: Passed
 - Isolated sdist smoke test: Passed
+- Remote GitHub Actions CI (`ci.yml`): Passed (`45664441524`, 1m52s) on `phase/potential-duplicate-invoice` Draft PR #27; final HEAD run verified after push.
