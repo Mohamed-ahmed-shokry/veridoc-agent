@@ -576,3 +576,32 @@ def test_verification_finding_accepts_historical_tax_rate_mismatch() -> None:
     assert finding.severity == "medium"
     assert finding.historical_sample_size == 3
     assert finding.details["expected_tax_rate"] == "0.2000"
+
+
+def test_verification_finding_accepts_potential_duplicate_invoice() -> None:
+    finding = VerificationFinding(
+        finding_type="potential_duplicate_invoice",
+        severity="medium",
+        explanation=(
+            "This vendor already has an invoice with the same date, currency, "
+            "and total under a different invoice number."
+        ),
+        comparison_source="invoice_register",
+        deterministic_rule=(
+            "no prior vendor invoice with matching invoice_date, currency, and total"
+        ),
+        observed_value="2026-07-01 | USD 1250.00",
+        expected_value="unique vendor invoice for this date, currency, and total",
+        details={
+            "vendor_key": "fictional-supplies",
+            "invoice_date": "2026-07-01",
+            "currency": "USD",
+            "total": "1250.00",
+            "observed_invoice_number": "INV-002",
+            "existing_invoice_number": "INV-001",
+        },
+    )
+    assert finding.finding_type == "potential_duplicate_invoice"
+    assert finding.severity == "medium"
+    assert finding.comparison_source == "invoice_register"
+    assert finding.details["existing_invoice_number"] == "INV-001"
