@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
@@ -42,3 +44,21 @@ def check_duplicate_invoice_number(
             )
         ]
     return []
+
+
+def _matches_date_currency_total(
+    existing: HistoricalInvoice,
+    *,
+    invoice_date: date,
+    normalized_currency: str,
+    total: Decimal,
+) -> bool:
+    """Return whether a historical invoice matches exact date, currency, and total."""
+    if existing.invoice_date != invoice_date:
+        return False
+    if (
+        existing.currency is None
+        or existing.currency.strip().upper() != normalized_currency
+    ):
+        return False
+    return existing.total is not None and existing.total == total
