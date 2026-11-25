@@ -2964,6 +2964,70 @@ Phase 47 implements deterministic historical effective tax rate verification:
 12. Record Phase 47 progress in `docs/PROGRESS.md`.
 13. Push micro-commits, verify remote CI is 100% green.
 
+## Phase 48: potential duplicate invoice detection
+
+Phase 48 adds deterministic detection of potential duplicate invoices submitted by the same vendor with the same `invoice_date`, `currency`, and positive `total` under a different (or absent) `invoice_number` (ADR 0054).
+
+### Objective
+
+`check_duplicate_invoice_number` detects duplicate billing only when the canonicalized `invoice_number` matches a prior invoice for the same vendor. If an invoice is resubmitted with an altered invoice number (e.g., `INV-1001-A`, a newly generated number, or an OCR digit confusion such as `INV-1001` vs `INV-1007`) on the same date for the exact same currency and positive total, neither `check_duplicate_invoice_number` nor statistical total checks catch the collision.
+
+Phase 48 implements deterministic potential duplicate invoice detection:
+1. When `vendor_key`, `invoice_date`, `currency`, or `total` is absent, or `total <= 0`, emit zero findings.
+2. When a prior historical invoice for the same vendor shares the exact same `invoice_date`, normalized `currency`, and `total` — and does **not** share the same canonical `invoice_number` (which is already owned by `duplicate_invoice_number`) — emit one `medium`-severity `potential_duplicate_invoice` finding with `comparison_source="invoice_register"` and structured details (`vendor_key`, `invoice_date`, `currency`, `total`, `observed_invoice_number`, `existing_invoice_number`).
+3. Integrate `check_potential_duplicate_invoice(invoice, history)` into `VerificationService.verify()`, routing potential duplicate invoices to `review_required`.
+
+### Scope
+
+- Architecture Decision Record 0054.
+- Add `potential_duplicate_invoice` to `FindingType` union in `src/veridoc/verification/models.py`.
+- Helper and pure rule `check_potential_duplicate_invoice(invoice, history)` in `src/veridoc/verification/repository_checks.py`.
+- Integration into `VerificationService.verify()` in `src/veridoc/verification/service.py`.
+- Unit, edge-case, immutability, and `VerificationService` integration tests in `tests/test_verification_repository_checks.py` and `tests/test_verification_models.py`.
+- Documentation, roadmap status, progress record, and release evidence updates.
+
+### Acceptance criteria
+
+1. `potential_duplicate_invoice` is a recognized `FindingType` literal union member.
+2. Absent `vendor_key`, `invoice_date`, `currency`, or `total`, or non-positive `total <= 0`, emits `[]`.
+3. Exact canonical `invoice_number` matches are skipped by `check_potential_duplicate_invoice` so they are not double-flagged alongside `duplicate_invoice_number`.
+4. Historical invoices differing in `invoice_date`, `currency`, or `total` emit `[]`.
+5. Matching `vendor_key`, `invoice_date`, normalized `currency`, and positive `total` under a different (or absent) `invoice_number` emits one `potential_duplicate_invoice` finding (`severity="medium"`, `comparison_source="invoice_register"`, and structured details).
+6. Input `InvoiceExtraction` and `history` remain strictly immutable.
+7. `VerificationService.verify()` runs `check_potential_duplicate_invoice` and routes potential duplicates to `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_models.py tests/test_verification_repository_checks.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch, open Draft PR, and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Multi-day fuzzy date windows or amount tolerances (exact date + exact currency + exact positive total only, to avoid false positives on recurring billing).
+- Cross-vendor duplicate matching or line-item fuzzy similarity.
+
+### Micro-task breakdown
+
+1. Add Phase 48 specification to `docs/roadmap.md`.
+2. Record ADR 0054 in `docs/decisions/0054-potential-duplicate-invoice-detection.md`.
+3. Register ADR 0054 in `docs/decisions/README.md`.
+4. Add `potential_duplicate_invoice` to `FindingType` in `src/veridoc/verification/models.py`.
+5. Add model acceptance test in `tests/test_verification_models.py`.
+6. Add matching helper in `src/veridoc/verification/repository_checks.py`.
+7. Implement `check_potential_duplicate_invoice` in `src/veridoc/verification/repository_checks.py`.
+8. Add unit tests for happy path, exact-duplicate exclusion, missing/non-positive passthrough, distinct fields, and immutability in `tests/test_verification_repository_checks.py`.
+9. Integrate `check_potential_duplicate_invoice` into `VerificationService.verify()`.
+10. Add `VerificationService` and verdict integration tests in `tests/test_verification_repository_checks.py`.
+11. Update documentation (`docs/architecture.md`, `CHANGELOG.md`, `README.md`, `AGENTS.md`).
+12. Mark Phase 48 complete in `docs/roadmap.md` status table and approval rule.
+13. Record Phase 48 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 48 progress and Decision Log in `docs/PROGRESS.md`.
+15. Push micro-commits, open Draft PR, and verify remote CI is 100% green.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 47 are complete. Phase 14 is
