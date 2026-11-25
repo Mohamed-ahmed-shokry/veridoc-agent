@@ -53,6 +53,7 @@ boundaries only and require separate approval before implementation.
 | 45 | Vendor name and registry consistency verification (ADR 0051) | Complete |
 | 46 | Historical currency consistency verification (ADR 0052) | Complete |
 | 47 | Historical effective tax rate consistency verification (ADR 0053) | Complete |
+| 48 | Potential duplicate invoice detection (ADR 0054) | Complete |
 
 ## Phase 7: release engineering
 
@@ -3030,7 +3031,7 @@ Phase 48 implements deterministic potential duplicate invoice detection:
 
 ## Approval rule
 
-Phases 0 through 13 and Phases 15 through 47 are complete. Phase 14 is
+Phases 0 through 13 and Phases 15 through 48 are complete. Phase 14 is
 planned but environment-blocked.
 Before any later phase, inspect the repository, run the existing suite,
 present the implementation and commit plan, identify documentation changes,
