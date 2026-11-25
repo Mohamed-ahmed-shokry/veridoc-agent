@@ -260,9 +260,11 @@ extraction evidence grounding verification
 vendor name and registry consistency verification
 ([ADR 0051](decisions/0051-vendor-name-consistency-verification.md)),
 historical currency consistency verification
-([ADR 0052](decisions/0052-historical-currency-consistency-verification.md)), and
+([ADR 0052](decisions/0052-historical-currency-consistency-verification.md)),
 historical effective tax rate consistency verification
-([ADR 0053](decisions/0053-historical-tax-rate-consistency-verification.md)).
+([ADR 0053](decisions/0053-historical-tax-rate-consistency-verification.md)), and
+potential duplicate invoice detection
+([ADR 0054](decisions/0054-potential-duplicate-invoice-detection.md)).
 Header completeness runs first and requires `invoice_number`, `invoice_date`,
 `currency`, and `total`, because every other rule is conditional on the fields
 it evaluates and a sparse extraction would otherwise clear vacuously. Line item
@@ -284,8 +286,9 @@ characters, blank/punctuation-only values, and excessive-length identifiers when
 confidence threshold verification routes invoices whose `ocr_confidence` or `extraction_confidence` falls below `70.0%` to human review,
 evidence grounding verification flags ungrounded critical header fields or line items whenever an extraction operates in evidence-grounded mode,
 vendor name consistency verification flags extracted `vendor_name` values that diverge from the resolved vendor's registered legal name and aliases,
-historical currency consistency verification flags invoices whose currency differs from an established single-currency vendor's prior history, and
-historical effective tax rate consistency verification flags invoices whose effective tax rate shifts beyond tolerance from a consistent-rate vendor's prior history.
+historical currency consistency verification flags invoices whose currency differs from an established single-currency vendor's prior history,
+historical effective tax rate consistency verification flags invoices whose effective tax rate shifts beyond tolerance from a consistent-rate vendor's prior history, and
+potential duplicate invoice detection flags same-vendor invoices sharing an exact prior `invoice_date`, normalized `currency`, and positive `total` under a different or absent `invoice_number`.
 
 ## Typed explanation flow
 
