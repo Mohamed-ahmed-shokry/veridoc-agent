@@ -65,6 +65,7 @@ FindingType = Literal[
     "vendor_name_mismatch",
     "historical_currency_mismatch",
     "historical_tax_rate_mismatch",
+    "potential_duplicate_invoice",
 ]
 
 

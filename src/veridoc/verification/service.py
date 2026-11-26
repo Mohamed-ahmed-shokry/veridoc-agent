@@ -45,7 +45,10 @@ from veridoc.verification.purchase_orders import (
     check_purchase_order,
     check_purchase_order_ceiling,
 )
-from veridoc.verification.repository_checks import check_duplicate_invoice_number
+from veridoc.verification.repository_checks import (
+    check_duplicate_invoice_number,
+    check_potential_duplicate_invoice,
+)
 from veridoc.verification.staleness import check_invoice_staleness
 from veridoc.verification.tax_bounds import check_excessive_tax
 from veridoc.verification.tax_id import check_tax_id_format
@@ -110,6 +113,7 @@ class VerificationService:
             else []
         )
         findings.extend(check_duplicate_invoice_number(invoice, history))
+        findings.extend(check_potential_duplicate_invoice(invoice, history))
         findings.extend(check_purchase_order(invoice, self._repository))
 
         vendor_findings, resolution = check_vendor_registry(

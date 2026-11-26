@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import date
+from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.verification.models import VerificationFinding
@@ -38,6 +40,88 @@ def check_duplicate_invoice_number(
                         if existing.invoice_date is not None
                         else None
                     ),
+                },
+            )
+        ]
+    return []
+
+
+def _matches_date_currency_total(
+    existing: HistoricalInvoice,
+    *,
+    invoice_date: date,
+    normalized_currency: str,
+    total: Decimal,
+) -> bool:
+    """Return whether a historical invoice matches exact date, currency, and total."""
+    if existing.invoice_date != invoice_date:
+        return False
+    if (
+        existing.currency is None
+        or existing.currency.strip().upper() != normalized_currency
+    ):
+        return False
+    return existing.total is not None and existing.total == total
+
+
+def check_potential_duplicate_invoice(
+    invoice: InvoiceExtraction, history: Sequence[HistoricalInvoice]
+) -> list[VerificationFinding]:
+    """Flag a same-vendor invoice matching a prior date, currency, and positive total."""
+    vendor_key = vendor_key_for(invoice)
+    if (
+        vendor_key is None
+        or invoice.invoice_date is None
+        or invoice.currency is None
+        or invoice.total is None
+        or invoice.total <= Decimal(0)
+    ):
+        return []
+
+    normalized_currency = invoice.currency.strip().upper()
+    canonical_number = normalize_invoice_number(invoice.invoice_number)
+
+    for existing in history:
+        if not _matches_date_currency_total(
+            existing,
+            invoice_date=invoice.invoice_date,
+            normalized_currency=normalized_currency,
+            total=invoice.total,
+        ):
+            continue
+        if (
+            canonical_number is not None
+            and normalize_invoice_number(existing.invoice_number) == canonical_number
+        ):
+            continue
+
+        explanation = (
+            "This vendor already has an invoice with the same date, currency, "
+            "and total under a different invoice number."
+            if invoice.invoice_number is not None
+            else "This vendor already has an invoice with the same date, currency, and total."
+        )
+        return [
+            VerificationFinding(
+                finding_type="potential_duplicate_invoice",
+                severity="medium",
+                explanation=explanation,
+                comparison_source="invoice_register",
+                deterministic_rule=(
+                    "no prior vendor invoice with matching invoice_date, currency, and total"
+                ),
+                observed_value=(
+                    f"{invoice.invoice_date.isoformat()} | "
+                    f"{normalized_currency} {invoice.total}"
+                ),
+                expected_value="unique vendor invoice for this date, currency, and total",
+                details={
+                    "vendor_key": vendor_key,
+                    "invoice_date": invoice.invoice_date.isoformat(),
+                    "currency": normalized_currency,
+                    "total": str(invoice.total),
+                    "observed_invoice_number": invoice.invoice_number,
+                    "existing_invoice_number": existing.invoice_number,
                 },
             )
         ]

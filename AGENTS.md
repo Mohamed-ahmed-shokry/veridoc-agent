@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 47 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 48 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -354,6 +354,11 @@ implementation remains deliberately small:
   consistency verification (ADR 0053): consistent acceptance, tolerance boundary,
   sparse/multi-rate/absent passthrough, tax-rate shift detection, input immutability,
   and `VerificationService` integration.
+- `tests/test_verification_repository_checks.py` covers exact/normalized duplicate
+  invoice number detection as well as Phase 48 deterministic potential duplicate
+  invoice detection (ADR 0054): same-vendor date/currency/total collision detection,
+  exact-number deduplication, missing/non-positive passthrough, input immutability,
+  and SQLite `VerificationService` verdict routing.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible

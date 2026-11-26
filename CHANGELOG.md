@@ -8,6 +8,12 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 48 potential duplicate invoice detection (`potential_duplicate_invoice`):
+  - Architecture Decision Record 0054 documenting deterministic detection of same-vendor invoices sharing an exact `invoice_date`, normalized `currency`, and positive `total` under a different (or absent) `invoice_number`.
+  - `potential_duplicate_invoice` added to the `FindingType` literal union in `veridoc.verification.models`.
+  - Implemented `check_potential_duplicate_invoice()` in `veridoc.verification.repository_checks` and integrated it into `VerificationService.verify()`. Emits one `medium`-severity finding with `comparison_source="invoice_register"` while skipping absent/non-positive fields and exact/normalized invoice-number duplicates already owned by `duplicate_invoice_number`.
+  - Added unit, deduplication, passthrough, immutability, and SQLite `VerificationService` integration tests in `tests/test_verification_repository_checks.py` and `tests/test_verification_models.py`.
+
 - Phase 47 historical effective tax rate consistency verification (`historical_tax_rate_mismatch`):
   - Architecture Decision Record 0053 documenting deterministic verification that an invoice's effective tax rate (`tax / subtotal`) aligns with the vendor's consistent same-currency historical tax rate within `TAX_RATE_TOLERANCE = Decimal("0.005")`.
   - `historical_tax_rate_mismatch` added to the `FindingType` literal union in `veridoc.verification.models`.
