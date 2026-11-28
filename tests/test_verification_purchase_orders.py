@@ -514,3 +514,93 @@ def test_purchase_order_ceiling_ignores_other_pos_incompatible_currencies_and_no
     ]
 
     assert check_purchase_order_ceiling(invoice, _PartialQtyRepo(), history) == []
+
+
+def test_purchase_order_ceiling_preserves_immutability_and_routes_to_review(
+    tmp_path,
+) -> None:
+    """SQLite VerificationService routes split line-item over-billing to review_required."""
+    from datetime import date
+    from decimal import Decimal
+
+    from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    repository = SQLiteInvoiceRepository(tmp_path / "reference.db")
+    repository.initialize()
+    repository.add_purchase_order(
+        PurchaseOrder(
+            vendor_key="fictional-supplies",
+            purchase_order_number="PO-004",
+            currency="USD",
+            total=Decimal("1500.00"),
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity=Decimal(10),
+                    unit_price=Decimal("50.00"),
+                    total_price=Decimal("500.00"),
+                ),
+                ReferenceLineItem(
+                    product_identifier="WIDGET-B",
+                    quantity=Decimal(10),
+                    unit_price=Decimal("100.00"),
+                    total_price=Decimal("1000.00"),
+                ),
+            ],
+        )
+    )
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-401",
+            purchase_order_number="PO-004",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("400.00"),
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity=Decimal(8),
+                    unit_price=Decimal("50.00"),
+                    total_price=Decimal("400.00"),
+                )
+            ],
+        )
+    )
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-402",
+        purchase_order_number="PO-004",
+        invoice_date=date(2026, 7, 3),
+        currency="USD",
+        subtotal=Decimal("300.00"),
+        total=Decimal("300.00"),
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="WIDGET-A",
+                quantity=Decimal(6),
+                unit_price=Decimal("50.00"),
+                total_price=Decimal("300.00"),
+            )
+        ],
+    )
+    snapshot = invoice.model_dump()
+
+    service = VerificationService(repository=repository)
+    result = service.verify(invoice, reference_date=date(2026, 7, 5))
+
+    assert invoice.model_dump() == snapshot
+    ceiling_findings = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "purchase_order_mismatch"
+        and finding.details.get("field") == "purchase_order_billed_line_item_quantity"
+    ]
+    assert len(ceiling_findings) == 1
+    assert ceiling_findings[0].observed_value == "14"
+    assert ceiling_findings[0].expected_value == "10"
+    assert derive_verdict(result).status == "review_required"
