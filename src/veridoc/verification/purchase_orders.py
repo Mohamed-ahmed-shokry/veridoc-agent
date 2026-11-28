@@ -158,6 +158,37 @@ def _authorized_po_line_quantities(
     return totals
 
 
+def _prior_po_line_quantities(
+    invoice: InvoiceExtraction,
+    history: Sequence[HistoricalInvoice],
+    tracked_keys: set[str],
+) -> tuple[dict[str, Decimal], dict[str, int]]:
+    """Aggregate prior billed quantities and invoice counts per tracked line-item key."""
+    prior_quantities: dict[str, Decimal] = {}
+    prior_invoice_counts: dict[str, int] = {}
+    for prior in history:
+        if prior.purchase_order_number != invoice.purchase_order_number:
+            continue
+        if (
+            invoice.currency is not None
+            and prior.currency is not None
+            and prior.currency != invoice.currency
+        ):
+            continue
+        seen_in_prior: set[str] = set()
+        for item in prior.line_items:
+            key = line_item_key(item.product_identifier, item.description)
+            if key is None or item.quantity is None or key not in tracked_keys:
+                continue
+            prior_quantities[key] = (
+                prior_quantities.get(key, Decimal(0)) + item.quantity
+            )
+            seen_in_prior.add(key)
+        for key in seen_in_prior:
+            prior_invoice_counts[key] = prior_invoice_counts.get(key, 0) + 1
+    return prior_quantities, prior_invoice_counts
+
+
 def _mismatch_finding(
     *, field: str, observed_value: str, expected_value: str
 ) -> list[VerificationFinding]:
