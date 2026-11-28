@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from decimal import Decimal
 
 from veridoc.extraction.models import InvoiceExtraction
 from veridoc.persistence.protocol import InvoiceRepository
@@ -136,6 +137,25 @@ def _comparable_amounts(
     if invoice.currency is None or purchase_order.currency is None:
         return True
     return invoice.currency == purchase_order.currency
+
+
+def _authorized_po_line_quantities(
+    purchase_order_line_items: Sequence[ReferenceLineItem],
+) -> dict[str, Decimal]:
+    """Sum authorized PO quantities per line-item key, skipping keys with None."""
+    totals: dict[str, Decimal] = {}
+    unknown_keys: set[str] = set()
+    for item in purchase_order_line_items:
+        key = line_item_key(item.product_identifier, item.description)
+        if key is None:
+            continue
+        if item.quantity is None:
+            unknown_keys.add(key)
+            totals.pop(key, None)
+            continue
+        if key not in unknown_keys:
+            totals[key] = totals.get(key, Decimal(0)) + item.quantity
+    return totals
 
 
 def _mismatch_finding(
