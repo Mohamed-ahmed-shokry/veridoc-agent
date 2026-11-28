@@ -95,39 +95,41 @@ def check_purchase_order_ceiling(
     purchase_order = repository.get_purchase_order(
         vendor_key, invoice.purchase_order_number
     )
-    if (
-        purchase_order is None
-        or purchase_order.total is None
-        or invoice.total is None
-        or not _comparable_amounts(invoice, purchase_order)
-    ):
+    if purchase_order is None or not _comparable_amounts(invoice, purchase_order):
         return []
-    billed_to_date = invoice.total
-    prior_count = 0
-    for prior in history:
-        if prior.purchase_order_number != invoice.purchase_order_number:
-            continue
-        if prior.currency != invoice.currency or prior.total is None:
-            continue
-        billed_to_date += prior.total
-        prior_count += 1
-    if prior_count == 0 or billed_to_date <= purchase_order.total:
-        return []
-    return [
-        VerificationFinding(
-            finding_type="purchase_order_mismatch",
-            severity="high",
-            explanation="Prior invoices against this purchase order plus this invoice exceed its total.",
-            comparison_source="purchase_order",
-            deterministic_rule="invoiced amounts against a purchase order must not exceed the authorized total",
-            observed_value=str(billed_to_date),
-            expected_value=str(purchase_order.total),
-            details={
-                "field": "purchase_order_billed_total",
-                "prior_invoice_count": prior_count,
-            },
-        )
-    ]
+
+    findings: list[VerificationFinding] = []
+    if purchase_order.total is not None and invoice.total is not None:
+        billed_to_date = invoice.total
+        prior_count = 0
+        for prior in history:
+            if prior.purchase_order_number != invoice.purchase_order_number:
+                continue
+            if prior.currency != invoice.currency or prior.total is None:
+                continue
+            billed_to_date += prior.total
+            prior_count += 1
+        if prior_count > 0 and billed_to_date > purchase_order.total:
+            findings.append(
+                VerificationFinding(
+                    finding_type="purchase_order_mismatch",
+                    severity="high",
+                    explanation="Prior invoices against this purchase order plus this invoice exceed its total.",
+                    comparison_source="purchase_order",
+                    deterministic_rule="invoiced amounts against a purchase order must not exceed the authorized total",
+                    observed_value=str(billed_to_date),
+                    expected_value=str(purchase_order.total),
+                    details={
+                        "field": "purchase_order_billed_total",
+                        "prior_invoice_count": prior_count,
+                    },
+                )
+            )
+
+    findings.extend(
+        _check_line_item_quantity_ceilings(invoice, purchase_order, history)
+    )
+    return findings
 
 
 def _comparable_amounts(
