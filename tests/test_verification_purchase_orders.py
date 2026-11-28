@@ -423,3 +423,94 @@ def test_purchase_order_ceiling_skips_line_item_over_billing_without_prior_histo
     )
 
     assert check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), []) == []
+
+
+def test_purchase_order_ceiling_sums_repeated_po_keys_without_header_total() -> None:
+    """Line-item ceilings work on POs without header totals and sum repeated keys."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-003",
+        line_items=[
+            InvoiceLineItem(product_identifier="CONSULTING", quantity="2"),
+            InvoiceLineItem(description="   "),
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-301",
+            purchase_order_number="PO-003",
+            line_items=[
+                ReferenceLineItem(product_identifier="CONSULTING", quantity="2"),
+                ReferenceLineItem(product_identifier="OTHER-ITEM", quantity="5"),
+            ],
+        )
+    ]
+
+    findings = check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history)
+
+    assert len(findings) == 1
+    assert findings[0].observed_value == "4"
+    assert findings[0].expected_value == "3"
+    assert findings[0].details["line_item_key"] == "product:consulting"
+    assert findings[0].details["prior_invoice_count"] == 1
+
+
+def test_purchase_order_ceiling_ignores_other_pos_incompatible_currencies_and_none_po_qty() -> (
+    None
+):
+    """Unrelated POs, mismatched currencies, and PO lines with None qty do not flag."""
+
+    class _PartialQtyRepo:
+        def get_purchase_order(
+            self, vendor_key: str, purchase_order_number: str
+        ) -> PurchaseOrder | None:
+            return PurchaseOrder(
+                vendor_key=vendor_key,
+                purchase_order_number=purchase_order_number,
+                currency="USD",
+                line_items=[
+                    ReferenceLineItem(description="  "),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity="5"),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity=None),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity="2"),
+                    ReferenceLineItem(product_identifier="STRICT", quantity="5"),
+                ],
+            )
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-900",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(product_identifier="PARTIAL", quantity="4"),
+            InvoiceLineItem(product_identifier="STRICT", quantity="4"),
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-901",
+            purchase_order_number="PO-OTHER",
+            currency="USD",
+            line_items=[ReferenceLineItem(product_identifier="STRICT", quantity="4")],
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-902",
+            purchase_order_number="PO-900",
+            currency="EUR",
+            line_items=[ReferenceLineItem(product_identifier="STRICT", quantity="4")],
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-903",
+            purchase_order_number="PO-900",
+            currency="USD",
+            line_items=[ReferenceLineItem(product_identifier="PARTIAL", quantity="4")],
+        ),
+    ]
+
+    assert check_purchase_order_ceiling(invoice, _PartialQtyRepo(), history) == []
