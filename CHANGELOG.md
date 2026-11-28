@@ -8,6 +8,11 @@ semantic versions for tagged releases.
 
 ### Added
 
+- Phase 49 cumulative purchase-order line-item quantity ceiling verification (ADR 0055):
+  - Architecture Decision Record 0055 documenting deterministic per-line-item cumulative quantity ceiling enforcement across split invoices referencing the same purchase order.
+  - Extended `check_purchase_order_ceiling()` in `veridoc.verification.purchase_orders` with pure helpers `_authorized_po_line_quantities()`, `_prior_po_line_quantities()`, and `_check_line_item_quantity_ceilings()`. Emits one `high`-severity `purchase_order_mismatch` finding per exceeded `line_item_key` (`details.field="purchase_order_billed_line_item_quantity"`, `line_item_key`, `prior_invoice_count`) even when cumulative header totals remain within `purchase_order.total` or header totals are omitted, while keeping single-invoice over-billing owned exclusively by `check_purchase_order`.
+  - Added unit, repeated-PO-key, omitted-quantity, currency-filtering, immutability, and SQLite `VerificationService` integration tests in `tests/test_verification_purchase_orders.py`.
+
 - Phase 48 potential duplicate invoice detection (`potential_duplicate_invoice`):
   - Architecture Decision Record 0054 documenting deterministic detection of same-vendor invoices sharing an exact `invoice_date`, normalized `currency`, and positive `total` under a different (or absent) `invoice_number`.
   - `potential_duplicate_invoice` added to the `FindingType` literal union in `veridoc.verification.models`.

@@ -57,6 +57,27 @@ class PurchaseOrderRepository:
                     ),
                 ],
             )
+        if (vendor_key, purchase_order_number) == ("fictional-supplies", "PO-004"):
+            return PurchaseOrder(
+                vendor_key=vendor_key,
+                purchase_order_number=purchase_order_number,
+                currency="USD",
+                total="1500.00",
+                line_items=[
+                    ReferenceLineItem(
+                        product_identifier="WIDGET-A",
+                        quantity="10",
+                        unit_price="50.00",
+                        total_price="500.00",
+                    ),
+                    ReferenceLineItem(
+                        product_identifier="WIDGET-B",
+                        quantity="10",
+                        unit_price="100.00",
+                        total_price="1000.00",
+                    ),
+                ],
+            )
         return None
 
 
@@ -284,3 +305,302 @@ def test_check_purchase_order_ceiling_skips_on_invalid_po_number() -> None:
     assert (
         check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history) == []
     )
+
+
+def test_purchase_order_ceiling_flags_split_line_item_over_billing_under_po_total() -> (
+    None
+):
+    """Split invoices exceeding one line item's quantity flag even under PO total."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-004",
+        currency="USD",
+        total="300.00",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="WIDGET-A",
+                quantity="6",
+                unit_price="50.00",
+                total_price="300.00",
+            )
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-201",
+            purchase_order_number="PO-004",
+            currency="USD",
+            total="400.00",
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity="8",
+                    unit_price="50.00",
+                    total_price="400.00",
+                )
+            ],
+        )
+    ]
+
+    findings = check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history)
+
+    assert len(findings) == 1
+    finding = findings[0]
+    assert finding.finding_type == "purchase_order_mismatch"
+    assert finding.severity == "high"
+    assert finding.comparison_source == "purchase_order"
+    assert finding.observed_value == "14"
+    assert finding.expected_value == "10"
+    assert finding.details == {
+        "field": "purchase_order_billed_line_item_quantity",
+        "line_item_key": "product:widget-a",
+        "prior_invoice_count": 1,
+    }
+
+
+def test_purchase_order_ceiling_accepts_split_line_item_at_or_below_authorized_qty() -> (
+    None
+):
+    """Split invoices totaling exactly the authorized line-item quantity pass."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-004",
+        currency="USD",
+        total="100.00",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="WIDGET-A",
+                quantity="2",
+                unit_price="50.00",
+                total_price="100.00",
+            )
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-201",
+            purchase_order_number="PO-004",
+            currency="USD",
+            total="400.00",
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity="8",
+                    unit_price="50.00",
+                    total_price="400.00",
+                )
+            ],
+        )
+    ]
+
+    assert (
+        check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history) == []
+    )
+
+
+def test_purchase_order_ceiling_skips_line_item_over_billing_without_prior_history() -> (
+    None
+):
+    """Single-invoice line-item over-billing is owned exclusively by check_purchase_order."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-004",
+        currency="USD",
+        total="600.00",
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="WIDGET-A",
+                quantity="12",
+                unit_price="50.00",
+                total_price="600.00",
+            )
+        ],
+    )
+
+    assert check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), []) == []
+
+
+def test_purchase_order_ceiling_sums_repeated_po_keys_without_header_total() -> None:
+    """Line-item ceilings work on POs without header totals and sum repeated keys."""
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-003",
+        line_items=[
+            InvoiceLineItem(product_identifier="CONSULTING", quantity="2"),
+            InvoiceLineItem(description="   "),
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-301",
+            purchase_order_number="PO-003",
+            line_items=[
+                ReferenceLineItem(product_identifier="CONSULTING", quantity="2"),
+                ReferenceLineItem(product_identifier="OTHER-ITEM", quantity="5"),
+            ],
+        )
+    ]
+
+    findings = check_purchase_order_ceiling(invoice, PurchaseOrderRepository(), history)
+
+    assert len(findings) == 1
+    assert findings[0].observed_value == "4"
+    assert findings[0].expected_value == "3"
+    assert findings[0].details["line_item_key"] == "product:consulting"
+    assert findings[0].details["prior_invoice_count"] == 1
+
+
+def test_purchase_order_ceiling_ignores_other_pos_incompatible_currencies_and_none_po_qty() -> (
+    None
+):
+    """Unrelated POs, mismatched currencies, and PO lines with None qty do not flag."""
+
+    class _PartialQtyRepo:
+        def get_purchase_order(
+            self, vendor_key: str, purchase_order_number: str
+        ) -> PurchaseOrder | None:
+            return PurchaseOrder(
+                vendor_key=vendor_key,
+                purchase_order_number=purchase_order_number,
+                currency="USD",
+                line_items=[
+                    ReferenceLineItem(description="  "),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity="5"),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity=None),
+                    ReferenceLineItem(product_identifier="PARTIAL", quantity="2"),
+                    ReferenceLineItem(product_identifier="STRICT", quantity="5"),
+                ],
+            )
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        purchase_order_number="PO-900",
+        currency="USD",
+        line_items=[
+            InvoiceLineItem(product_identifier="PARTIAL", quantity="4"),
+            InvoiceLineItem(product_identifier="STRICT", quantity="4"),
+        ],
+    )
+    history = [
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-901",
+            purchase_order_number="PO-OTHER",
+            currency="USD",
+            line_items=[ReferenceLineItem(product_identifier="STRICT", quantity="4")],
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-902",
+            purchase_order_number="PO-900",
+            currency="EUR",
+            line_items=[ReferenceLineItem(product_identifier="STRICT", quantity="4")],
+        ),
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-903",
+            purchase_order_number="PO-900",
+            currency="USD",
+            line_items=[ReferenceLineItem(product_identifier="PARTIAL", quantity="4")],
+        ),
+    ]
+
+    assert check_purchase_order_ceiling(invoice, _PartialQtyRepo(), history) == []
+
+
+def test_purchase_order_ceiling_preserves_immutability_and_routes_to_review(
+    tmp_path,
+) -> None:
+    """SQLite VerificationService routes split line-item over-billing to review_required."""
+    from datetime import date
+    from decimal import Decimal
+
+    from veridoc.persistence.sqlite import SQLiteInvoiceRepository
+    from veridoc.processing.verdict import derive_verdict
+    from veridoc.verification.service import VerificationService
+
+    repository = SQLiteInvoiceRepository(tmp_path / "reference.db")
+    repository.initialize()
+    repository.add_purchase_order(
+        PurchaseOrder(
+            vendor_key="fictional-supplies",
+            purchase_order_number="PO-004",
+            currency="USD",
+            total=Decimal("1500.00"),
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity=Decimal(10),
+                    unit_price=Decimal("50.00"),
+                    total_price=Decimal("500.00"),
+                ),
+                ReferenceLineItem(
+                    product_identifier="WIDGET-B",
+                    quantity=Decimal(10),
+                    unit_price=Decimal("100.00"),
+                    total_price=Decimal("1000.00"),
+                ),
+            ],
+        )
+    )
+    repository.add_invoice(
+        HistoricalInvoice(
+            vendor_key="fictional-supplies",
+            invoice_number="INV-401",
+            purchase_order_number="PO-004",
+            invoice_date=date(2026, 7, 1),
+            currency="USD",
+            total=Decimal("400.00"),
+            line_items=[
+                ReferenceLineItem(
+                    product_identifier="WIDGET-A",
+                    quantity=Decimal(8),
+                    unit_price=Decimal("50.00"),
+                    total_price=Decimal("400.00"),
+                )
+            ],
+        )
+    )
+
+    invoice = InvoiceExtraction(
+        document_type="invoice",
+        vendor_name="Fictional Supplies",
+        invoice_number="INV-402",
+        purchase_order_number="PO-004",
+        invoice_date=date(2026, 7, 3),
+        currency="USD",
+        subtotal=Decimal("300.00"),
+        total=Decimal("300.00"),
+        line_items=[
+            InvoiceLineItem(
+                product_identifier="WIDGET-A",
+                quantity=Decimal(6),
+                unit_price=Decimal("50.00"),
+                total_price=Decimal("300.00"),
+            )
+        ],
+    )
+    snapshot = invoice.model_dump()
+
+    service = VerificationService(repository=repository)
+    result = service.verify(invoice, reference_date=date(2026, 7, 5))
+
+    assert invoice.model_dump() == snapshot
+    ceiling_findings = [
+        finding
+        for finding in result.findings
+        if finding.finding_type == "purchase_order_mismatch"
+        and finding.details.get("field") == "purchase_order_billed_line_item_quantity"
+    ]
+    assert len(ceiling_findings) == 1
+    assert ceiling_findings[0].observed_value == "14"
+    assert ceiling_findings[0].expected_value == "10"
+    assert derive_verdict(result).status == "review_required"

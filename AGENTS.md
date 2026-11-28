@@ -15,7 +15,7 @@ them, and otherwise follow YAGNI.
 
 ## Current phase and implementation
 
-Phase 0 through Phase 13 and Phase 15 through Phase 48 are complete. Phase 14 is
+Phase 0 through Phase 13 and Phase 15 through Phase 49 are complete. Phase 14 is
 planned but blocked on a Tesseract-equipped operator environment. The runtime
 implementation remains deliberately small:
 
@@ -359,6 +359,11 @@ implementation remains deliberately small:
   invoice detection (ADR 0054): same-vendor date/currency/total collision detection,
   exact-number deduplication, missing/non-positive passthrough, input immutability,
   and SQLite `VerificationService` verdict routing.
+- `tests/test_verification_purchase_orders.py` covers single-invoice PO ceilings,
+  cumulative PO total ceilings, and Phase 49 cumulative PO line-item quantity
+  ceilings (ADR 0055): split line-item over-billing under the PO total, repeated PO
+  key aggregation, omitted PO quantity exclusion, currency/PO filtering, input
+  immutability, and SQLite `VerificationService` verdict routing.
 
 Phase 6 completes product behavior, integration coverage, documentation,
 fixture guidance, and local operational correlation. Phase 7 adds reproducible

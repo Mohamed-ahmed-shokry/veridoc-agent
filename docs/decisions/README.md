@@ -71,3 +71,4 @@ Accepted decisions:
 - [0052: Historical currency consistency verification](0052-historical-currency-consistency-verification.md)
 - [0053: Historical effective tax rate consistency verification](0053-historical-tax-rate-consistency-verification.md)
 - [0054: Potential duplicate invoice detection](0054-potential-duplicate-invoice-detection.md)
+- [0055: Cumulative purchase-order line-item quantity ceiling verification](0055-cumulative-po-line-item-quantity-ceiling.md)
