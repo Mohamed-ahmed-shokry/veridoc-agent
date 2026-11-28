@@ -189,6 +189,64 @@ def _prior_po_line_quantities(
     return prior_quantities, prior_invoice_counts
 
 
+def _check_line_item_quantity_ceilings(
+    invoice: InvoiceExtraction,
+    purchase_order: PurchaseOrder,
+    history: Sequence[HistoricalInvoice],
+) -> list[VerificationFinding]:
+    """Flag split over-billing when cumulative line-item quantity exceeds the PO."""
+    authorized_quantities = _authorized_po_line_quantities(purchase_order.line_items)
+    if not authorized_quantities:
+        return []
+
+    current_quantities: dict[str, Decimal] = {}
+    for item in invoice.line_items:
+        key = line_item_key(item.product_identifier, item.description)
+        if key is None or item.quantity is None or key not in authorized_quantities:
+            continue
+        current_quantities[key] = (
+            current_quantities.get(key, Decimal(0)) + item.quantity
+        )
+    if not current_quantities:
+        return []
+
+    prior_quantities, prior_invoice_counts = _prior_po_line_quantities(
+        invoice, history, set(current_quantities)
+    )
+    findings: list[VerificationFinding] = []
+    for key, current_quantity in current_quantities.items():
+        prior_count = prior_invoice_counts.get(key, 0)
+        if prior_count == 0:
+            continue
+        billed_quantity = prior_quantities[key] + current_quantity
+        authorized_quantity = authorized_quantities[key]
+        if billed_quantity <= authorized_quantity:
+            continue
+        findings.append(
+            VerificationFinding(
+                finding_type="purchase_order_mismatch",
+                severity="high",
+                explanation=(
+                    "Prior invoices against this purchase order plus this invoice "
+                    f"exceed the authorized quantity for '{key}'."
+                ),
+                comparison_source="purchase_order",
+                deterministic_rule=(
+                    "invoiced line-item quantities against a purchase order "
+                    "must not exceed the authorized quantity"
+                ),
+                observed_value=str(billed_quantity),
+                expected_value=str(authorized_quantity),
+                details={
+                    "field": "purchase_order_billed_line_item_quantity",
+                    "line_item_key": key,
+                    "prior_invoice_count": prior_count,
+                },
+            )
+        )
+    return findings
+
+
 def _mismatch_finding(
     *, field: str, observed_value: str, expected_value: str
 ) -> list[VerificationFinding]:
