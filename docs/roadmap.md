@@ -3029,6 +3029,70 @@ Phase 48 implements deterministic potential duplicate invoice detection:
 14. Record Phase 48 progress and Decision Log in `docs/PROGRESS.md`.
 15. Push micro-commits, open Draft PR, and verify remote CI is 100% green.
 
+## Phase 49: cumulative purchase-order line-item quantity ceiling verification
+
+Phase 49 extends `check_purchase_order_ceiling` in `veridoc.verification.purchase_orders` so split invoices against a single purchase order cannot cumulatively over-bill any individual line item's authorized quantity while remaining under the overall purchase-order total (ADR 0055).
+
+### Objective
+
+Phase 16 (ADR 0026) converted purchase-order matching into one-sided authorization ceilings and added a cumulative PO total ceiling (`check_purchase_order_ceiling`). However, when a purchase order authorizes multiple line items, a supplier can split-bill a single line item above its authorized quantity across multiple invoices while staying below the overall PO total and below the single-invoice line-item quantity limit on each individual invoice.
+
+Phase 49 implements deterministic cumulative purchase-order line-item quantity ceiling verification:
+1. Aggregate authorized quantities per canonical `line_item_key` across the referenced purchase order's line items, conservatively excluding any key where a PO line omits `quantity`.
+2. Aggregate current-invoice quantities and prior matching-PO, currency-compatible historical invoice quantities per `line_item_key`.
+3. For each line item key present on both the current invoice and at least one prior matching-PO invoice, when `prior_quantity + current_quantity > authorized_quantity`, emit one `high`-severity `purchase_order_mismatch` finding with `comparison_source="purchase_order"` and structured details (`field="purchase_order_billed_line_item_quantity"`, `line_item_key`, `prior_invoice_count`).
+4. Run line-item quantity ceiling checks inside `check_purchase_order_ceiling` even when `purchase_order.total` or `invoice.total` is absent, while keeping the no-prior-invoices case owned exclusively by `check_purchase_order`.
+
+### Scope
+
+- Architecture Decision Record 0055.
+- Pure helpers `_authorized_po_line_quantities`, `_prior_po_line_quantities`, and `_check_line_item_quantity_ceilings` in `src/veridoc/verification/purchase_orders.py`.
+- Integration into `check_purchase_order_ceiling` in `src/veridoc/verification/purchase_orders.py` (automatically invoked by `VerificationService.verify()`).
+- Unit, edge-case, multi-line PO, currency-filtering, immutability, and SQLite `VerificationService` integration tests in `tests/test_verification_purchase_orders.py`.
+- Documentation, roadmap status, progress record, and release evidence updates.
+
+### Acceptance criteria
+
+1. Split invoices whose cumulative line-item quantity exceeds the PO's authorized quantity emit one `high`-severity `purchase_order_mismatch` finding per exceeded `line_item_key` with `field="purchase_order_billed_line_item_quantity"`, `line_item_key`, and `prior_invoice_count`, even when cumulative header totals remain within `purchase_order.total`.
+2. Split invoices whose cumulative line-item quantity is at or below the authorized quantity emit `[]`.
+3. Single-invoice over-billing with zero prior matching-PO invoices emits `[]` from `check_purchase_order_ceiling` (owned exclusively by `check_purchase_order`).
+4. Multi-line POs with repeated `line_item_key` sum their authorized quantities; any key with an omitted (`None`) PO quantity is conservatively excluded.
+5. Prior invoices for other POs or incompatible currencies are ignored; POs without a header `total` still enforce line-item quantity ceilings.
+6. Input `InvoiceExtraction`, `PurchaseOrder`, and `history` remain strictly immutable.
+7. `VerificationService.verify()` routes cumulative line-item quantity over-billing to `review_required`.
+8. All local CI-parity checks and remote CI workflow runs pass 100%.
+
+### Validation plan
+
+- Run `uv run pytest tests/test_verification_purchase_orders.py tests/test_verification_service.py tests/test_documentation.py`.
+- Run `uv run ruff check .`, `uv run ruff format --check .`, and `uv run mypy`.
+- Run `uv run pytest --cov=veridoc` (>= 90% branch coverage).
+- Run distribution checks (`uv build --clear`, `twine check`, `check_distribution.py`, `smoke_distribution.py`).
+- Push phase branch, open Draft PR, and verify remote GitHub Actions CI passes 100%.
+
+### Exclusions
+
+- Per-line-item monetary amount ceilings (unit prices are already exact-matched in `check_purchase_order`, and header cumulative totals are already enforced).
+- Goods-receipt (3-way match) tracking or cross-currency FX conversion.
+
+### Micro-task breakdown
+
+1. Add Phase 49 specification to `docs/roadmap.md`.
+2. Record ADR 0055 in `docs/decisions/0055-cumulative-po-line-item-quantity-ceiling.md`.
+3. Register ADR 0055 in `docs/decisions/README.md`.
+4. Add `_authorized_po_line_quantities` helper in `src/veridoc/verification/purchase_orders.py`.
+5. Add `_prior_po_line_quantities` helper in `src/veridoc/verification/purchase_orders.py`.
+6. Add `_check_line_item_quantity_ceilings` helper in `src/veridoc/verification/purchase_orders.py`.
+7. Wire `_check_line_item_quantity_ceilings` into `check_purchase_order_ceiling` in `src/veridoc/verification/purchase_orders.py`.
+8. Add unit tests for split line-item over-billing under PO total, within-ceiling acceptance, and no-prior-invoice passthrough in `tests/test_verification_purchase_orders.py`.
+9. Add unit tests for repeated PO keys, omitted PO quantity exclusion, currency/PO filtering, and immutability in `tests/test_verification_purchase_orders.py`.
+10. Add SQLite `VerificationService` + verdict integration test in `tests/test_verification_purchase_orders.py`.
+11. Update documentation (`docs/architecture.md`, `CHANGELOG.md`, `README.md`, `AGENTS.md`).
+12. Mark Phase 49 complete in `docs/roadmap.md` status table and approval rule.
+13. Record Phase 49 completion snapshot in `docs/release-evidence.md`.
+14. Record Phase 49 progress and Decision Log in `docs/PROGRESS.md`.
+15. Push micro-commits, open Draft PR, and verify remote CI is 100% green.
+
 ## Approval rule
 
 Phases 0 through 13 and Phases 15 through 48 are complete. Phase 14 is
